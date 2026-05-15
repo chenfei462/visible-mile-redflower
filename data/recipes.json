@@ -1,0 +1,362 @@
+[
+  {
+    "recipe_id": "build_ramp",
+    "ingredient_card_ids": [
+      "ramp_blueprint",
+      "lumber_pack"
+    ],
+    "result_card_id": "community_ramp",
+    "unlock_trust": 0
+  },
+  {
+    "recipe_id": "build_handrail",
+    "ingredient_card_ids": [
+      "ramp_blueprint",
+      "paint_bucket"
+    ],
+    "result_card_id": "guide_handrail",
+    "unlock_trust": 0
+  },
+  {
+    "recipe_id": "open_volunteer_station",
+    "ingredient_card_ids": [
+      "volunteer_poster",
+      "phone_tree"
+    ],
+    "result_card_id": "volunteer_station",
+    "unlock_trust": 0
+  },
+  {
+    "recipe_id": "open_market_stall",
+    "ingredient_card_ids": [
+      "market_stall_plan",
+      "fresh_goods_box"
+    ],
+    "result_card_id": "market_stall",
+    "unlock_trust": 0
+  },
+  {
+    "recipe_id": "build_bench",
+    "ingredient_card_ids": [
+      "bench_plan",
+      "paint_bucket"
+    ],
+    "result_card_id": "rest_bench",
+    "unlock_trust": 0
+  },
+  {
+    "recipe_id": "upgrade_notice_board",
+    "ingredient_card_ids": [
+      "notice_design",
+      "printer_ink"
+    ],
+    "result_card_id": "clear_notice_board",
+    "unlock_trust": 0
+  },
+  {
+    "recipe_id": "restore_flower_bed",
+    "ingredient_card_ids": [
+      "garden_plan",
+      "seed_pack"
+    ],
+    "result_card_id": "flower_bed",
+    "unlock_trust": 10
+  },
+  {
+    "recipe_id": "care_station_upgrade",
+    "ingredient_card_ids": [
+      "volunteer_station",
+      "guide_handrail"
+    ],
+    "result_card_id": "care_station",
+    "unlock_trust": 25
+  },
+  {
+    "recipe_id": "care_plus_beauty",
+    "ingredient_card_ids": [
+      "care_station",
+      "flower_bed"
+    ],
+    "result_card_id": "care_station",
+    "unlock_trust": 25
+  },
+  {
+    "recipe_id": "service_network",
+    "ingredient_card_ids": [
+      "clear_notice_board",
+      "volunteer_station"
+    ],
+    "result_card_id": "care_station",
+    "unlock_trust": 25
+  },
+  {
+    "recipe_id": "build_wayfinding_kiosk",
+    "ingredient_card_ids": [
+      "safety_map_blueprint",
+      "sticker_pack"
+    ],
+    "result_card_id": "wayfinding_kiosk",
+    "unlock_trust": 0
+  },
+  {
+    "recipe_id": "build_shade_canopy",
+    "ingredient_card_ids": [
+      "shade_sail_plan",
+      "fabric_roll"
+    ],
+    "result_card_id": "shade_canopy",
+    "unlock_trust": 0
+  },
+  {
+    "recipe_id": "build_refill_station",
+    "ingredient_card_ids": [
+      "refill_station_plan",
+      "steel_pipe_bundle"
+    ],
+    "result_card_id": "refill_station",
+    "unlock_trust": 10
+  },
+  {
+    "recipe_id": "build_herb_corner",
+    "ingredient_card_ids": [
+      "herb_corner_plan",
+      "seedling_tray"
+    ],
+    "result_card_id": "herb_corner",
+    "unlock_trust": 10
+  },
+  {
+    "recipe_id": "build_repair_booth",
+    "ingredient_card_ids": [
+      "repair_booth_plan",
+      "tool_cart"
+    ],
+    "result_card_id": "repair_booth",
+    "unlock_trust": 10
+  },
+  {
+    "recipe_id": "build_story_wall",
+    "ingredient_card_ids": [
+      "story_wall_plan",
+      "print_banner"
+    ],
+    "result_card_id": "story_wall",
+    "unlock_trust": 10
+  },
+  {
+    "recipe_id": "build_community_kitchen",
+    "ingredient_card_ids": [
+      "community_kitchen_plan",
+      "cookware_crate"
+    ],
+    "result_card_id": "community_kitchen",
+    "unlock_trust": 25
+  },
+  {
+    "recipe_id": "build_shared_laundry",
+    "ingredient_card_ids": [
+      "shared_laundry_plan",
+      "detergent_box"
+    ],
+    "result_card_id": "shared_laundry",
+    "unlock_trust": 25
+  },
+  {
+    "recipe_id": "build_child_corner",
+    "ingredient_card_ids": [
+      "child_corner_plan",
+      "foam_mat_set"
+    ],
+    "result_card_id": "child_corner",
+    "unlock_trust": 25
+  },
+  {
+    "recipe_id": "build_senior_gym",
+    "ingredient_card_ids": [
+      "senior_gym_plan",
+      "elastic_band_pack"
+    ],
+    "result_card_id": "senior_gym",
+    "unlock_trust": 25
+  },
+  {
+    "recipe_id": "build_bike_parking",
+    "ingredient_card_ids": [
+      "bike_parking_plan",
+      "chain_lock_pack"
+    ],
+    "result_card_id": "bike_parking",
+    "unlock_trust": 10
+  },
+  {
+    "recipe_id": "build_clinic_desk",
+    "ingredient_card_ids": [
+      "clinic_desk_plan",
+      "medicine_kit"
+    ],
+    "result_card_id": "clinic_desk",
+    "unlock_trust": 25
+  },
+  {
+    "recipe_id": "assemble_umbrella_team",
+    "ingredient_card_ids": [
+      "volunteer_poster",
+      "fabric_roll"
+    ],
+    "result_card_id": "support_umbrella_team",
+    "unlock_trust": 0
+  },
+  {
+    "recipe_id": "assemble_queue_signs",
+    "ingredient_card_ids": [
+      "notice_design",
+      "print_banner"
+    ],
+    "result_card_id": "support_queue_signs",
+    "unlock_trust": 0
+  },
+  {
+    "recipe_id": "assemble_cooling_pack",
+    "ingredient_card_ids": [
+      "seed_pack",
+      "medicine_kit"
+    ],
+    "result_card_id": "support_cooling_pack",
+    "unlock_trust": 10
+  },
+  {
+    "recipe_id": "assemble_flashlight_kit",
+    "ingredient_card_ids": [
+      "phone_tree",
+      "steel_pipe_bundle"
+    ],
+    "result_card_id": "support_flashlight_kit",
+    "unlock_trust": 10
+  },
+  {
+    "recipe_id": "assemble_errand_route",
+    "ingredient_card_ids": [
+      "clear_notice_board",
+      "fresh_goods_box"
+    ],
+    "result_card_id": "support_errand_route",
+    "unlock_trust": 10
+  },
+  {
+    "recipe_id": "assemble_night_watch",
+    "ingredient_card_ids": [
+      "volunteer_station",
+      "paint_bucket"
+    ],
+    "result_card_id": "support_night_watch",
+    "unlock_trust": 10
+  },
+  {
+    "recipe_id": "assemble_garden_repair",
+    "ingredient_card_ids": [
+      "garden_plan",
+      "tool_cart"
+    ],
+    "result_card_id": "support_garden_repair",
+    "unlock_trust": 10
+  },
+  {
+    "recipe_id": "assemble_delivery_board",
+    "ingredient_card_ids": [
+      "market_stall_plan",
+      "print_banner"
+    ],
+    "result_card_id": "support_delivery_board",
+    "unlock_trust": 10
+  },
+  {
+    "recipe_id": "upgrade_market_shade",
+    "ingredient_card_ids": [
+      "market_stall",
+      "shade_canopy"
+    ],
+    "result_card_id": "market_stall",
+    "unlock_trust": 10
+  },
+  {
+    "recipe_id": "upgrade_notice_queue",
+    "ingredient_card_ids": [
+      "clear_notice_board",
+      "support_queue_signs"
+    ],
+    "result_card_id": "clear_notice_board",
+    "unlock_trust": 10
+  },
+  {
+    "recipe_id": "upgrade_garden_story",
+    "ingredient_card_ids": [
+      "flower_bed",
+      "story_wall"
+    ],
+    "result_card_id": "flower_bed",
+    "unlock_trust": 10
+  },
+  {
+    "recipe_id": "upgrade_care_route",
+    "ingredient_card_ids": [
+      "care_station",
+      "support_errand_route"
+    ],
+    "result_card_id": "care_station",
+    "unlock_trust": 25
+  },
+  {
+    "recipe_id": "upgrade_refill_umbrella",
+    "ingredient_card_ids": [
+      "refill_station",
+      "support_umbrella_team"
+    ],
+    "result_card_id": "refill_station",
+    "unlock_trust": 10
+  },
+  {
+    "recipe_id": "upgrade_repair_delivery",
+    "ingredient_card_ids": [
+      "repair_booth",
+      "support_delivery_board"
+    ],
+    "result_card_id": "repair_booth",
+    "unlock_trust": 10
+  },
+  {
+    "recipe_id": "upgrade_laundry_cooling",
+    "ingredient_card_ids": [
+      "shared_laundry",
+      "support_cooling_pack"
+    ],
+    "result_card_id": "shared_laundry",
+    "unlock_trust": 25
+  },
+  {
+    "recipe_id": "upgrade_child_listening",
+    "ingredient_card_ids": [
+      "child_corner",
+      "support_listening_table"
+    ],
+    "result_card_id": "child_corner",
+    "unlock_trust": 25
+  },
+  {
+    "recipe_id": "upgrade_clinic_health",
+    "ingredient_card_ids": [
+      "clinic_desk",
+      "support_health_check"
+    ],
+    "result_card_id": "clinic_desk",
+    "unlock_trust": 25
+  },
+  {
+    "recipe_id": "upgrade_bike_night",
+    "ingredient_card_ids": [
+      "bike_parking",
+      "support_night_watch"
+    ],
+    "result_card_id": "bike_parking",
+    "unlock_trust": 10
+  }
+]

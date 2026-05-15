@@ -1,0 +1,19 @@
+{
+  "phases": [
+    "sunrise",
+    "day",
+    "dusk",
+    "night"
+  ],
+  "max_days": 10,
+  "bulletin_cards_per_day": 5,
+  "player_card_choices_per_day": 3,
+  "key_event_days": [
+    2,
+    4,
+    6,
+    8,
+    10
+  ],
+  "tutorial_scene_enabled": true
+}

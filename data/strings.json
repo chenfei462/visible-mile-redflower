@@ -1,0 +1,19 @@
+{
+  "phases": {
+    "sunrise": "日出",
+    "day": "日间",
+    "dusk": "黄昏",
+    "night": "夜间"
+  },
+  "resources": {
+    "flowers": "小红花",
+    "funds": "资金",
+    "manpower": "人力",
+    "trust": "信任"
+  },
+  "ai_modes": {
+    "local": "本地模拟",
+    "live": "实时接口",
+    "hybrid": "混合回退"
+  }
+}

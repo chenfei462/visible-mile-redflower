@@ -1,0 +1,128 @@
+[
+  {
+    "resident_id": "wang_nainai",
+    "name": "王奶奶",
+    "portrait": "",
+    "starting_satisfaction": 68,
+    "daily_manpower": 1,
+    "specialty_resource": "flowers",
+    "specialty_amount": 1,
+    "active_wish_ids": [
+      "wish_safe_ramp"
+    ],
+    "portrait_key": "portrait_wang_nainai",
+    "bio": "关心坡道、休息位和陪行服务。",
+    "event_affinity_tags": [
+      "accessibility",
+      "care"
+    ]
+  },
+  {
+    "resident_id": "chen_shu",
+    "name": "陈叔",
+    "portrait": "",
+    "starting_satisfaction": 62,
+    "daily_manpower": 1,
+    "specialty_resource": "funds",
+    "specialty_amount": 1,
+    "active_wish_ids": [
+      "wish_easy_shopping"
+    ],
+    "portrait_key": "portrait_chen_shu",
+    "bio": "常跑早市，最在意排队和配送效率。",
+    "event_affinity_tags": [
+      "market",
+      "delivery"
+    ]
+  },
+  {
+    "resident_id": "xiao_lin",
+    "name": "小林",
+    "portrait": "",
+    "starting_satisfaction": 66,
+    "daily_manpower": 1,
+    "specialty_resource": "trust",
+    "specialty_amount": 1,
+    "active_wish_ids": [
+      "wish_better_notice"
+    ],
+    "portrait_key": "portrait_xiao_lin",
+    "bio": "负责通知群和公告栏，擅长组织协作。",
+    "event_affinity_tags": [
+      "communication",
+      "night"
+    ]
+  },
+  {
+    "resident_id": "li_shifu",
+    "name": "李师傅",
+    "portrait": "",
+    "starting_satisfaction": 64,
+    "daily_manpower": 1,
+    "specialty_resource": "funds",
+    "specialty_amount": 1,
+    "active_wish_ids": [
+      "wish_rest_space"
+    ],
+    "portrait_key": "portrait_li_shifu",
+    "bio": "修修补补离不开他，也最怕工具不齐。",
+    "event_affinity_tags": [
+      "repair",
+      "night"
+    ]
+  },
+  {
+    "resident_id": "zhang_ayi",
+    "name": "张阿姨",
+    "portrait": "",
+    "starting_satisfaction": 70,
+    "daily_manpower": 1,
+    "specialty_resource": "flowers",
+    "specialty_amount": 1,
+    "active_wish_ids": [
+      "wish_neighbor_care"
+    ],
+    "portrait_key": "portrait_zhang_ayi",
+    "bio": "对绿地和节庆氛围特别上心。",
+    "event_affinity_tags": [
+      "garden",
+      "festival"
+    ]
+  },
+  {
+    "resident_id": "liu_yisheng",
+    "name": "刘医生",
+    "portrait": "",
+    "starting_satisfaction": 67,
+    "daily_manpower": 1,
+    "specialty_resource": "trust",
+    "specialty_amount": 1,
+    "active_wish_ids": [
+      "wish_health_visit"
+    ],
+    "portrait_key": "portrait_liu_yisheng",
+    "bio": "第二阶段新增的健康联动角色。",
+    "event_affinity_tags": [
+      "health",
+      "care"
+    ]
+  },
+  {
+    "resident_id": "sun_tongxue",
+    "name": "孙同学",
+    "portrait": "",
+    "starting_satisfaction": 65,
+    "daily_manpower": 1,
+    "specialty_resource": "flowers",
+    "specialty_amount": 1,
+    "active_wish_ids": [
+      "wish_youth_participation"
+    ],
+    "portrait_key": "portrait_sun_tongxue",
+    "bio": "第二阶段新增的活动与宣传联动角色。",
+    "event_affinity_tags": [
+      "festival",
+      "culture"
+    ]
+  }
+]

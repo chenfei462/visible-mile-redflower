@@ -1,0 +1,2361 @@
+[
+  {
+    "card_id": "ramp_blueprint",
+    "name": "坡道图纸",
+    "type": "blueprint",
+    "rarity": "common",
+    "tags": [
+      "accessibility",
+      "construction"
+    ],
+    "description": "无障碍坡道的设计图纸。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "accessibility",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_ramp_blueprint",
+    "icon_key": "icon_ramp_blueprint",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "lumber_pack",
+    "name": "木料包",
+    "type": "material",
+    "rarity": "common",
+    "tags": [
+      "construction",
+      "material"
+    ],
+    "description": "建设社区设施需要的基础木料。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "住宅",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "build",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_lumber_pack",
+    "icon_key": "icon_lumber_pack",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "community_ramp",
+    "name": "社区坡道",
+    "type": "facility",
+    "rarity": "common",
+    "tags": [
+      "accessibility",
+      "service"
+    ],
+    "description": "帮助轮椅和助行器安全通行。",
+    "art": "",
+    "board_placeable": true,
+    "fund_cost": 2,
+    "manpower_cost": 1,
+    "primary_resource": "flowers",
+    "base_output": 1,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 1,
+    "synergy_group": "accessibility",
+    "adjacency_bonus": 1,
+    "unlock_trust": 0,
+    "art_key": "card_community_ramp",
+    "icon_key": "icon_community_ramp",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "guide_handrail",
+    "name": "导向扶手",
+    "type": "facility",
+    "rarity": "common",
+    "tags": [
+      "accessibility",
+      "housing"
+    ],
+    "description": "楼道和坡道边的安全扶手。",
+    "art": "",
+    "board_placeable": true,
+    "fund_cost": 1,
+    "manpower_cost": 1,
+    "primary_resource": "flowers",
+    "base_output": 1,
+    "preferred_zone": "住宅",
+    "preferred_zone_bonus": 1,
+    "synergy_group": "accessibility",
+    "adjacency_bonus": 1,
+    "unlock_trust": 0,
+    "art_key": "card_guide_handrail",
+    "icon_key": "icon_guide_handrail",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "volunteer_poster",
+    "name": "志愿者招募海报",
+    "type": "blueprint",
+    "rarity": "common",
+    "tags": [
+      "community",
+      "organization"
+    ],
+    "description": "为社区志愿网络招募更多帮手。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "volunteer",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_volunteer_poster",
+    "icon_key": "icon_volunteer_poster",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "phone_tree",
+    "name": "电话树名单",
+    "type": "material",
+    "rarity": "common",
+    "tags": [
+      "community",
+      "communication"
+    ],
+    "description": "登记联络人的紧急通讯名单。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "volunteer",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_phone_tree",
+    "icon_key": "icon_phone_tree",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "volunteer_station",
+    "name": "志愿者驿站",
+    "type": "facility",
+    "rarity": "common",
+    "tags": [
+      "community",
+      "service"
+    ],
+    "description": "居民互助和接单的基础服务点。",
+    "art": "",
+    "board_placeable": true,
+    "fund_cost": 2,
+    "manpower_cost": 1,
+    "primary_resource": "trust",
+    "base_output": 1,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 1,
+    "synergy_group": "volunteer",
+    "adjacency_bonus": 1,
+    "unlock_trust": 0,
+    "art_key": "card_volunteer_station",
+    "icon_key": "icon_volunteer_station",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "market_stall_plan",
+    "name": "便民摊位方案",
+    "type": "blueprint",
+    "rarity": "common",
+    "tags": [
+      "commerce",
+      "service"
+    ],
+    "description": "为社区设置简易便民摊位。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "商业",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "commerce",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_market_stall_plan",
+    "icon_key": "icon_market_stall_plan",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "fresh_goods_box",
+    "name": "民生货箱",
+    "type": "material",
+    "rarity": "common",
+    "tags": [
+      "commerce",
+      "material"
+    ],
+    "description": "用于搭建摊位的货架和物资。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "商业",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "commerce",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_fresh_goods_box",
+    "icon_key": "icon_fresh_goods_box",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "market_stall",
+    "name": "便民摊位",
+    "type": "facility",
+    "rarity": "common",
+    "tags": [
+      "commerce",
+      "service"
+    ],
+    "description": "让居民更方便获得日常补给。",
+    "art": "",
+    "board_placeable": true,
+    "fund_cost": 2,
+    "manpower_cost": 1,
+    "primary_resource": "funds",
+    "base_output": 1,
+    "preferred_zone": "商业",
+    "preferred_zone_bonus": 1,
+    "synergy_group": "commerce",
+    "adjacency_bonus": 1,
+    "unlock_trust": 0,
+    "art_key": "card_market_stall",
+    "icon_key": "icon_market_stall",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "bench_plan",
+    "name": "休息座椅方案",
+    "type": "blueprint",
+    "rarity": "common",
+    "tags": [
+      "care",
+      "public-space"
+    ],
+    "description": "为容易疲惫的居民准备更多停留点。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "绿地",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "care",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_bench_plan",
+    "icon_key": "icon_bench_plan",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "paint_bucket",
+    "name": "油漆工具箱",
+    "type": "material",
+    "rarity": "common",
+    "tags": [
+      "care",
+      "material"
+    ],
+    "description": "安装和修补公共设施时用得上的工具。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "care",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_paint_bucket",
+    "icon_key": "icon_paint_bucket",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "rest_bench",
+    "name": "休息长椅",
+    "type": "facility",
+    "rarity": "common",
+    "tags": [
+      "care",
+      "green"
+    ],
+    "description": "让老人和照护者有地方停下来。",
+    "art": "",
+    "board_placeable": true,
+    "fund_cost": 1,
+    "manpower_cost": 1,
+    "primary_resource": "flowers",
+    "base_output": 1,
+    "preferred_zone": "绿地",
+    "preferred_zone_bonus": 1,
+    "synergy_group": "care",
+    "adjacency_bonus": 1,
+    "unlock_trust": 0,
+    "art_key": "card_rest_bench",
+    "icon_key": "icon_rest_bench",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "notice_design",
+    "name": "公告排版方案",
+    "type": "blueprint",
+    "rarity": "common",
+    "tags": [
+      "communication",
+      "service"
+    ],
+    "description": "重新整理社区公告的版式。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "communication",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_notice_design",
+    "icon_key": "icon_notice_design",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "printer_ink",
+    "name": "油墨补充盒",
+    "type": "material",
+    "rarity": "common",
+    "tags": [
+      "communication",
+      "material"
+    ],
+    "description": "用于打印更清晰的通知。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "communication",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_printer_ink",
+    "icon_key": "icon_printer_ink",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "clear_notice_board",
+    "name": "清晰公告栏",
+    "type": "facility",
+    "rarity": "common",
+    "tags": [
+      "communication",
+      "service"
+    ],
+    "description": "让信息更容易被看见和理解。",
+    "art": "",
+    "board_placeable": true,
+    "fund_cost": 1,
+    "manpower_cost": 1,
+    "primary_resource": "trust",
+    "base_output": 1,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 1,
+    "synergy_group": "communication",
+    "adjacency_bonus": 1,
+    "unlock_trust": 0,
+    "art_key": "card_clear_notice_board",
+    "icon_key": "icon_clear_notice_board",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "garden_plan",
+    "name": "花坛整理计划",
+    "type": "blueprint",
+    "rarity": "common",
+    "tags": [
+      "green",
+      "care"
+    ],
+    "description": "把社区入口花坛重新整理起来。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "绿地",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "green",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_garden_plan",
+    "icon_key": "icon_garden_plan",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "seed_pack",
+    "name": "花种补给包",
+    "type": "material",
+    "rarity": "common",
+    "tags": [
+      "green",
+      "material"
+    ],
+    "description": "适合新手维护的花草种子。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "绿地",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "green",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_seed_pack",
+    "icon_key": "icon_seed_pack",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "flower_bed",
+    "name": "社区花坛",
+    "type": "facility",
+    "rarity": "common",
+    "tags": [
+      "green",
+      "beauty"
+    ],
+    "description": "给街角增加温度和识别度。",
+    "art": "",
+    "board_placeable": true,
+    "fund_cost": 2,
+    "manpower_cost": 1,
+    "primary_resource": "flowers",
+    "base_output": 2,
+    "preferred_zone": "绿地",
+    "preferred_zone_bonus": 1,
+    "synergy_group": "green",
+    "adjacency_bonus": 1,
+    "unlock_trust": 10,
+    "art_key": "card_flower_bed",
+    "icon_key": "icon_flower_bed",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "care_station",
+    "name": "互助照护站",
+    "type": "facility",
+    "rarity": "uncommon",
+    "tags": [
+      "care",
+      "service"
+    ],
+    "description": "把志愿调度和照护信息结合在一起。",
+    "art": "",
+    "board_placeable": true,
+    "fund_cost": 3,
+    "manpower_cost": 2,
+    "primary_resource": "trust",
+    "base_output": 2,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 1,
+    "synergy_group": "care",
+    "adjacency_bonus": 1,
+    "unlock_trust": 25,
+    "art_key": "card_care_station",
+    "icon_key": "icon_care_station",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "safety_map_blueprint",
+    "name": "导视地图蓝图",
+    "type": "blueprint",
+    "rarity": "common",
+    "tags": [
+      "wayfinding",
+      "service"
+    ],
+    "description": "为社区重点设施绘制清晰导视图。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "wayfinding",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_safety_map_blueprint",
+    "icon_key": "icon_safety_map_blueprint",
+    "resident_links": [
+      "xiao_lin"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "sticker_pack",
+    "name": "导视贴纸包",
+    "type": "material",
+    "rarity": "common",
+    "tags": [
+      "wayfinding",
+      "material"
+    ],
+    "description": "适合快速标记楼栋、坡道和服务点。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "wayfinding",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_sticker_pack",
+    "icon_key": "icon_sticker_pack",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "wayfinding_kiosk",
+    "name": "导视服务亭",
+    "type": "facility",
+    "rarity": "common",
+    "tags": [
+      "wayfinding",
+      "service"
+    ],
+    "description": "导视服务亭会成为第二阶段常用的稳定设施。",
+    "art": "",
+    "board_placeable": true,
+    "fund_cost": 2,
+    "manpower_cost": 1,
+    "primary_resource": "trust",
+    "base_output": 1,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 1,
+    "synergy_group": "wayfinding",
+    "adjacency_bonus": 1,
+    "unlock_trust": 0,
+    "art_key": "card_wayfinding_kiosk",
+    "icon_key": "icon_wayfinding_kiosk",
+    "resident_links": [
+      "xiao_lin"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "shade_sail_plan",
+    "name": "遮阳棚方案",
+    "type": "blueprint",
+    "rarity": "common",
+    "tags": [
+      "comfort",
+      "green"
+    ],
+    "description": "在活动区域加装基础遮阳结构。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "绿地",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "comfort",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_shade_sail_plan",
+    "icon_key": "icon_shade_sail_plan",
+    "resident_links": [
+      "wang_nainai"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "fabric_roll",
+    "name": "防晒帆布卷",
+    "type": "material",
+    "rarity": "common",
+    "tags": [
+      "comfort",
+      "material"
+    ],
+    "description": "能改造成简单遮阳结构的厚帆布。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "绿地",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "comfort",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_fabric_roll",
+    "icon_key": "icon_fabric_roll",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "shade_canopy",
+    "name": "共享遮阳棚",
+    "type": "facility",
+    "rarity": "common",
+    "tags": [
+      "comfort",
+      "green"
+    ],
+    "description": "共享遮阳棚会成为第二阶段常用的稳定设施。",
+    "art": "",
+    "board_placeable": true,
+    "fund_cost": 2,
+    "manpower_cost": 1,
+    "primary_resource": "flowers",
+    "base_output": 1,
+    "preferred_zone": "绿地",
+    "preferred_zone_bonus": 1,
+    "synergy_group": "comfort",
+    "adjacency_bonus": 1,
+    "unlock_trust": 0,
+    "art_key": "card_shade_canopy",
+    "icon_key": "icon_shade_canopy",
+    "resident_links": [
+      "wang_nainai"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "refill_station_plan",
+    "name": "补水点方案",
+    "type": "blueprint",
+    "rarity": "common",
+    "tags": [
+      "health",
+      "service"
+    ],
+    "description": "为居民和志愿者准备公共饮水点。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "health",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_refill_station_plan",
+    "icon_key": "icon_refill_station_plan",
+    "resident_links": [
+      "liu_yisheng"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "steel_pipe_bundle",
+    "name": "钢管组件",
+    "type": "material",
+    "rarity": "common",
+    "tags": [
+      "health",
+      "material"
+    ],
+    "description": "轻型支架与管件，适合搭建补水设施。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "health",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_steel_pipe_bundle",
+    "icon_key": "icon_steel_pipe_bundle",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "refill_station",
+    "name": "公共补水点",
+    "type": "facility",
+    "rarity": "common",
+    "tags": [
+      "health",
+      "service"
+    ],
+    "description": "公共补水点会成为第二阶段常用的稳定设施。",
+    "art": "",
+    "board_placeable": true,
+    "fund_cost": 2,
+    "manpower_cost": 1,
+    "primary_resource": "flowers",
+    "base_output": 1,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 1,
+    "synergy_group": "health",
+    "adjacency_bonus": 1,
+    "unlock_trust": 10,
+    "art_key": "card_refill_station",
+    "icon_key": "icon_refill_station",
+    "resident_links": [
+      "liu_yisheng"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "herb_corner_plan",
+    "name": "香草角方案",
+    "type": "blueprint",
+    "rarity": "common",
+    "tags": [
+      "garden",
+      "green"
+    ],
+    "description": "把闲置角落改成易照料的小花园。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "绿地",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "garden",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_herb_corner_plan",
+    "icon_key": "icon_herb_corner_plan",
+    "resident_links": [
+      "zhang_ayi"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "seedling_tray",
+    "name": "香草苗盘",
+    "type": "material",
+    "rarity": "common",
+    "tags": [
+      "garden",
+      "material"
+    ],
+    "description": "便于快速成活的小型香草苗。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "绿地",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "garden",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_seedling_tray",
+    "icon_key": "icon_seedling_tray",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "herb_corner",
+    "name": "香草休憩角",
+    "type": "facility",
+    "rarity": "common",
+    "tags": [
+      "garden",
+      "green"
+    ],
+    "description": "香草休憩角会成为第二阶段常用的稳定设施。",
+    "art": "",
+    "board_placeable": true,
+    "fund_cost": 2,
+    "manpower_cost": 1,
+    "primary_resource": "flowers",
+    "base_output": 1,
+    "preferred_zone": "绿地",
+    "preferred_zone_bonus": 1,
+    "synergy_group": "garden",
+    "adjacency_bonus": 1,
+    "unlock_trust": 10,
+    "art_key": "card_herb_corner",
+    "icon_key": "icon_herb_corner",
+    "resident_links": [
+      "zhang_ayi"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "repair_booth_plan",
+    "name": "修补摊位方案",
+    "type": "blueprint",
+    "rarity": "common",
+    "tags": [
+      "repair",
+      "service"
+    ],
+    "description": "为便民维修和工具借用预留摊位。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "商业",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "repair",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_repair_booth_plan",
+    "icon_key": "icon_repair_booth_plan",
+    "resident_links": [
+      "li_shifu"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "tool_cart",
+    "name": "工具推车",
+    "type": "material",
+    "rarity": "common",
+    "tags": [
+      "repair",
+      "material"
+    ],
+    "description": "常用维修工具和可移动工作台。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "商业",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "repair",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_tool_cart",
+    "icon_key": "icon_tool_cart",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "repair_booth",
+    "name": "修补服务摊",
+    "type": "facility",
+    "rarity": "common",
+    "tags": [
+      "repair",
+      "commerce"
+    ],
+    "description": "修补服务摊会成为第二阶段常用的稳定设施。",
+    "art": "",
+    "board_placeable": true,
+    "fund_cost": 2,
+    "manpower_cost": 1,
+    "primary_resource": "funds",
+    "base_output": 1,
+    "preferred_zone": "商业",
+    "preferred_zone_bonus": 1,
+    "synergy_group": "repair",
+    "adjacency_bonus": 1,
+    "unlock_trust": 10,
+    "art_key": "card_repair_booth",
+    "icon_key": "icon_repair_booth",
+    "resident_links": [
+      "li_shifu"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "story_wall_plan",
+    "name": "故事墙方案",
+    "type": "blueprint",
+    "rarity": "common",
+    "tags": [
+      "culture",
+      "service"
+    ],
+    "description": "用社区记忆装点公告和公共空间。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "culture",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_story_wall_plan",
+    "icon_key": "icon_story_wall_plan",
+    "resident_links": [
+      "sun_tongxue"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "print_banner",
+    "name": "印刷横幅",
+    "type": "material",
+    "rarity": "common",
+    "tags": [
+      "culture",
+      "material"
+    ],
+    "description": "可用于活动引导和故事墙展示。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "culture",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_print_banner",
+    "icon_key": "icon_print_banner",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "story_wall",
+    "name": "社区故事墙",
+    "type": "facility",
+    "rarity": "common",
+    "tags": [
+      "culture",
+      "service"
+    ],
+    "description": "社区故事墙会成为第二阶段常用的稳定设施。",
+    "art": "",
+    "board_placeable": true,
+    "fund_cost": 2,
+    "manpower_cost": 1,
+    "primary_resource": "trust",
+    "base_output": 1,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 1,
+    "synergy_group": "culture",
+    "adjacency_bonus": 1,
+    "unlock_trust": 10,
+    "art_key": "card_story_wall",
+    "icon_key": "icon_story_wall",
+    "resident_links": [
+      "sun_tongxue"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "community_kitchen_plan",
+    "name": "共享厨房方案",
+    "type": "blueprint",
+    "rarity": "uncommon",
+    "tags": [
+      "care",
+      "service"
+    ],
+    "description": "把闲置房间改造成共享备餐点。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "商业",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "care",
+    "adjacency_bonus": 0,
+    "unlock_trust": 25,
+    "art_key": "card_community_kitchen_plan",
+    "icon_key": "icon_community_kitchen_plan",
+    "resident_links": [
+      "chen_shu"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "cookware_crate",
+    "name": "餐厨物资箱",
+    "type": "material",
+    "rarity": "uncommon",
+    "tags": [
+      "care",
+      "material"
+    ],
+    "description": "适合共享厨房试运行的基础器具。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "商业",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "care",
+    "adjacency_bonus": 0,
+    "unlock_trust": 25,
+    "art_key": "card_cookware_crate",
+    "icon_key": "icon_cookware_crate",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "community_kitchen",
+    "name": "共享厨房",
+    "type": "facility",
+    "rarity": "uncommon",
+    "tags": [
+      "care",
+      "commerce"
+    ],
+    "description": "共享厨房会成为第二阶段常用的稳定设施。",
+    "art": "",
+    "board_placeable": true,
+    "fund_cost": 3,
+    "manpower_cost": 2,
+    "primary_resource": "funds",
+    "base_output": 2,
+    "preferred_zone": "商业",
+    "preferred_zone_bonus": 1,
+    "synergy_group": "care",
+    "adjacency_bonus": 1,
+    "unlock_trust": 25,
+    "art_key": "card_community_kitchen",
+    "icon_key": "icon_community_kitchen",
+    "resident_links": [
+      "chen_shu"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "shared_laundry_plan",
+    "name": "共享洗衣房方案",
+    "type": "blueprint",
+    "rarity": "uncommon",
+    "tags": [
+      "care",
+      "service"
+    ],
+    "description": "让行动不便居民也能稳定洗护。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "住宅",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "care",
+    "adjacency_bonus": 0,
+    "unlock_trust": 25,
+    "art_key": "card_shared_laundry_plan",
+    "icon_key": "icon_shared_laundry_plan",
+    "resident_links": [
+      "wang_nainai"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "detergent_box",
+    "name": "洗护补给箱",
+    "type": "material",
+    "rarity": "uncommon",
+    "tags": [
+      "care",
+      "material"
+    ],
+    "description": "包含洗衣和晾晒所需的日常用品。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "住宅",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "care",
+    "adjacency_bonus": 0,
+    "unlock_trust": 25,
+    "art_key": "card_detergent_box",
+    "icon_key": "icon_detergent_box",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "shared_laundry",
+    "name": "共享洗衣房",
+    "type": "facility",
+    "rarity": "uncommon",
+    "tags": [
+      "care",
+      "housing"
+    ],
+    "description": "共享洗衣房会成为第二阶段常用的稳定设施。",
+    "art": "",
+    "board_placeable": true,
+    "fund_cost": 3,
+    "manpower_cost": 2,
+    "primary_resource": "trust",
+    "base_output": 2,
+    "preferred_zone": "住宅",
+    "preferred_zone_bonus": 1,
+    "synergy_group": "care",
+    "adjacency_bonus": 1,
+    "unlock_trust": 25,
+    "art_key": "card_shared_laundry",
+    "icon_key": "icon_shared_laundry",
+    "resident_links": [
+      "wang_nainai"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "child_corner_plan",
+    "name": "儿童角方案",
+    "type": "blueprint",
+    "rarity": "uncommon",
+    "tags": [
+      "family",
+      "service"
+    ],
+    "description": "给托管和陪伴活动准备角落。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "family",
+    "adjacency_bonus": 0,
+    "unlock_trust": 25,
+    "art_key": "card_child_corner_plan",
+    "icon_key": "icon_child_corner_plan",
+    "resident_links": [
+      "sun_tongxue"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "foam_mat_set",
+    "name": "软垫组件",
+    "type": "material",
+    "rarity": "uncommon",
+    "tags": [
+      "family",
+      "material"
+    ],
+    "description": "给儿童活动和陪伴区增加安全性。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "family",
+    "adjacency_bonus": 0,
+    "unlock_trust": 25,
+    "art_key": "card_foam_mat_set",
+    "icon_key": "icon_foam_mat_set",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "child_corner",
+    "name": "儿童陪伴角",
+    "type": "facility",
+    "rarity": "uncommon",
+    "tags": [
+      "family",
+      "service"
+    ],
+    "description": "儿童陪伴角会成为第二阶段常用的稳定设施。",
+    "art": "",
+    "board_placeable": true,
+    "fund_cost": 3,
+    "manpower_cost": 2,
+    "primary_resource": "flowers",
+    "base_output": 2,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 1,
+    "synergy_group": "family",
+    "adjacency_bonus": 1,
+    "unlock_trust": 25,
+    "art_key": "card_child_corner",
+    "icon_key": "icon_child_corner",
+    "resident_links": [
+      "sun_tongxue"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "senior_gym_plan",
+    "name": "长者健身角方案",
+    "type": "blueprint",
+    "rarity": "uncommon",
+    "tags": [
+      "health",
+      "green"
+    ],
+    "description": "在绿地里布置轻量活动设施。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "绿地",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "health",
+    "adjacency_bonus": 0,
+    "unlock_trust": 25,
+    "art_key": "card_senior_gym_plan",
+    "icon_key": "icon_senior_gym_plan",
+    "resident_links": [
+      "wang_nainai"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "elastic_band_pack",
+    "name": "弹力带套装",
+    "type": "material",
+    "rarity": "uncommon",
+    "tags": [
+      "health",
+      "material"
+    ],
+    "description": "适合长者日常训练的轻器材。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "绿地",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "health",
+    "adjacency_bonus": 0,
+    "unlock_trust": 25,
+    "art_key": "card_elastic_band_pack",
+    "icon_key": "icon_elastic_band_pack",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "senior_gym",
+    "name": "长者健身角",
+    "type": "facility",
+    "rarity": "uncommon",
+    "tags": [
+      "health",
+      "green"
+    ],
+    "description": "长者健身角会成为第二阶段常用的稳定设施。",
+    "art": "",
+    "board_placeable": true,
+    "fund_cost": 3,
+    "manpower_cost": 2,
+    "primary_resource": "flowers",
+    "base_output": 2,
+    "preferred_zone": "绿地",
+    "preferred_zone_bonus": 1,
+    "synergy_group": "health",
+    "adjacency_bonus": 1,
+    "unlock_trust": 25,
+    "art_key": "card_senior_gym",
+    "icon_key": "icon_senior_gym",
+    "resident_links": [
+      "wang_nainai"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "bike_parking_plan",
+    "name": "自行车停放方案",
+    "type": "blueprint",
+    "rarity": "common",
+    "tags": [
+      "mobility",
+      "service"
+    ],
+    "description": "规范快递和居民车辆停靠。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "商业",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "mobility",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_bike_parking_plan",
+    "icon_key": "icon_bike_parking_plan",
+    "resident_links": [
+      "chen_shu"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "chain_lock_pack",
+    "name": "锁链组件",
+    "type": "material",
+    "rarity": "common",
+    "tags": [
+      "mobility",
+      "material"
+    ],
+    "description": "简易停车位和共享设备所需的锁具。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "商业",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "mobility",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_chain_lock_pack",
+    "icon_key": "icon_chain_lock_pack",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "bike_parking",
+    "name": "便民车位区",
+    "type": "facility",
+    "rarity": "common",
+    "tags": [
+      "mobility",
+      "commerce"
+    ],
+    "description": "便民车位区会成为第二阶段常用的稳定设施。",
+    "art": "",
+    "board_placeable": true,
+    "fund_cost": 2,
+    "manpower_cost": 1,
+    "primary_resource": "funds",
+    "base_output": 1,
+    "preferred_zone": "商业",
+    "preferred_zone_bonus": 1,
+    "synergy_group": "mobility",
+    "adjacency_bonus": 1,
+    "unlock_trust": 10,
+    "art_key": "card_bike_parking",
+    "icon_key": "icon_bike_parking",
+    "resident_links": [
+      "chen_shu"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "clinic_desk_plan",
+    "name": "健康咨询台方案",
+    "type": "blueprint",
+    "rarity": "uncommon",
+    "tags": [
+      "health",
+      "service"
+    ],
+    "description": "让居民获得基础咨询与转介。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "health",
+    "adjacency_bonus": 0,
+    "unlock_trust": 25,
+    "art_key": "card_clinic_desk_plan",
+    "icon_key": "icon_clinic_desk_plan",
+    "resident_links": [
+      "liu_yisheng"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "medicine_kit",
+    "name": "基础药箱",
+    "type": "material",
+    "rarity": "uncommon",
+    "tags": [
+      "health",
+      "material"
+    ],
+    "description": "志愿者和咨询台都能用上的基础药品。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "health",
+    "adjacency_bonus": 0,
+    "unlock_trust": 25,
+    "art_key": "card_medicine_kit",
+    "icon_key": "icon_medicine_kit",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "clinic_desk",
+    "name": "健康咨询台",
+    "type": "facility",
+    "rarity": "uncommon",
+    "tags": [
+      "health",
+      "service"
+    ],
+    "description": "健康咨询台会成为第二阶段常用的稳定设施。",
+    "art": "",
+    "board_placeable": true,
+    "fund_cost": 3,
+    "manpower_cost": 2,
+    "primary_resource": "trust",
+    "base_output": 2,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 1,
+    "synergy_group": "health",
+    "adjacency_bonus": 1,
+    "unlock_trust": 25,
+    "art_key": "card_clinic_desk",
+    "icon_key": "icon_clinic_desk",
+    "resident_links": [
+      "liu_yisheng"
+    ],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "support_umbrella_team",
+    "name": "雨天帮扶队",
+    "type": "support",
+    "rarity": "common",
+    "tags": [
+      "event",
+      "support",
+      "rain"
+    ],
+    "description": "志愿者带着雨具和便携指示牌快速出动。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "support",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_support_umbrella_team",
+    "icon_key": "icon_support_umbrella_team",
+    "resident_links": [
+      "xiao_lin",
+      "wang_nainai"
+    ],
+    "event_tags": [
+      "rain"
+    ],
+    "problem_payload": null
+  },
+  {
+    "card_id": "support_queue_signs",
+    "name": "排队导流牌",
+    "type": "support",
+    "rarity": "common",
+    "tags": [
+      "event",
+      "support",
+      "market"
+    ],
+    "description": "临时分流队伍，减少争执与拥堵。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "support",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_support_queue_signs",
+    "icon_key": "icon_support_queue_signs",
+    "resident_links": [
+      "chen_shu"
+    ],
+    "event_tags": [
+      "market"
+    ],
+    "problem_payload": null
+  },
+  {
+    "card_id": "support_cooling_pack",
+    "name": "清凉补给包",
+    "type": "support",
+    "rarity": "common",
+    "tags": [
+      "event",
+      "support",
+      "heat"
+    ],
+    "description": "高温天里的补水和降温组合。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "support",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_support_cooling_pack",
+    "icon_key": "icon_support_cooling_pack",
+    "resident_links": [
+      "liu_yisheng"
+    ],
+    "event_tags": [
+      "heat"
+    ],
+    "problem_payload": null
+  },
+  {
+    "card_id": "support_flashlight_kit",
+    "name": "夜间照明包",
+    "type": "support",
+    "rarity": "common",
+    "tags": [
+      "event",
+      "support",
+      "night"
+    ],
+    "description": "断电或夜巡时的临时照明支援。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "support",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_support_flashlight_kit",
+    "icon_key": "icon_support_flashlight_kit",
+    "resident_links": [
+      "li_shifu"
+    ],
+    "event_tags": [
+      "night"
+    ],
+    "problem_payload": null
+  },
+  {
+    "card_id": "support_errand_route",
+    "name": "代办路线单",
+    "type": "support",
+    "rarity": "common",
+    "tags": [
+      "event",
+      "support",
+      "care"
+    ],
+    "description": "把代买代取路线整理成稳定清单。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "support",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_support_errand_route",
+    "icon_key": "icon_support_errand_route",
+    "resident_links": [
+      "chen_shu"
+    ],
+    "event_tags": [
+      "care"
+    ],
+    "problem_payload": null
+  },
+  {
+    "card_id": "support_night_watch",
+    "name": "夜巡联络表",
+    "type": "support",
+    "rarity": "common",
+    "tags": [
+      "event",
+      "support",
+      "night"
+    ],
+    "description": "帮助志愿者轮班并同步风险信息。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "support",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_support_night_watch",
+    "icon_key": "icon_support_night_watch",
+    "resident_links": [
+      "xiao_lin"
+    ],
+    "event_tags": [
+      "night"
+    ],
+    "problem_payload": null
+  },
+  {
+    "card_id": "support_garden_repair",
+    "name": "花园修补包",
+    "type": "support",
+    "rarity": "common",
+    "tags": [
+      "event",
+      "support",
+      "garden"
+    ],
+    "description": "处理翻土、扶苗和边角修补的临时工具包。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "support",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_support_garden_repair",
+    "icon_key": "icon_support_garden_repair",
+    "resident_links": [
+      "zhang_ayi"
+    ],
+    "event_tags": [
+      "garden"
+    ],
+    "problem_payload": null
+  },
+  {
+    "card_id": "support_delivery_board",
+    "name": "配送接驳板",
+    "type": "support",
+    "rarity": "common",
+    "tags": [
+      "event",
+      "support",
+      "delivery"
+    ],
+    "description": "把配送和代取需求集中公告，减少混乱。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "support",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_support_delivery_board",
+    "icon_key": "icon_support_delivery_board",
+    "resident_links": [
+      "chen_shu"
+    ],
+    "event_tags": [
+      "delivery"
+    ],
+    "problem_payload": null
+  },
+  {
+    "card_id": "support_elevator_team",
+    "name": "楼道互助队",
+    "type": "support",
+    "rarity": "uncommon",
+    "tags": [
+      "event",
+      "support",
+      "mobility"
+    ],
+    "description": "需要临时抬运和陪同步行时派得上用场。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "support",
+    "adjacency_bonus": 0,
+    "unlock_trust": 25,
+    "art_key": "card_support_elevator_team",
+    "icon_key": "icon_support_elevator_team",
+    "resident_links": [
+      "wang_nainai"
+    ],
+    "event_tags": [
+      "mobility"
+    ],
+    "problem_payload": null
+  },
+  {
+    "card_id": "support_festival_banner",
+    "name": "节庆布置包",
+    "type": "support",
+    "rarity": "uncommon",
+    "tags": [
+      "event",
+      "support",
+      "festival"
+    ],
+    "description": "帮助居民快速组织节庆和摊位动线。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "support",
+    "adjacency_bonus": 0,
+    "unlock_trust": 25,
+    "art_key": "card_support_festival_banner",
+    "icon_key": "icon_support_festival_banner",
+    "resident_links": [
+      "sun_tongxue"
+    ],
+    "event_tags": [
+      "festival"
+    ],
+    "problem_payload": null
+  },
+  {
+    "card_id": "support_health_check",
+    "name": "健康筛查单",
+    "type": "support",
+    "rarity": "uncommon",
+    "tags": [
+      "event",
+      "support",
+      "health"
+    ],
+    "description": "将重点人群和行动需求整理成轻量台账。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "support",
+    "adjacency_bonus": 0,
+    "unlock_trust": 25,
+    "art_key": "card_support_health_check",
+    "icon_key": "icon_support_health_check",
+    "resident_links": [
+      "liu_yisheng"
+    ],
+    "event_tags": [
+      "health"
+    ],
+    "problem_payload": null
+  },
+  {
+    "card_id": "support_listening_table",
+    "name": "倾听茶桌",
+    "type": "support",
+    "rarity": "uncommon",
+    "tags": [
+      "event",
+      "support",
+      "trust"
+    ],
+    "description": "让居民在轻松环境里说出真正的问题。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "support",
+    "adjacency_bonus": 0,
+    "unlock_trust": 25,
+    "art_key": "card_support_listening_table",
+    "icon_key": "icon_support_listening_table",
+    "resident_links": [
+      "sun_tongxue"
+    ],
+    "event_tags": [
+      "trust"
+    ],
+    "problem_payload": null
+  },
+  {
+    "card_id": "problem_rainy_walkway",
+    "name": "雨天通行受阻",
+    "type": "problem",
+    "rarity": "common",
+    "tags": [
+      "problem",
+      "rain"
+    ],
+    "description": "连续降雨后，坡道和转角都变得湿滑难走。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "problem",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_problem_rainy_walkway",
+    "icon_key": "icon_problem_rainy_walkway",
+    "resident_links": [
+      "wang_nainai",
+      "xiao_lin"
+    ],
+    "event_tags": [
+      "rain"
+    ],
+    "problem_payload": {
+      "category": "access",
+      "severity": 1
+    }
+  },
+  {
+    "card_id": "problem_market_queue",
+    "name": "早市排队拥堵",
+    "type": "problem",
+    "rarity": "common",
+    "tags": [
+      "problem",
+      "market"
+    ],
+    "description": "早市高峰期的动线和排队矛盾明显升级。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "problem",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_problem_market_queue",
+    "icon_key": "icon_problem_market_queue",
+    "resident_links": [
+      "chen_shu"
+    ],
+    "event_tags": [
+      "market"
+    ],
+    "problem_payload": {
+      "category": "queue",
+      "severity": 1
+    }
+  },
+  {
+    "card_id": "problem_heatwave_visit",
+    "name": "高温探访压力",
+    "type": "problem",
+    "rarity": "common",
+    "tags": [
+      "problem",
+      "heat"
+    ],
+    "description": "高温天里需要加密探访和补水提醒。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "problem",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_problem_heatwave_visit",
+    "icon_key": "icon_problem_heatwave_visit",
+    "resident_links": [
+      "liu_yisheng",
+      "wang_nainai"
+    ],
+    "event_tags": [
+      "heat"
+    ],
+    "problem_payload": {
+      "category": "care",
+      "severity": 2
+    }
+  },
+  {
+    "card_id": "problem_power_outage",
+    "name": "临时停电影响",
+    "type": "problem",
+    "rarity": "common",
+    "tags": [
+      "problem",
+      "night"
+    ],
+    "description": "夜间临时停电让公告和楼道协助都变得困难。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "problem",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_problem_power_outage",
+    "icon_key": "icon_problem_power_outage",
+    "resident_links": [
+      "xiao_lin",
+      "li_shifu"
+    ],
+    "event_tags": [
+      "night"
+    ],
+    "problem_payload": {
+      "category": "risk",
+      "severity": 2
+    }
+  },
+  {
+    "card_id": "problem_festival_setup",
+    "name": "节庆布置超负荷",
+    "type": "problem",
+    "rarity": "uncommon",
+    "tags": [
+      "problem",
+      "festival"
+    ],
+    "description": "临近展示日，摊位和动线布置任务堆在一起。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "problem",
+    "adjacency_bonus": 0,
+    "unlock_trust": 25,
+    "art_key": "card_problem_festival_setup",
+    "icon_key": "icon_problem_festival_setup",
+    "resident_links": [
+      "sun_tongxue",
+      "zhang_ayi"
+    ],
+    "event_tags": [
+      "festival"
+    ],
+    "problem_payload": {
+      "category": "festival",
+      "severity": 2
+    }
+  },
+  {
+    "card_id": "problem_pharmacy_run",
+    "name": "代买药路线混乱",
+    "type": "problem",
+    "rarity": "common",
+    "tags": [
+      "problem",
+      "care"
+    ],
+    "description": "多位居民的取药需求撞到了一起。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "problem",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_problem_pharmacy_run",
+    "icon_key": "icon_problem_pharmacy_run",
+    "resident_links": [
+      "liu_yisheng",
+      "chen_shu"
+    ],
+    "event_tags": [
+      "care"
+    ],
+    "problem_payload": {
+      "category": "care",
+      "severity": 1
+    }
+  },
+  {
+    "card_id": "problem_night_patrol",
+    "name": "夜巡信息不同步",
+    "type": "problem",
+    "rarity": "common",
+    "tags": [
+      "problem",
+      "night"
+    ],
+    "description": "夜巡志愿者之间缺少统一的联络和标记。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "problem",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_problem_night_patrol",
+    "icon_key": "icon_problem_night_patrol",
+    "resident_links": [
+      "xiao_lin"
+    ],
+    "event_tags": [
+      "night"
+    ],
+    "problem_payload": {
+      "category": "risk",
+      "severity": 1
+    }
+  },
+  {
+    "card_id": "problem_garden_repair",
+    "name": "绿地边角破损",
+    "type": "problem",
+    "rarity": "common",
+    "tags": [
+      "problem",
+      "garden"
+    ],
+    "description": "花坛边角松动，居民容易踩空绊脚。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "problem",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_problem_garden_repair",
+    "icon_key": "icon_problem_garden_repair",
+    "resident_links": [
+      "zhang_ayi"
+    ],
+    "event_tags": [
+      "garden"
+    ],
+    "problem_payload": {
+      "category": "repair",
+      "severity": 1
+    }
+  },
+  {
+    "card_id": "problem_delivery_delay",
+    "name": "配送接驳混乱",
+    "type": "problem",
+    "rarity": "common",
+    "tags": [
+      "problem",
+      "delivery"
+    ],
+    "description": "快递、代取和便民摊位彼此打架。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "problem",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_problem_delivery_delay",
+    "icon_key": "icon_problem_delivery_delay",
+    "resident_links": [
+      "chen_shu"
+    ],
+    "event_tags": [
+      "delivery"
+    ],
+    "problem_payload": {
+      "category": "commerce",
+      "severity": 1
+    }
+  },
+  {
+    "card_id": "problem_elevator_help",
+    "name": "楼道陪行需求暴增",
+    "type": "problem",
+    "rarity": "uncommon",
+    "tags": [
+      "problem",
+      "mobility"
+    ],
+    "description": "近期楼道陪行和抬运协助需求突然增多。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "problem",
+    "adjacency_bonus": 0,
+    "unlock_trust": 25,
+    "art_key": "card_problem_elevator_help",
+    "icon_key": "icon_problem_elevator_help",
+    "resident_links": [
+      "wang_nainai"
+    ],
+    "event_tags": [
+      "mobility"
+    ],
+    "problem_payload": {
+      "category": "access",
+      "severity": 2
+    }
+  },
+  {
+    "card_id": "problem_notice_conflict",
+    "name": "公告理解冲突",
+    "type": "problem",
+    "rarity": "common",
+    "tags": [
+      "problem",
+      "trust"
+    ],
+    "description": "同一件事情在不同公告和群消息里说法不一。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "problem",
+    "adjacency_bonus": 0,
+    "unlock_trust": 10,
+    "art_key": "card_problem_notice_conflict",
+    "icon_key": "icon_problem_notice_conflict",
+    "resident_links": [
+      "xiao_lin",
+      "sun_tongxue"
+    ],
+    "event_tags": [
+      "trust"
+    ],
+    "problem_payload": {
+      "category": "communication",
+      "severity": 1
+    }
+  },
+  {
+    "card_id": "problem_medical_check",
+    "name": "义诊登记超量",
+    "type": "problem",
+    "rarity": "uncommon",
+    "tags": [
+      "problem",
+      "health"
+    ],
+    "description": "义诊日登记人数太多，现场秩序需要快速支援。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "problem",
+    "adjacency_bonus": 0,
+    "unlock_trust": 25,
+    "art_key": "card_problem_medical_check",
+    "icon_key": "icon_problem_medical_check",
+    "resident_links": [
+      "liu_yisheng"
+    ],
+    "event_tags": [
+      "health"
+    ],
+    "problem_payload": {
+      "category": "health",
+      "severity": 2
+    }
+  }
+]

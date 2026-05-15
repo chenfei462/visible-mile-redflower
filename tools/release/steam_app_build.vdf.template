@@ -1,0 +1,15 @@
+"appbuild"
+{
+    "appid" "<STEAM_APP_ID>"
+    "desc" "Visible One Kilometer Demo build <VERSION>"
+    "buildoutput" "<STEAM_BUILD_OUTPUT_DIR>"
+    "contentroot" "<ABSOLUTE_CONTENT_ROOT>"
+    "setlive" "<BRANCH_NAME_OR_EMPTY>"
+    "preview" "0"
+    "local" ""
+
+    "depots"
+    {
+        "<STEAM_WINDOWS_DEPOT_ID>" "steam_depot_windows.vdf"
+    }
+}

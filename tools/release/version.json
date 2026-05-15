@@ -1,0 +1,6 @@
+{
+    "version":  "0.3.0",
+    "build_channel":  "demo",
+    "display_name":  "看得见的一公里 Demo",
+    "notes":  "Competition Demo build with saves, AI fallback, accessibility options, annual report endings, and demo balance smoke coverage."
+}

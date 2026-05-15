@@ -1,0 +1,16 @@
+# Godot local/editor state
+.godot/
+
+# Exported builds and packaged releases
+build/
+dist/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.tmp
+*.log
+
+# Local secrets or machine-specific config
+*.env
+*.local

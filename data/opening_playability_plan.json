@@ -1,0 +1,95 @@
+{
+  "days": [
+    {
+      "day": 1,
+      "bulletin_card_ids": [
+        "ramp_blueprint",
+        "lumber_pack",
+        "market_stall_plan",
+        "fresh_goods_box",
+        "volunteer_poster"
+      ],
+      "recommended_goal_ids": [
+        "craft",
+        "build",
+        "wish_safe_ramp"
+      ],
+      "recommended_recipe_ids": [
+        "build_ramp",
+        "open_market_stall"
+      ],
+      "recommended_wish_ids": [
+        "wish_safe_ramp",
+        "wish_easy_shopping"
+      ],
+      "pressure_event_ids": [],
+      "fallback_card_ids": [
+        "phone_tree",
+        "bench_plan",
+        "paint_bucket"
+      ]
+    },
+    {
+      "day": 2,
+      "bulletin_card_ids": [
+        "bench_plan",
+        "paint_bucket",
+        "notice_design",
+        "printer_ink",
+        "lumber_pack"
+      ],
+      "recommended_goal_ids": [
+        "craft",
+        "build",
+        "problem"
+      ],
+      "recommended_recipe_ids": [
+        "build_bench",
+        "upgrade_notice_board"
+      ],
+      "recommended_wish_ids": [
+        "wish_rest_space",
+        "wish_better_notice"
+      ],
+      "pressure_event_ids": [
+        "event_day2_rain_path"
+      ],
+      "fallback_card_ids": [
+        "ramp_blueprint",
+        "volunteer_poster",
+        "phone_tree"
+      ]
+    },
+    {
+      "day": 3,
+      "bulletin_card_ids": [
+        "shade_sail_plan",
+        "fabric_roll",
+        "safety_map_blueprint",
+        "sticker_pack",
+        "volunteer_poster"
+      ],
+      "recommended_goal_ids": [
+        "craft",
+        "build",
+        "problem"
+      ],
+      "recommended_recipe_ids": [
+        "build_shade_canopy",
+        "build_wayfinding_kiosk"
+      ],
+      "recommended_wish_ids": [
+        "wish_safe_ramp_2",
+        "wish_better_notice_2"
+      ],
+      "pressure_event_ids": [
+        "event_day3_notice_conflict"
+      ],
+      "fallback_card_ids": [
+        "phone_tree",
+        "notice_design",
+        "printer_ink"
+      ]
+    }
+  ]
+}
