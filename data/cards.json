@@ -74,6 +74,35 @@
     "synergy_group": "accessibility",
     "adjacency_bonus": 1,
     "unlock_trust": 0,
+    "flower_cost": 0,
+    "unlock_flower_cost": 0,
+    "unlock_category": "starter_facility",
+    "shape_cells": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        2,
+        0
+      ]
+    ],
+    "can_rotate": true,
+    "zone_requirements": [
+      "服务"
+    ],
+    "synergy_rules": [
+      {
+        "with_group": "communication",
+        "bonus_resource": "trust",
+        "bonus_amount": 1,
+        "label": "公告协同"
+      }
+    ],
     "art_key": "card_community_ramp",
     "icon_key": "icon_community_ramp",
     "resident_links": [],
@@ -105,7 +134,22 @@
     "icon_key": "icon_guide_handrail",
     "resident_links": [],
     "event_tags": [],
-    "problem_payload": null
+    "problem_payload": null,
+    "shape_cells": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        2,
+        0
+      ]
+    ],
+    "can_rotate": true
   },
   {
     "card_id": "volunteer_poster",
@@ -162,6 +206,112 @@
     "problem_payload": null
   },
   {
+    "card_id": "welcome_table_plan",
+    "name": "欢迎桌方案",
+    "type": "blueprint",
+    "rarity": "common",
+    "tags": [
+      "community",
+      "service"
+    ],
+    "description": "一张能把志愿者、公告和邻里问询串起来的简易服务桌方案。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "volunteer",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_welcome_table_plan",
+    "icon_key": "icon_welcome_table_plan",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "folding_table_kit",
+    "name": "折叠桌套件",
+    "type": "material",
+    "rarity": "common",
+    "tags": [
+      "community",
+      "material",
+      "commerce"
+    ],
+    "description": "能快速搭起临时服务点、摊位或登记台的轻便套件。",
+    "art": "",
+    "board_placeable": false,
+    "fund_cost": 0,
+    "manpower_cost": 0,
+    "primary_resource": "",
+    "base_output": 0,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 0,
+    "synergy_group": "volunteer",
+    "adjacency_bonus": 0,
+    "unlock_trust": 0,
+    "art_key": "card_folding_table_kit",
+    "icon_key": "icon_folding_table_kit",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
+    "card_id": "welcome_table",
+    "name": "邻里欢迎桌",
+    "type": "facility",
+    "rarity": "common",
+    "tags": [
+      "community",
+      "communication",
+      "service"
+    ],
+    "description": "低成本的问询和登记点，适合在开局快速放上棋盘。",
+    "art": "",
+    "board_placeable": true,
+    "fund_cost": 1,
+    "manpower_cost": 0,
+    "primary_resource": "trust",
+    "base_output": 1,
+    "preferred_zone": "服务",
+    "preferred_zone_bonus": 1,
+    "synergy_group": "volunteer",
+    "adjacency_bonus": 1,
+    "production_outputs": {
+      "info_notes": 1
+    },
+    "unlock_trust": 0,
+    "flower_cost": 0,
+    "unlock_flower_cost": 0,
+    "unlock_category": "starter_facility",
+    "shape_cells": [
+      [
+        0,
+        0
+      ]
+    ],
+    "can_rotate": false,
+    "zone_requirements": [
+      "服务"
+    ],
+    "synergy_rules": [
+      {
+        "with_group": "communication",
+        "problem_manpower_bonus": 1,
+        "label": "问询协同"
+      }
+    ],
+    "art_key": "card_welcome_table",
+    "icon_key": "icon_welcome_table",
+    "resident_links": [],
+    "event_tags": [],
+    "problem_payload": null
+  },
+  {
     "card_id": "volunteer_station",
     "name": "志愿者驿站",
     "type": "facility",
@@ -181,7 +331,38 @@
     "preferred_zone_bonus": 1,
     "synergy_group": "volunteer",
     "adjacency_bonus": 1,
+    "production_outputs": {
+      "info_notes": 1
+    },
     "unlock_trust": 0,
+    "flower_cost": 0,
+    "unlock_flower_cost": 0,
+    "unlock_category": "starter_facility",
+    "shape_cells": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        0,
+        1
+      ]
+    ],
+    "can_rotate": true,
+    "zone_requirements": [
+      "服务"
+    ],
+    "synergy_rules": [
+      {
+        "with_group": "communication",
+        "problem_manpower_bonus": 1,
+        "label": "联络协同"
+      }
+    ],
     "art_key": "card_volunteer_station",
     "icon_key": "icon_volunteer_station",
     "resident_links": [],
@@ -267,7 +448,18 @@
     "icon_key": "icon_market_stall",
     "resident_links": [],
     "event_tags": [],
-    "problem_payload": null
+    "problem_payload": null,
+    "shape_cells": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ]
+    ],
+    "can_rotate": true
   },
   {
     "card_id": "bench_plan",
@@ -344,6 +536,31 @@
     "synergy_group": "care",
     "adjacency_bonus": 1,
     "unlock_trust": 0,
+    "flower_cost": 0,
+    "unlock_flower_cost": 0,
+    "unlock_category": "starter_facility",
+    "shape_cells": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ]
+    ],
+    "can_rotate": true,
+    "zone_requirements": [
+      "绿地"
+    ],
+    "synergy_rules": [
+      {
+        "with_group": "green",
+        "bonus_resource": "trust",
+        "bonus_amount": 1,
+        "label": "休憩绿化"
+      }
+    ],
     "art_key": "card_rest_bench",
     "icon_key": "icon_rest_bench",
     "resident_links": [],
@@ -424,7 +641,23 @@
     "preferred_zone_bonus": 1,
     "synergy_group": "communication",
     "adjacency_bonus": 1,
+    "production_outputs": {
+      "info_notes": 2
+    },
     "unlock_trust": 0,
+    "flower_cost": 0,
+    "unlock_flower_cost": 0,
+    "unlock_category": "starter_facility",
+    "shape_cells": [
+      [
+        0,
+        0
+      ]
+    ],
+    "can_rotate": false,
+    "zone_requirements": [
+      "服务"
+    ],
     "art_key": "card_clear_notice_board",
     "icon_key": "icon_clear_notice_board",
     "resident_links": [],
@@ -505,7 +738,43 @@
     "preferred_zone_bonus": 1,
     "synergy_group": "green",
     "adjacency_bonus": 1,
+    "production_outputs": {
+      "seedling_tray": 1
+    },
     "unlock_trust": 10,
+    "flower_cost": 0,
+    "unlock_flower_cost": 2,
+    "unlock_category": "key_facility",
+    "shape_cells": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "can_rotate": false,
+    "zone_requirements": [
+      "绿地"
+    ],
+    "synergy_rules": [
+      {
+        "with_group": "care",
+        "bonus_resource": "flowers",
+        "bonus_amount": 1,
+        "label": "休憩绿化"
+      }
+    ],
     "art_key": "card_flower_bed",
     "icon_key": "icon_flower_bed",
     "resident_links": [],
@@ -537,7 +806,26 @@
     "icon_key": "icon_care_station",
     "resident_links": [],
     "event_tags": [],
-    "problem_payload": null
+    "problem_payload": null,
+    "shape_cells": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "can_rotate": true
   },
   {
     "card_id": "safety_map_blueprint",
@@ -622,7 +910,14 @@
       "xiao_lin"
     ],
     "event_tags": [],
-    "problem_payload": null
+    "problem_payload": null,
+    "shape_cells": [
+      [
+        0,
+        0
+      ]
+    ],
+    "can_rotate": false
   },
   {
     "card_id": "shade_sail_plan",
@@ -707,7 +1002,26 @@
       "wang_nainai"
     ],
     "event_tags": [],
-    "problem_payload": null
+    "problem_payload": null,
+    "shape_cells": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "can_rotate": false
   },
   {
     "card_id": "refill_station_plan",
@@ -792,7 +1106,14 @@
       "liu_yisheng"
     ],
     "event_tags": [],
-    "problem_payload": null
+    "problem_payload": null,
+    "shape_cells": [
+      [
+        0,
+        0
+      ]
+    ],
+    "can_rotate": false
   },
   {
     "card_id": "herb_corner_plan",
@@ -877,7 +1198,22 @@
       "zhang_ayi"
     ],
     "event_tags": [],
-    "problem_payload": null
+    "problem_payload": null,
+    "shape_cells": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        0,
+        1
+      ]
+    ],
+    "can_rotate": true
   },
   {
     "card_id": "repair_booth_plan",
@@ -955,6 +1291,9 @@
     "preferred_zone_bonus": 1,
     "synergy_group": "repair",
     "adjacency_bonus": 1,
+    "production_outputs": {
+      "tool_parts": 2
+    },
     "unlock_trust": 10,
     "art_key": "card_repair_booth",
     "icon_key": "icon_repair_booth",
@@ -962,7 +1301,18 @@
       "li_shifu"
     ],
     "event_tags": [],
-    "problem_payload": null
+    "problem_payload": null,
+    "shape_cells": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ]
+    ],
+    "can_rotate": true
   },
   {
     "card_id": "story_wall_plan",
@@ -1047,7 +1397,22 @@
       "sun_tongxue"
     ],
     "event_tags": [],
-    "problem_payload": null
+    "problem_payload": null,
+    "shape_cells": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        2,
+        0
+      ]
+    ],
+    "can_rotate": true
   },
   {
     "card_id": "community_kitchen_plan",
@@ -1125,6 +1490,10 @@
     "preferred_zone_bonus": 1,
     "synergy_group": "care",
     "adjacency_bonus": 1,
+    "production_outputs": {
+      "care_pack": 1,
+      "fabric_roll": 1
+    },
     "unlock_trust": 25,
     "art_key": "card_community_kitchen",
     "icon_key": "icon_community_kitchen",
@@ -1132,7 +1501,26 @@
       "chen_shu"
     ],
     "event_tags": [],
-    "problem_payload": null
+    "problem_payload": null,
+    "shape_cells": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "can_rotate": true
   },
   {
     "card_id": "shared_laundry_plan",
@@ -1217,7 +1605,26 @@
       "wang_nainai"
     ],
     "event_tags": [],
-    "problem_payload": null
+    "problem_payload": null,
+    "shape_cells": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "can_rotate": false
   },
   {
     "card_id": "child_corner_plan",
@@ -1302,7 +1709,26 @@
       "sun_tongxue"
     ],
     "event_tags": [],
-    "problem_payload": null
+    "problem_payload": null,
+    "shape_cells": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "can_rotate": false
   },
   {
     "card_id": "senior_gym_plan",
@@ -1380,6 +1806,9 @@
     "preferred_zone_bonus": 1,
     "synergy_group": "health",
     "adjacency_bonus": 1,
+    "production_outputs": {
+      "care_pack": 2
+    },
     "unlock_trust": 25,
     "art_key": "card_senior_gym",
     "icon_key": "icon_senior_gym",
@@ -1387,7 +1816,30 @@
       "wang_nainai"
     ],
     "event_tags": [],
-    "problem_payload": null
+    "problem_payload": null,
+    "shape_cells": [
+      [
+        1,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        1,
+        2
+      ]
+    ],
+    "can_rotate": false
   },
   {
     "card_id": "bike_parking_plan",
@@ -1472,7 +1924,26 @@
       "chen_shu"
     ],
     "event_tags": [],
-    "problem_payload": null
+    "problem_payload": null,
+    "shape_cells": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        3,
+        0
+      ]
+    ],
+    "can_rotate": true
   },
   {
     "card_id": "clinic_desk_plan",
@@ -1495,6 +1966,19 @@
     "synergy_group": "health",
     "adjacency_bonus": 0,
     "unlock_trust": 25,
+    "flower_cost": 0,
+    "unlock_flower_cost": 4,
+    "unlock_category": "key_blueprint",
+    "zone_requirements": [
+      "服务"
+    ],
+    "upgrade_options": [
+      {
+        "upgrade_id": "clinic_triage_board",
+        "flower_cost": 3,
+        "effect": "health_event_prep"
+      }
+    ],
     "art_key": "card_clinic_desk_plan",
     "icon_key": "icon_clinic_desk_plan",
     "resident_links": [
@@ -1557,7 +2041,22 @@
       "liu_yisheng"
     ],
     "event_tags": [],
-    "problem_payload": null
+    "problem_payload": null,
+    "shape_cells": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        0,
+        1
+      ]
+    ],
+    "can_rotate": true
   },
   {
     "card_id": "support_umbrella_team",

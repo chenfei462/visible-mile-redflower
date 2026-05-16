@@ -124,5 +124,87 @@
       "festival",
       "culture"
     ]
+  },
+  {
+    "resident_id": "gao_meihua",
+    "name": "高美华",
+    "portrait": "",
+    "starting_satisfaction": 69,
+    "daily_manpower": 1,
+    "specialty_resource": "funds",
+    "specialty_amount": 1,
+    "active_wish_ids": [
+      "wish_warm_meal_circle"
+    ],
+    "portrait_key": "portrait_gao_meihua",
+    "bio": "退休食堂管理员，熟悉每家每户的口味，也最在意独居老人能不能吃上一口热饭。",
+    "concerns": [
+      "meal",
+      "care",
+      "family"
+    ],
+    "starting_messages": [
+      "饭点一乱，老人和孩子最先受影响。",
+      "厨房不是为了热闹，是为了让人知道有人惦记。",
+      "要是能把志愿者排班也贴清楚，我心里就踏实。"
+    ],
+    "memory_seeds": [
+      {
+        "type": "resident_intro",
+        "source_id": "gao_meihua_kitchen_years",
+        "text": "高美华记得旧食堂撤掉那年，王奶奶连着三天只吃冷馒头。"
+      },
+      {
+        "type": "resident_intro",
+        "source_id": "gao_meihua_recipe_book",
+        "text": "她把居民忌口和拿手菜写在一本蓝皮本里，封面已经磨白。"
+      }
+    ],
+    "event_affinity_tags": [
+      "meal",
+      "care",
+      "family"
+    ]
+  },
+  {
+    "resident_id": "a_qiang",
+    "name": "阿强",
+    "portrait": "",
+    "starting_satisfaction": 63,
+    "daily_manpower": 1,
+    "specialty_resource": "funds",
+    "specialty_amount": 1,
+    "active_wish_ids": [
+      "wish_delivery_corner"
+    ],
+    "portrait_key": "portrait_a_qiang",
+    "bio": "小区快递和维修跑腿的熟面孔，嘴上总说顺路，其实记得谁家门口台阶高、谁家灯坏了。",
+    "concerns": [
+      "delivery",
+      "repair",
+      "wayfinding"
+    ],
+    "starting_messages": [
+      "包裹堆在门口时，最怕老人绕着走摔一跤。",
+      "我跑得快没用，路牌和工具得跟得上。",
+      "有个清楚的接驳点，大家就不用互相猜了。"
+    ],
+    "memory_seeds": [
+      {
+        "type": "resident_intro",
+        "source_id": "a_qiang_rain_delivery",
+        "text": "阿强记得暴雨那天，他把三家的药和菜一起拎上楼。"
+      },
+      {
+        "type": "resident_intro",
+        "source_id": "a_qiang_toolbox",
+        "text": "他的工具箱贴着一张手写名单，记录谁家的扶手还没修。"
+      }
+    ],
+    "event_affinity_tags": [
+      "delivery",
+      "repair",
+      "wayfinding"
+    ]
   }
 ]

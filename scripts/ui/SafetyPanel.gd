@@ -63,20 +63,23 @@ func set_safety_summary(summary: Dictionary) -> void:
 		str(settings.get("model", "")),
 		str(settings.get("base_url", ""))
 	]
-	fallback_stats_label.text = "请求 %d | 成功 %d | 回退 %d | 拦截 %d | 最近失败: %s" % [
+	fallback_stats_label.text = "请求 %d | 成功 %d | 回退 %d | 拦截 %d | 最近状态: %s | 最近失败: %s | 最近fallback事件: %s" % [
 		int(summary.get("request_count", 0)),
 		int(summary.get("success_count", 0)),
 		int(summary.get("fallback_count", 0)),
 		int(summary.get("blocked_count", 0)),
-		str(summary.get("last_failure_reason", "none"))
+		str(summary.get("last_request_status", "idle")),
+		str(summary.get("last_failure_reason", "none")),
+		str(summary.get("last_fallback_event_id", "none"))
 	]
 	var history_lines: PackedStringArray = []
 	for entry: Dictionary in summary.get("request_history", []):
-		history_lines.append("%s | %s | %s | fallback=%s | reason=%s" % [
+		history_lines.append("%s | %s | %s | fallback=%s | fallback_event=%s | reason=%s" % [
 			str(entry.get("event_id", "test")),
 			str(entry.get("provider", "")),
 			str(entry.get("result", "")),
 			str(entry.get("fallback", false)),
+			str(entry.get("fallback_event_id", "")),
 			str(entry.get("reason", ""))
 		])
 	if history_lines.is_empty():

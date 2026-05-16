@@ -27,6 +27,42 @@
     "unlock_trust": 0
   },
   {
+    "recipe_id": "build_welcome_table",
+    "ingredient_card_ids": [
+      "welcome_table_plan",
+      "folding_table_kit"
+    ],
+    "result_card_id": "welcome_table",
+    "unlock_trust": 0
+  },
+  {
+    "recipe_id": "welcome_station_shortcut",
+    "ingredient_card_ids": [
+      "welcome_table_plan",
+      "phone_tree"
+    ],
+    "result_card_id": "volunteer_station",
+    "unlock_trust": 0
+  },
+  {
+    "recipe_id": "market_stall_from_table",
+    "ingredient_card_ids": [
+      "folding_table_kit",
+      "fresh_goods_box"
+    ],
+    "result_card_id": "market_stall",
+    "unlock_trust": 0
+  },
+  {
+    "recipe_id": "notice_board_from_welcome",
+    "ingredient_card_ids": [
+      "welcome_table_plan",
+      "printer_ink"
+    ],
+    "result_card_id": "clear_notice_board",
+    "unlock_trust": 0
+  },
+  {
     "recipe_id": "open_market_stall",
     "ingredient_card_ids": [
       "market_stall_plan",
@@ -357,6 +393,48 @@
       "support_night_watch"
     ],
     "result_card_id": "bike_parking",
+    "unlock_trust": 10
+  },
+  {
+    "recipe_id": "generic_queue_support",
+    "ingredient_card_ids": [],
+    "ingredient_tags": [
+      ["community"],
+      ["material", "communication"]
+    ],
+    "material_costs": {
+      "info_notes": 1
+    },
+    "result_card_id": "support_queue_signs",
+    "result_type": "support",
+    "unlock_trust": 0
+  },
+  {
+    "recipe_id": "generic_notice_board",
+    "ingredient_card_ids": [],
+    "ingredient_tags": [
+      ["communication"],
+      ["construction", "material"]
+    ],
+    "material_costs": {
+      "info_notes": 1
+    },
+    "result_card_id": "clear_notice_board",
+    "result_type": "facility",
+    "unlock_trust": 0
+  },
+  {
+    "recipe_id": "generic_care_refresh",
+    "ingredient_card_ids": [],
+    "ingredient_tags": [
+      ["service", "community"],
+      ["support"]
+    ],
+    "material_costs": {
+      "scrap_parts": 1
+    },
+    "result_card_id": "care_station",
+    "result_type": "facility",
     "unlock_trust": 10
   }
 ]

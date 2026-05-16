@@ -2,6 +2,7 @@ extends Node
 
 const AUTONOMY_SYSTEM := preload("res://scripts/core/AutonomySystem.gd")
 const RESIDENT_SYSTEM := preload("res://scripts/core/ResidentSystem.gd")
+const BOARD_RULES := preload("res://scripts/core/BoardRules.gd")
 
 signal announcement_ready(announcement: Dictionary)
 signal problem_spawned(problem_state: Dictionary)
@@ -26,6 +27,7 @@ func _resolve_sunrise_events_sync() -> PackedStringArray:
 	var state: Dictionary = GameState.get_state()
 	var day_count: int = int(state.get("day_count", 1))
 	var lines: PackedStringArray = []
+	lines.append_array(_flush_pending_escalations(state))
 	var event_defs: Array[Dictionary] = DataRepository.get_event_defs_for_day(day_count)
 	for event_def: Dictionary in event_defs:
 		var result: Dictionary = _materialize_event_sync(state, event_def)
@@ -52,6 +54,7 @@ func _resolve_sunrise_events_async() -> PackedStringArray:
 	var state: Dictionary = GameState.get_state()
 	var day_count: int = int(state.get("day_count", 1))
 	var lines: PackedStringArray = []
+	lines.append_array(_flush_pending_escalations(state))
 	var event_defs: Array[Dictionary] = DataRepository.get_event_defs_for_day(day_count)
 	for event_def: Dictionary in event_defs:
 		var result: Dictionary = await _materialize_event_async(state, event_def)
@@ -102,6 +105,44 @@ func assign_manpower_to_problem(problem_index: int, amount: int = 1) -> Dictiona
 	}
 
 
+func apply_support_to_problem(problem_index: int, support_card_id: String, cards_by_id: Dictionary) -> Dictionary:
+	var state: Dictionary = GameState.get_state()
+	var active_problems: Array = state.get("active_problems", [])
+	if problem_index < 0 or problem_index >= active_problems.size():
+		return {"success": false, "message": "invalid_problem_index"}
+	if support_card_id.is_empty() or not cards_by_id.has(support_card_id):
+		return {"success": false, "message": "invalid_support_card"}
+	var support_card: Dictionary = cards_by_id.get(support_card_id, {})
+	var support_counter_tags: Array = _support_counter_tags(support_card)
+	var problem_state: Dictionary = active_problems[problem_index]
+	var problem_counter_tags: Array = _problem_counter_tags_for_state(problem_state)
+	var matched := false
+	for tag_variant in support_counter_tags:
+		if problem_counter_tags.has(str(tag_variant)):
+			matched = true
+			break
+	if not matched:
+		return {"success": false, "message": "support_tag_mismatch"}
+	var inventory := BOARD_RULES.ensure_inventory(state)
+	var consumed := BOARD_RULES.consume_inventory_item(inventory, "consumables", support_card_id, 1)
+	if not bool(consumed.get("success", false)):
+		return {"success": false, "message": "support_not_available"}
+	problem_state["assigned_manpower"] = int(problem_state.get("assigned_manpower", 0)) + maxi(int(support_card.get("problem_manpower_reduction", 1)), 1)
+	var used_support_ids: Array = problem_state.get("used_support_ids", [])
+	used_support_ids.append(support_card_id)
+	problem_state["used_support_ids"] = used_support_ids
+	active_problems[problem_index] = problem_state
+	if int(problem_state.get("assigned_manpower", 0)) >= int(problem_state.get("required_manpower", 0)):
+		return _resolve_problem(problem_index)
+	return {
+		"success": true,
+		"resolved": false,
+		"message": "support_applied",
+		"assigned_manpower": int(problem_state.get("assigned_manpower", 0)),
+		"required_manpower": int(problem_state.get("required_manpower", 0))
+	}
+
+
 func _materialize_event_sync(state: Dictionary, event_def: Dictionary) -> Dictionary:
 	var category: String = str(event_def.get("category", "fixed"))
 	var source_result: Dictionary = {}
@@ -131,20 +172,37 @@ func _materialize_event_sync(state: Dictionary, event_def: Dictionary) -> Dictio
 		"title": str(candidate.get("title", event_def.get("title", ""))),
 		"announcement_text": str(candidate.get("announcement_text", event_def.get("announcement_text", ""))),
 		"source_type": str(source_result.get("source_type", "local")),
-		"fallback_used": bool(source_result.get("fallback_used", false))
+		"fallback_used": bool(source_result.get("fallback_used", false)),
+		"ai_failure_reason": str(source_result.get("failure_reason", "")),
+		"fallback_event_id": str(source_result.get("fallback_event_id", "")),
+		"chain_id": str(event_def.get("chain_id", "")),
+		"chain_step": int(event_def.get("chain_step", 0)),
+		"duration_days": int(event_def.get("duration_days", 1))
 	}
 	var problem_state := {
 		"event_id": str(event_def.get("event_id", "")),
 		"title": announcement.get("title", ""),
 		"problem_card_id": str(candidate.get("problem_stub", event_def.get("problem_card_id", ""))),
 		"source_type": str(source_result.get("source_type", "local")),
+		"fallback_used": bool(source_result.get("fallback_used", false)),
+		"ai_failure_reason": str(source_result.get("failure_reason", "")),
+		"fallback_event_id": str(source_result.get("fallback_event_id", "")),
 		"required_manpower": int(candidate.get("manpower_required", event_def.get("manpower_required", 0))),
 		"assigned_manpower": 0,
 		"status": "active",
 		"reward": candidate.get("reward", event_def.get("reward", {})).duplicate(),
 		"penalty": candidate.get("penalty", event_def.get("penalty", {})).duplicate(),
-		"target_resident_ids": candidate.get("target_resident_ids", event_def.get("target_resident_ids", [])).duplicate()
+		"target_resident_ids": candidate.get("target_resident_ids", event_def.get("target_resident_ids", [])).duplicate(),
+		"chain_id": str(event_def.get("chain_id", "")),
+		"chain_step": int(event_def.get("chain_step", 0)),
+		"duration_days": int(event_def.get("duration_days", 1)),
+		"prep_requirements": event_def.get("prep_requirements", {}).duplicate(),
+		"success_requirements": event_def.get("success_requirements", {}).duplicate(),
+		"partial_success_reward": event_def.get("partial_success_reward", {}).duplicate(),
+		"failure_escalation": event_def.get("failure_escalation", {}).duplicate(),
+		"counter_tags": _counter_tags_for_materialized_problem(event_def, candidate)
 	}
+	_apply_board_problem_mitigation(problem_state, state)
 	return {"announcement": announcement, "problem_state": problem_state}
 
 
@@ -177,20 +235,37 @@ func _materialize_event_async(state: Dictionary, event_def: Dictionary) -> Dicti
 		"title": str(candidate.get("title", event_def.get("title", ""))),
 		"announcement_text": str(candidate.get("announcement_text", event_def.get("announcement_text", ""))),
 		"source_type": str(source_result.get("source_type", "local")),
-		"fallback_used": bool(source_result.get("fallback_used", false))
+		"fallback_used": bool(source_result.get("fallback_used", false)),
+		"ai_failure_reason": str(source_result.get("failure_reason", "")),
+		"fallback_event_id": str(source_result.get("fallback_event_id", "")),
+		"chain_id": str(event_def.get("chain_id", "")),
+		"chain_step": int(event_def.get("chain_step", 0)),
+		"duration_days": int(event_def.get("duration_days", 1))
 	}
 	var problem_state := {
 		"event_id": str(event_def.get("event_id", "")),
 		"title": announcement.get("title", ""),
 		"problem_card_id": str(candidate.get("problem_stub", event_def.get("problem_card_id", ""))),
 		"source_type": str(source_result.get("source_type", "local")),
+		"fallback_used": bool(source_result.get("fallback_used", false)),
+		"ai_failure_reason": str(source_result.get("failure_reason", "")),
+		"fallback_event_id": str(source_result.get("fallback_event_id", "")),
 		"required_manpower": int(candidate.get("manpower_required", event_def.get("manpower_required", 0))),
 		"assigned_manpower": 0,
 		"status": "active",
 		"reward": candidate.get("reward", event_def.get("reward", {})).duplicate(),
 		"penalty": candidate.get("penalty", event_def.get("penalty", {})).duplicate(),
-		"target_resident_ids": candidate.get("target_resident_ids", event_def.get("target_resident_ids", [])).duplicate()
+		"target_resident_ids": candidate.get("target_resident_ids", event_def.get("target_resident_ids", [])).duplicate(),
+		"chain_id": str(event_def.get("chain_id", "")),
+		"chain_step": int(event_def.get("chain_step", 0)),
+		"duration_days": int(event_def.get("duration_days", 1)),
+		"prep_requirements": event_def.get("prep_requirements", {}).duplicate(),
+		"success_requirements": event_def.get("success_requirements", {}).duplicate(),
+		"partial_success_reward": event_def.get("partial_success_reward", {}).duplicate(),
+		"failure_escalation": event_def.get("failure_escalation", {}).duplicate(),
+		"counter_tags": _counter_tags_for_materialized_problem(event_def, candidate)
 	}
+	_apply_board_problem_mitigation(problem_state, state)
 	return {"announcement": announcement, "problem_state": problem_state}
 
 
@@ -227,6 +302,105 @@ func _record_player_problem_memory(resident_states: Array, problem_state: Dictio
 			resident,
 			"player_problem_resolved",
 			str(problem_state.get("event_id", "")),
-			"Player resolved %s." % str(problem_state.get("title", problem_state.get("event_id", ""))),
+			"玩家解决了「%s」。" % str(problem_state.get("title", problem_state.get("event_id", ""))),
 			int(GameState.get_state().get("day_count", 1))
 		)
+
+
+func _flush_pending_escalations(state: Dictionary) -> PackedStringArray:
+	var lines := PackedStringArray()
+	var queued: Array = state.get("pending_problem_escalations", [])
+	if queued.is_empty():
+		return lines
+	state["pending_problem_escalations"] = []
+	for queued_variant in queued:
+		if typeof(queued_variant) != TYPE_DICTIONARY:
+			continue
+		var escalation: Dictionary = queued_variant
+		if not escalation.has("problem_card_id"):
+			lines.append_array(ResourceManager.apply_event_penalty(state, escalation))
+			continue
+		var announcement := {
+			"event_id": str(escalation.get("event_id", "queued_escalation")),
+			"title": str(escalation.get("title", "升级问题")),
+			"announcement_text": str(escalation.get("announcement_text", "未处理的问题正在扩散。")),
+			"source_type": "fixed",
+			"fallback_used": false,
+			"chain_id": str(escalation.get("chain_id", "")),
+			"chain_step": int(escalation.get("chain_step", 0)),
+			"duration_days": 1
+		}
+		var problem_state := escalation.duplicate(true)
+		problem_state["status"] = "active"
+		problem_state["assigned_manpower"] = 0
+		_apply_board_problem_mitigation(problem_state, state)
+		GameState.add_announcement(announcement)
+		GameState.add_active_problem(problem_state)
+		lines.append("escalation: %s" % str(announcement.get("title", "")))
+	return lines
+
+
+func _support_counter_tags(support_card: Dictionary) -> Array:
+	var tags: Array = []
+	if typeof(support_card.get("problem_counter_tags", [])) == TYPE_ARRAY:
+		tags.append_array(support_card.get("problem_counter_tags", []))
+	var payload: Dictionary = support_card.get("problem_payload", {})
+	if not str(payload.get("category", "")).is_empty():
+		tags.append(str(payload.get("category", "")))
+	tags.append_array(support_card.get("event_tags", []))
+	tags.append_array(support_card.get("tags", []))
+	return tags
+
+
+func _problem_counter_tags_for_state(problem_state: Dictionary) -> Array:
+	var tags: Array = []
+	tags.append_array(problem_state.get("counter_tags", []))
+	var problem_card: Dictionary = DataRepository.cards_by_id.get(str(problem_state.get("problem_card_id", "")), {})
+	var payload: Dictionary = problem_card.get("problem_payload", {})
+	if not str(payload.get("category", "")).is_empty() and not tags.has(str(payload.get("category", ""))):
+		tags.append(str(payload.get("category", "")))
+	for tag_variant in problem_card.get("event_tags", []):
+		var tag := str(tag_variant)
+		if not tags.has(tag):
+			tags.append(tag)
+	return tags
+
+
+func _counter_tags_for_materialized_problem(event_def: Dictionary, candidate: Dictionary) -> Array:
+	var tags: Array = []
+	if typeof(event_def.get("counter_tags", [])) == TYPE_ARRAY:
+		tags.append_array(event_def.get("counter_tags", []))
+	var problem_card: Dictionary = DataRepository.cards_by_id.get(str(candidate.get("problem_stub", event_def.get("problem_card_id", ""))), {})
+	var payload: Dictionary = problem_card.get("problem_payload", {})
+	var category := str(payload.get("category", ""))
+	if not category.is_empty() and not tags.has(category):
+		tags.append(category)
+	for tag_variant in problem_card.get("event_tags", []):
+		var tag := str(tag_variant)
+		if not tags.has(tag):
+			tags.append(tag)
+	return tags
+
+
+func _apply_board_problem_mitigation(problem_state: Dictionary, state: Dictionary) -> void:
+	var cache: Array = BOARD_RULES.build_board_combo_cache(state, DataRepository.cards_by_id)
+	var problem_counter_tags: Array = _problem_counter_tags_for_state(problem_state)
+	var reduction := 0
+	var mitigated_by := PackedStringArray()
+	for cache_variant in cache:
+		if typeof(cache_variant) != TYPE_DICTIONARY:
+			continue
+		var combo: Dictionary = cache_variant
+		var matched := false
+		for tag_variant in combo.get("problem_counter_tags", []):
+			if problem_counter_tags.has(str(tag_variant)):
+				matched = true
+				break
+		if not matched:
+			continue
+		reduction += 1 + int(combo.get("bonus_resources", {}).get("problem_manpower", 0))
+		mitigated_by.append(str(combo.get("card_id", "")))
+	if reduction <= 0:
+		return
+	problem_state["required_manpower"] = maxi(1, int(problem_state.get("required_manpower", 0)) - reduction)
+	problem_state["mitigated_by_card_ids"] = Array(mitigated_by)

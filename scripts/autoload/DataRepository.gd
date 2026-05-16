@@ -141,6 +141,17 @@ func get_cards_unlocked_for_trust(trust: int) -> Array[Dictionary]:
 	return unlocked
 
 
+func get_cards_available_for_state(state: Dictionary) -> Array[Dictionary]:
+	var unlocked: Array[Dictionary] = []
+	var trust := int(state.get("trust", 0))
+	var flower_unlocks: Array = state.get("flower_unlocks", [])
+	for card: Dictionary in card_list:
+		var card_id := str(card.get("card_id", ""))
+		if int(card.get("unlock_trust", 0)) <= trust or flower_unlocks.has(card_id):
+			unlocked.append(card)
+	return unlocked
+
+
 func get_art_entry(resource_key: String) -> Dictionary:
 	return art_manifest.get("entries", {}).get(resource_key, {})
 
@@ -252,18 +263,37 @@ func _validate_cards() -> void:
 			validation_errors.append("card %s art_key missing in art_manifest" % card_id)
 		if not art_entries.has(str(card.get("icon_key", ""))):
 			validation_errors.append("card %s icon_key missing in art_manifest" % card_id)
+		if typeof(card.get("shape_cells", [])) != TYPE_ARRAY:
+			validation_errors.append("card %s shape_cells should be an array when present" % card_id)
+		if typeof(card.get("zone_requirements", [])) != TYPE_ARRAY:
+			validation_errors.append("card %s zone_requirements should be an array when present" % card_id)
+		if typeof(card.get("upgrade_options", [])) != TYPE_ARRAY:
+			validation_errors.append("card %s upgrade_options should be an array when present" % card_id)
+		if typeof(card.get("synergy_rules", [])) != TYPE_ARRAY:
+			validation_errors.append("card %s synergy_rules should be an array when present" % card_id)
+		if typeof(card.get("combo_rules", [])) != TYPE_ARRAY:
+			validation_errors.append("card %s combo_rules should be an array when present" % card_id)
+		if typeof(card.get("resident_adjacency_effects", [])) != TYPE_ARRAY:
+			validation_errors.append("card %s resident_adjacency_effects should be an array when present" % card_id)
+		if typeof(card.get("problem_counter_tags", [])) != TYPE_ARRAY:
+			validation_errors.append("card %s problem_counter_tags should be an array when present" % card_id)
+		if typeof(card.get("material_outputs", {})) != TYPE_DICTIONARY and card.has("material_outputs"):
+			validation_errors.append("card %s material_outputs should be a dictionary when present" % card_id)
 
 
 func _validate_recipes() -> void:
 	for recipe: Dictionary in recipes:
 		var recipe_id: String = str(recipe.get("recipe_id", ""))
 		var ingredient_ids: Array = recipe.get("ingredient_card_ids", [])
-		if ingredient_ids.size() != 2:
-			validation_errors.append("recipe %s should have exactly 2 ingredients" % recipe_id)
+		var ingredient_tags: Array = recipe.get("ingredient_tags", [])
+		if ingredient_ids.size() != 2 and ingredient_tags.size() != 2:
+			validation_errors.append("recipe %s should define exactly 2 card ids or 2 tag slots" % recipe_id)
 		for ingredient_variant in ingredient_ids:
 			var ingredient_id: String = str(ingredient_variant)
 			if not cards_by_id.has(ingredient_id):
 				validation_errors.append("recipe %s references missing ingredient %s" % [recipe_id, ingredient_id])
+		if recipe.has("material_costs") and typeof(recipe.get("material_costs", {})) != TYPE_DICTIONARY:
+			validation_errors.append("recipe %s material_costs should be a dictionary when present" % recipe_id)
 		var result_card_id: String = str(recipe.get("result_card_id", ""))
 		if not cards_by_id.has(result_card_id):
 			validation_errors.append("recipe %s references missing result %s" % [recipe_id, result_card_id])
@@ -281,6 +311,12 @@ func _validate_residents() -> void:
 				validation_errors.append("resident %s references missing wish %s" % [resident_id, wish_id])
 		if typeof(resident.get("event_affinity_tags", [])) != TYPE_ARRAY:
 			validation_errors.append("resident %s event_affinity_tags should be an array" % resident_id)
+		if resident.has("concerns") and typeof(resident.get("concerns", [])) != TYPE_ARRAY:
+			validation_errors.append("resident %s concerns should be an array when present" % resident_id)
+		if resident.has("starting_messages") and typeof(resident.get("starting_messages", [])) != TYPE_ARRAY:
+			validation_errors.append("resident %s starting_messages should be an array when present" % resident_id)
+		if resident.has("memory_seeds") and typeof(resident.get("memory_seeds", [])) != TYPE_ARRAY:
+			validation_errors.append("resident %s memory_seeds should be an array when present" % resident_id)
 		if not _is_valid_resource_key(str(resident.get("specialty_resource", "")), false):
 			validation_errors.append("resident %s has invalid specialty_resource" % resident_id)
 		if not art_entries.has(str(resident.get("portrait_key", ""))):
@@ -340,6 +376,8 @@ func _validate_events() -> void:
 			validation_errors.append("event %s fallback_event_id references missing event %s" % [event_id, fallback_event_id])
 		if not art_entries.has(str(event_def.get("icon_key", ""))):
 			validation_errors.append("event %s icon_key missing in art_manifest" % event_id)
+		if typeof(event_def.get("counter_tags", [])) != TYPE_ARRAY and event_def.has("counter_tags"):
+			validation_errors.append("event %s counter_tags should be an array when present" % event_id)
 		_validate_resource_bundle("event reward %s" % event_id, event_def.get("reward", {}))
 		_validate_penalty_bundle("event penalty %s" % event_id, event_def.get("penalty", {}))
 

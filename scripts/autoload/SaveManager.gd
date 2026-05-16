@@ -6,6 +6,7 @@ signal loaded(slot_id: int)
 const RESIDENT_SYSTEM := preload("res://scripts/core/ResidentSystem.gd")
 const AUTONOMY_SYSTEM := preload("res://scripts/core/AutonomySystem.gd")
 const POST_GAME_SYSTEM := preload("res://scripts/core/PostGameSystem.gd")
+const BOARD_RULES := preload("res://scripts/core/BoardRules.gd")
 const SAVE_VERSION := 1
 const SAVE_DIR := "user://saves"
 const AUTOSAVE_SLOT := 0
@@ -93,12 +94,51 @@ func _restore_community_state(saved_state: Dictionary) -> Dictionary:
 		"active_problems",
 		"resolved_problem_history",
 		"event_history",
-		"announcement_queue"
+		"announcement_queue",
+		"pending_problem_escalations",
+		"board_combo_cache"
 	]:
 		restored[key] = _dictionary_array(saved_state.get(key, []))
 	AUTONOMY_SYSTEM.ensure_runtime_fields(restored)
 	POST_GAME_SYSTEM.ensure_runtime_fields(restored)
 	RESIDENT_SYSTEM.ensure_runtime_fields(restored.get("resident_states", []))
+	if int(restored.get("board_version", 0)) < 2:
+		restored["board_version"] = 2
+		restored["board_cells"] = BOARD_RULES.create_default_board_cells()
+		restored["built_facilities"] = []
+	if int(restored.get("board_version", 0)) < 3:
+		restored["board_version"] = 3
+		restored["board_cells"] = BOARD_RULES.create_default_board_cells()
+		restored["built_facilities"] = []
+		restored["board_combo_cache"] = []
+		if typeof(restored.get("legacy_bonus", {})) != TYPE_DICTIONARY:
+			restored["legacy_bonus"] = {}
+		var legacy_bonus: Dictionary = restored.get("legacy_bonus", {})
+		legacy_bonus["board_reset_v3"] = true
+		restored["legacy_bonus"] = legacy_bonus
+	if int(restored.get("board_version", 0)) < 4:
+		restored["board_version"] = 4
+		restored["board_cells"] = BOARD_RULES.create_default_board_cells()
+		restored["built_facilities"] = []
+		restored["board_combo_cache"] = []
+		if typeof(restored.get("legacy_bonus", {})) != TYPE_DICTIONARY:
+			restored["legacy_bonus"] = {}
+		var legacy_bonus_v4: Dictionary = restored.get("legacy_bonus", {})
+		legacy_bonus_v4["board_reset_v4_shape_diversity"] = true
+		restored["legacy_bonus"] = legacy_bonus_v4
+	if not restored.has("next_building_instance_id"):
+		restored["next_building_instance_id"] = 1
+	if not restored.has("pending_build_rotation"):
+		restored["pending_build_rotation"] = 0
+	BOARD_RULES.ensure_inventory(restored)
+	if typeof(restored.get("flower_unlocks", [])) != TYPE_ARRAY:
+		restored["flower_unlocks"] = []
+	if typeof(restored.get("recipe_codex", {})) != TYPE_DICTIONARY:
+		restored["recipe_codex"] = {}
+	if typeof(restored.get("discovered_combos", [])) != TYPE_ARRAY:
+		restored["discovered_combos"] = []
+	if DataRepository != null and not DataRepository.cards_by_id.is_empty():
+		BOARD_RULES.build_board_combo_cache(restored, DataRepository.cards_by_id)
 	return restored
 
 

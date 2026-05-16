@@ -3,5 +3,5 @@
 [ext_resource type="Script" path="res://scripts/ui/CardView.gd" id="1_r8dvf"]
 
 [node name="CardView" type="PanelContainer"]
-custom_minimum_size = Vector2(160, 116)
+custom_minimum_size = Vector2(148, 108)
 script = ExtResource("1_r8dvf")

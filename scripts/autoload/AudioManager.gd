@@ -9,17 +9,31 @@ var _bgm_player: AudioStreamPlayer
 var _sfx_player: AudioStreamPlayer
 var _sfx_paths := {
 	"drag": "res://assets/audio/drag.ogg",
-	"place": "res://assets/audio/place.ogg",
+	"place": "res://assets/audio/facility_place.ogg",
+	"card_pick": "res://assets/audio/card_pick.ogg",
+	"facility_place": "res://assets/audio/facility_place.ogg",
 	"craft_success": "res://assets/audio/craft_success.ogg",
+	"craft_fail": "res://assets/audio/craft_fail.ogg",
+	"problem_resolved": "res://assets/audio/problem_resolved.ogg",
+	"dusk_penalty": "res://assets/audio/dusk_penalty.ogg",
+	"day10_summary": "res://assets/audio/day10_summary.ogg",
 	"flower_gain": "res://assets/audio/flower_gain.ogg",
 	"event_notice": "res://assets/audio/event_notice.ogg",
 	"save": "res://assets/audio/save.ogg"
 }
 var _bgm_paths := {
+	"sunrise": "res://assets/audio/bgm_sunrise.ogg",
 	"day": "res://assets/audio/bgm_day.ogg",
+	"dusk": "res://assets/audio/bgm_dusk.ogg",
+	"night": "res://assets/audio/bgm_night.ogg",
+	"day10_summary": "res://assets/audio/bgm_day10_summary.ogg",
 	"rain": "res://assets/audio/bgm_rain.ogg",
-	"ending": "res://assets/audio/bgm_ending.ogg"
+	"ending": "res://assets/audio/bgm_day10_summary.ogg"
 }
+var _last_sfx_id: String = ""
+var _last_bgm_id: String = ""
+var _last_sfx_fallback: bool = false
+var _last_bgm_fallback: bool = false
 
 
 func _ready() -> void:
@@ -29,6 +43,7 @@ func _ready() -> void:
 	add_child(_bgm_player)
 	_sfx_player = AudioStreamPlayer.new()
 	_sfx_player.bus = SFX_BUS
+	_sfx_player.max_polyphony = 4
 	add_child(_sfx_player)
 	if has_node("/root/SettingsManager"):
 		var manager: Node = get_node("/root/SettingsManager")
@@ -38,7 +53,9 @@ func _ready() -> void:
 
 
 func play_sfx(id: String) -> bool:
+	_last_sfx_id = id
 	var stream := _load_audio_stream(str(_sfx_paths.get(id, "")))
+	_last_sfx_fallback = stream == null
 	if stream == null:
 		return true
 	_sfx_player.stream = stream
@@ -47,7 +64,9 @@ func play_sfx(id: String) -> bool:
 
 
 func play_bgm(id: String) -> bool:
+	_last_bgm_id = id
 	var stream := _load_audio_stream(str(_bgm_paths.get(id, "")))
+	_last_bgm_fallback = stream == null
 	if stream == null:
 		return true
 	_bgm_player.stream = stream
@@ -71,6 +90,38 @@ func get_music_volume() -> float:
 
 func get_sfx_volume() -> float:
 	return _sfx_volume
+
+
+func get_registered_sfx_ids() -> PackedStringArray:
+	var ids := PackedStringArray()
+	for id_variant in _sfx_paths.keys():
+		ids.append(str(id_variant))
+	ids.sort()
+	return ids
+
+
+func get_registered_bgm_ids() -> PackedStringArray:
+	var ids := PackedStringArray()
+	for id_variant in _bgm_paths.keys():
+		ids.append(str(id_variant))
+	ids.sort()
+	return ids
+
+
+func get_last_sfx_id() -> String:
+	return _last_sfx_id
+
+
+func get_last_bgm_id() -> String:
+	return _last_bgm_id
+
+
+func was_last_sfx_fallback() -> bool:
+	return _last_sfx_fallback
+
+
+func was_last_bgm_fallback() -> bool:
+	return _last_bgm_fallback
 
 
 func _on_settings_changed(settings: Dictionary) -> void:

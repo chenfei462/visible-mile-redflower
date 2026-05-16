@@ -189,7 +189,7 @@ static func _problem_goal_detail(active_problems: Array, day_plan: Dictionary = 
 		var pressure_ids: Array = day_plan.get("pressure_event_ids", [])
 		if not pressure_ids.is_empty():
 			return "今日会出现轻量压力事件；留出人力，黄昏前处理。"
-		return "Day 2 起会出现问题卡，留出人力处理。"
+		return "第 2 天起会出现问题卡，留出人力处理。"
 	var problem: Dictionary = active_problems[0]
 	var penalty: Dictionary = problem.get("penalty", {})
 	return "黄昏前处理；否则信任 -%d，满意度 -%d。" % [

@@ -166,5 +166,53 @@
     "reward": {"flowers": 3, "trust": 2},
     "next_wish_id": "",
     "message_on_complete": "节庆横幅把计划变成了大家看得见、也愿意参与的事。"
+  },
+  {
+    "wish_id": "wish_warm_meal_circle",
+    "resident_id": "gao_meihua",
+    "title": "一口热饭的排班",
+    "stage": 1,
+    "required_card_ids": ["community_kitchen", "volunteer_station"],
+    "required_tags": [],
+    "required_count": 2,
+    "reward": {"funds": 1, "trust": 2},
+    "next_wish_id": "wish_shared_recipe_corner",
+    "message_on_complete": "厨房和志愿驿站连起来后，高美华终于敢把蓝皮本拿出来排班。"
+  },
+  {
+    "wish_id": "wish_shared_recipe_corner",
+    "resident_id": "gao_meihua",
+    "title": "共享菜谱角",
+    "stage": 2,
+    "required_card_ids": ["child_corner"],
+    "required_tags": ["family"],
+    "required_count": 1,
+    "reward": {"flowers": 2, "trust": 2},
+    "next_wish_id": "",
+    "message_on_complete": "孩子们把家里的拿手菜画在纸上，高美华说这才像一个能互相照看的院子。"
+  },
+  {
+    "wish_id": "wish_delivery_corner",
+    "resident_id": "a_qiang",
+    "title": "包裹接驳角",
+    "stage": 1,
+    "required_card_ids": ["clear_notice_board", "wayfinding_kiosk"],
+    "required_tags": [],
+    "required_count": 2,
+    "reward": {"funds": 1, "trust": 2},
+    "next_wish_id": "wish_tool_share_shelf",
+    "message_on_complete": "公告栏和导视点对上后，阿强终于不用每天解释三遍包裹该放哪。"
+  },
+  {
+    "wish_id": "wish_tool_share_shelf",
+    "resident_id": "a_qiang",
+    "title": "随手能借的工具架",
+    "stage": 2,
+    "required_card_ids": ["repair_booth"],
+    "required_tags": [],
+    "required_count": 1,
+    "reward": {"funds": 2, "trust": 2},
+    "next_wish_id": "",
+    "message_on_complete": "修补服务摊备好工具后，阿强第一次说自己可以少跑两趟。"
   }
 ]

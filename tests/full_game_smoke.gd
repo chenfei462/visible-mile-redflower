@@ -1,6 +1,7 @@
 extends SceneTree
 
 const PROTOTYPE_RULES := preload("res://scripts/core/PrototypeRules.gd")
+const BOARD_RULES := preload("res://scripts/core/BoardRules.gd")
 
 var failures: PackedStringArray = []
 var bulletin_cards: Array[String] = []
@@ -93,9 +94,11 @@ func _run_day_one_core_loop() -> void:
 	selected_recipe_ids.append(str(craft_result.get("recipe_id", "")))
 
 	var facility_index := hand_cards.find(str(craft_result.get("result_card_id", "")))
-	var placement: Dictionary = PROTOTYPE_RULES.place_hand_card_on_board(hand_cards, facility_index, state, 1, data_repository.cards_by_id, resource_manager)
+	var service_index := BOARD_RULES.cell_index(6, 6)
+	_prepare_shape_cells_for_card(state, str(craft_result.get("result_card_id", "")), service_index, 0)
+	var placement: Dictionary = PROTOTYPE_RULES.place_hand_card_on_board(hand_cards, facility_index, state, service_index, data_repository.cards_by_id, resource_manager)
 	_assert_true(bool(placement.get("success", false)), "day 1 should place crafted facility")
-	_assert_equal(str(state.get("board_cells", [])[1].get("occupied_card_id", "")), str(craft_result.get("result_card_id", "")), "placed facility should occupy board cell")
+	_assert_equal(str(state.get("board_cells", [])[service_index].get("occupied_card_id", "")), str(craft_result.get("result_card_id", "")), "placed facility should occupy board cell")
 	_assert_true(save_manager.save_slot(2, _ui_state()).get("success", false), "manual save should succeed after day 1 placement")
 	game_state.reset_state()
 	var loaded: Dictionary = save_manager.load_slot(2)
@@ -180,6 +183,24 @@ func _apply_ui_state(ui_state: Dictionary) -> void:
 	craft_slots.assign(ui_state.get("craft_slots", []))
 	selected_recipe_ids = PackedStringArray(ui_state.get("selected_recipe_ids", []))
 	current_bulletin_offset = int(ui_state.get("current_bulletin_offset", current_bulletin_offset))
+
+
+func _prepare_shape_cells_for_card(state: Dictionary, card_id: String, board_index: int, rotation: int = 0) -> void:
+	var cells: Array[Dictionary] = state.get("board_cells", [])
+	var card_def: Dictionary = data_repository.cards_by_id.get(card_id, {})
+	var occupied_indices := BOARD_RULES.occupied_indices_for_shape(board_index, card_def, rotation)
+	if occupied_indices.is_empty():
+		return
+	var zone_requirements: Array = card_def.get("zone_requirements", [])
+	var target_zone := ""
+	if not zone_requirements.is_empty():
+		target_zone = str(zone_requirements[0])
+	else:
+		target_zone = str(card_def.get("preferred_zone", ""))
+	if target_zone.is_empty():
+		return
+	for index: int in occupied_indices:
+		BOARD_RULES.change_cell_zone(cells, index, target_zone)
 
 
 func _assert_true(condition: bool, message: String) -> void:

@@ -14,6 +14,12 @@ const DEFAULT_SETTINGS := {
 	"force_local_fallback": false
 }
 const RESPONSE_FORMAT := {"type": "json_object"}
+const FAILURE_NO_API_KEY := "no_api_key"
+const FAILURE_TIMEOUT := "timeout"
+const FAILURE_INVALID_RESPONSE := "invalid_response"
+const FAILURE_BLOCKED_CONTENT := "blocked_content"
+const FAILURE_NETWORK_ERROR := "network_error"
+const FAILURE_FALLBACK_USED := "fallback_used"
 
 var settings: Dictionary = DEFAULT_SETTINGS.duplicate(true)
 var request_history: Array[Dictionary] = []
@@ -21,6 +27,8 @@ var fallback_count: int = 0
 var blocked_count: int = 0
 var success_count: int = 0
 var last_failure_reason: String = ""
+var last_request_status: String = "idle"
+var last_fallback_event_id: String = ""
 var _request_serial: int = 0
 var _active_http_requests: Array = []
 var _retiring_http_requests: Array = []
@@ -111,8 +119,35 @@ func get_safety_summary() -> Dictionary:
 		"blocked_count": blocked_count,
 		"success_count": success_count,
 		"last_failure_reason": last_failure_reason,
+		"last_request_status": last_request_status,
+		"last_fallback_event_id": last_fallback_event_id,
 		"request_history": request_history.duplicate(true)
 	}
+
+
+func classify_failure_reason(raw_reason: String) -> String:
+	var reason := raw_reason.strip_edges()
+	match reason:
+		"missing_api_key":
+			return FAILURE_NO_API_KEY
+		"timeout":
+			return FAILURE_TIMEOUT
+		"content_filter":
+			return FAILURE_BLOCKED_CONTENT
+		"local_mode", "sync_request_not_supported":
+			return FAILURE_FALLBACK_USED
+	for token: String in ["not_json", "invalid", "missing_", "empty_", "schema", "response", "http_4", "http_5", "remote_error"]:
+		if reason.contains(token):
+			return FAILURE_INVALID_RESPONSE
+	for token: String in ["cant_connect", "cant_resolve", "connection", "tls", "no_response", "request_failed", "host_unavailable", "busy", "unconfigured"]:
+		if reason.contains(token):
+			return FAILURE_NETWORK_ERROR
+	return FAILURE_NETWORK_ERROR
+
+
+func fallback_for_failure(event_def: Dictionary, raw_reason: String) -> Dictionary:
+	blocked_count += 1
+	return _fallback_result(event_def, raw_reason)
 
 
 func _request_event_candidate_remote(state_snapshot: Dictionary, event_def: Dictionary) -> Dictionary:
@@ -205,6 +240,8 @@ func _request_event_candidate_remote(state_snapshot: Dictionary, event_def: Dict
 
 	var candidate := _normalize_candidate(event_def, candidate_raw)
 	success_count += 1
+	last_request_status = "success"
+	last_failure_reason = ""
 	_log_request({
 		"request_id": request_id,
 		"mode": mode,
@@ -231,11 +268,14 @@ func _request_event_candidate_remote(state_snapshot: Dictionary, event_def: Dict
 
 func _fallback_result(event_def: Dictionary, reason: String) -> Dictionary:
 	fallback_count += 1
-	last_failure_reason = reason
+	var normalized_reason := classify_failure_reason(reason)
+	last_failure_reason = normalized_reason
+	last_request_status = "fallback_used"
 	var fallback_def: Dictionary = event_def
 	var fallback_event_id: String = str(event_def.get("fallback_event_id", ""))
 	if not fallback_event_id.is_empty() and DataRepository.events_by_id.has(fallback_event_id):
 		fallback_def = DataRepository.get_event_def(fallback_event_id)
+	last_fallback_event_id = str(fallback_def.get("event_id", fallback_event_id))
 	var candidate := _build_default_candidate(fallback_def, event_def)
 	_log_request({
 		"request_id": _next_request_id(),
@@ -244,8 +284,10 @@ func _fallback_result(event_def: Dictionary, reason: String) -> Dictionary:
 		"url": "%s%s" % [_normalized_base_url(str(settings.get("base_url", ""))), CHAT_COMPLETIONS_PATH],
 		"model": str(settings.get("model", "")),
 		"result": "fallback",
-		"reason": reason,
+		"reason": normalized_reason,
+		"raw_reason": reason,
 		"event_id": str(event_def.get("event_id", "")),
+		"fallback_event_id": last_fallback_event_id,
 		"fallback": true
 	})
 	return {
@@ -253,13 +295,14 @@ func _fallback_result(event_def: Dictionary, reason: String) -> Dictionary:
 		"candidate": candidate,
 		"raw_response": candidate.duplicate(true),
 		"fallback_used": true,
-		"reason": reason
+		"reason": reason,
+		"failure_reason": normalized_reason,
+		"fallback_event_id": last_fallback_event_id
 	}
 
 
 func _maybe_fallback(event_def: Dictionary, reason: String) -> Dictionary:
 	blocked_count += 1
-	last_failure_reason = reason
 	return _fallback_result(event_def, reason)
 
 

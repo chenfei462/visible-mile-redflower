@@ -8,9 +8,13 @@ const MAX_MEMORY_LOG := 12
 const LOCATION_BY_TAG := {
 	"service": "service",
 	"market": "market",
+	"delivery": "market",
+	"repair": "service",
 	"garden": "green",
 	"health": "clinic",
 	"care": "clinic",
+	"meal": "service",
+	"family": "service",
 	"festival": "event",
 	"culture": "event"
 }
@@ -22,6 +26,8 @@ static func build_initial_states(residents: Array[Dictionary]) -> Array[Dictiona
 		var state := {
 			"resident_id": str(resident.get("resident_id", "")),
 			"name": str(resident.get("name", "")),
+			"bio": str(resident.get("bio", "")),
+			"concerns": resident.get("concerns", []).duplicate(true),
 			"starting_satisfaction": int(resident.get("starting_satisfaction", 60)),
 			"satisfaction": int(resident.get("starting_satisfaction", 60)),
 			"health": DEFAULT_HEALTH,
@@ -32,8 +38,9 @@ static func build_initial_states(residents: Array[Dictionary]) -> Array[Dictiona
 			"active_wish_ids": resident.get("active_wish_ids", []).duplicate(true),
 			"wish_progress": {},
 			"location_id": _location_from_tags(resident.get("event_affinity_tags", [])),
-			"personal_messages": [],
-			"memory_log": [],
+			"need_tags": resident.get("event_affinity_tags", []).duplicate(true),
+			"personal_messages": _initial_personal_messages(resident.get("starting_messages", [])),
+			"memory_log": _initial_memory_log(resident.get("memory_seeds", [])),
 			"relationship_score": 0,
 			"autonomy_contribution": 0,
 			"wish_branch_flags": {},
@@ -51,6 +58,11 @@ static func ensure_runtime_fields(resident_states: Array) -> void:
 			continue
 		var resident: Dictionary = resident_variant
 		var starting_satisfaction := int(resident.get("starting_satisfaction", resident.get("satisfaction", 60)))
+		resident["bio"] = str(resident.get("bio", ""))
+		if typeof(resident.get("concerns", [])) != TYPE_ARRAY:
+			resident["concerns"] = []
+		else:
+			resident["concerns"] = resident.get("concerns", []).duplicate(true)
 		resident["starting_satisfaction"] = starting_satisfaction
 		resident["satisfaction"] = clampi(int(resident.get("satisfaction", starting_satisfaction)), 0, 100)
 		resident["health"] = clampi(int(resident.get("health", DEFAULT_HEALTH)), 0, 100)
@@ -65,6 +77,13 @@ static func ensure_runtime_fields(resident_states: Array) -> void:
 			resident["wish_progress"] = resident.get("wish_progress", {}).duplicate(true)
 		if str(resident.get("location_id", "")).is_empty():
 			resident["location_id"] = "home"
+		if not resident.has("board_cell"):
+			resident["board_cell"] = -1
+		resident["daily_route_reason"] = str(resident.get("daily_route_reason", ""))
+		if typeof(resident.get("need_tags", [])) != TYPE_ARRAY:
+			resident["need_tags"] = []
+		else:
+			resident["need_tags"] = resident.get("need_tags", []).duplicate(true)
 		if typeof(resident.get("personal_messages", [])) != TYPE_ARRAY:
 			resident["personal_messages"] = []
 		else:
@@ -110,15 +129,45 @@ static func calculate_daily_manpower(resident_states: Array) -> int:
 	return total
 
 
+static func assign_daily_board_positions(state: Dictionary, board_cells: Array) -> void:
+	var resident_states: Array = state.get("resident_states", [])
+	ensure_runtime_fields(resident_states)
+	for cell_index: int in range(board_cells.size()):
+		var cell: Dictionary = board_cells[cell_index]
+		cell["resident_ids"] = []
+		board_cells[cell_index] = cell
+	var unlocked_indices := PackedInt32Array()
+	for cell_index: int in range(board_cells.size()):
+		var cell: Dictionary = board_cells[cell_index]
+		if bool(cell.get("unlocked", false)):
+			unlocked_indices.append(cell_index)
+	if unlocked_indices.is_empty():
+		return
+	var day_offset := int(state.get("day_count", 1))
+	for resident_index: int in range(resident_states.size()):
+		var resident: Dictionary = resident_states[resident_index]
+		_refresh_resident_need_tags(resident, state)
+		var cell_index := _preferred_cell_for_resident(resident, board_cells, unlocked_indices, day_offset + resident_index)
+		resident["board_cell"] = cell_index
+		resident["daily_route_reason"] = _route_reason_for_resident(resident, state)
+		var cell: Dictionary = board_cells[cell_index]
+		var ids: Array = cell.get("resident_ids", [])
+		ids.append(str(resident.get("resident_id", "")))
+		cell["resident_ids"] = ids
+		board_cells[cell_index] = cell
+
+
 static func resolve_daily_residents(state: Dictionary, cards_by_id: Dictionary, wishes_by_id: Dictionary, resource_manager: Node) -> PackedStringArray:
 	var lines := PackedStringArray()
 	var resident_states: Array = state.get("resident_states", [])
 	ensure_runtime_fields(resident_states)
+	assign_daily_board_positions(state, state.get("board_cells", []))
 	var facility_count: int = int(state.get("built_facilities", []).size())
 	var built_card_ids := _built_card_ids(state)
 	var trust_gain := 0
 
 	for resident: Dictionary in resident_states:
+		_refresh_resident_need_tags(resident, state, wishes_by_id)
 		var message_added := false
 		var health_before := int(resident.get("health", DEFAULT_HEALTH))
 		var pending_health := int(resident.get("pending_health_delta", 0))
@@ -313,9 +362,96 @@ static func _add_message(resident: Dictionary, message: String) -> void:
 	resident["personal_messages"] = messages
 
 
+static func _initial_personal_messages(starting_messages: Array) -> Array:
+	var messages: Array = []
+	for message_variant in starting_messages:
+		var text := str(message_variant).strip_edges()
+		if text.is_empty():
+			continue
+		messages.append({
+			"day": "initial",
+			"text": text
+		})
+		if messages.size() >= MAX_PERSONAL_MESSAGES:
+			break
+	return messages
+
+
+static func _initial_memory_log(memory_seeds: Array) -> Array:
+	var memory_log: Array = []
+	for index: int in range(memory_seeds.size()):
+		var seed_variant = memory_seeds[index]
+		var entry: Dictionary = {}
+		if typeof(seed_variant) == TYPE_DICTIONARY:
+			entry = (seed_variant as Dictionary).duplicate(true)
+		else:
+			entry = {"text": str(seed_variant)}
+		var text := str(entry.get("text", "")).strip_edges()
+		if text.is_empty():
+			continue
+		memory_log.append({
+			"day": int(entry.get("day", 0)),
+			"type": str(entry.get("type", "resident_intro")),
+			"source_id": str(entry.get("source_id", "resident_seed_%d" % index)),
+			"text": text
+		})
+		while memory_log.size() > MAX_MEMORY_LOG:
+			memory_log.pop_front()
+	return memory_log
+
+
 static func _location_from_tags(tags: Array) -> String:
 	for tag_variant in tags:
 		var tag := str(tag_variant)
 		if LOCATION_BY_TAG.has(tag):
 			return LOCATION_BY_TAG[tag]
 	return "home"
+
+
+static func _preferred_cell_for_resident(resident: Dictionary, board_cells: Array[Dictionary], unlocked_indices: PackedInt32Array, seed: int) -> int:
+	var preferred_zone := "住宅"
+	match str(resident.get("location_id", "home")):
+		"service", "clinic", "event":
+			preferred_zone = "服务"
+		"market":
+			preferred_zone = "商业"
+		"green":
+			preferred_zone = "绿地"
+	for offset: int in range(unlocked_indices.size()):
+		var candidate := unlocked_indices[(seed + offset) % unlocked_indices.size()]
+		if str(board_cells[candidate].get("zone_type", "")) == preferred_zone:
+			return candidate
+	return unlocked_indices[seed % unlocked_indices.size()]
+
+
+static func _route_reason_for_resident(resident: Dictionary, state: Dictionary) -> String:
+	for problem_variant in state.get("active_problems", []):
+		if typeof(problem_variant) != TYPE_DICTIONARY:
+			continue
+		var problem: Dictionary = problem_variant
+		if problem.get("target_resident_ids", []).has(str(resident.get("resident_id", ""))):
+			return "今日问题相关"
+	return "日常活动"
+static func _refresh_resident_need_tags(resident: Dictionary, state: Dictionary, wishes_by_id: Dictionary = {}) -> void:
+	var need_tags := PackedStringArray()
+	for tag_variant in resident.get("need_tags", []):
+		var tag := str(tag_variant)
+		if not tag.is_empty() and not need_tags.has(tag):
+			need_tags.append(tag)
+	for wish_id_variant in resident.get("active_wish_ids", []):
+		var wish: Dictionary = wishes_by_id.get(str(wish_id_variant), {})
+		for tag_variant in wish.get("required_tags", []):
+			var tag := str(tag_variant)
+			if not tag.is_empty() and not need_tags.has(tag):
+				need_tags.append(tag)
+	for problem_variant in state.get("active_problems", []):
+		if typeof(problem_variant) != TYPE_DICTIONARY:
+			continue
+		var problem: Dictionary = problem_variant
+		if not problem.get("target_resident_ids", []).has(str(resident.get("resident_id", ""))):
+			continue
+		for tag_variant in problem.get("counter_tags", []):
+			var tag := str(tag_variant)
+			if not tag.is_empty() and not need_tags.has(tag):
+				need_tags.append(tag)
+	resident["need_tags"] = Array(need_tags)

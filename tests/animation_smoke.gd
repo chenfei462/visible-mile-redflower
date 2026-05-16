@@ -14,14 +14,18 @@ func _run() -> void:
 	settings_manager.reset_to_defaults(false)
 	settings_manager.set_value("reduce_motion", false)
 
-	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_scene: PackedScene = ResourceLoader.load("res://scenes/Main.tscn", "", ResourceLoader.CACHE_MODE_IGNORE)
 	main_view = main_scene.instantiate()
+	main_scene = null
 	root.add_child(main_view)
 	await process_frame
 	await process_frame
 
 	_assert_true(main_view.get("animation_layer") != null, "main view should expose an animation layer")
 	_assert_true(main_view.call("_motion_enabled"), "motion should be enabled when reduce_motion is false")
+	_assert_true(main_view.has_method("is_tabletop_layout_enabled"), "main view should expose tabletop layout state for smoke coverage")
+	if main_view.has_method("is_tabletop_layout_enabled"):
+		_assert_true(bool(main_view.call("is_tabletop_layout_enabled")), "main view should use the tabletop board layout")
 	main_view.call("_clear_transient_animations")
 
 	var start_rect := Rect2(Vector2(80, 80), Vector2(160, 116))
@@ -45,7 +49,17 @@ func _run() -> void:
 	main_view.call("_animate_tutorial_pointer", "hand")
 	_assert_equal(int(main_view.call("_animation_layer_child_count")), 0, "reduce motion should skip transient animation nodes")
 
-	main_view.queue_free()
+	if main_view.has_method("cleanup_for_smoke_test"):
+		main_view.call("cleanup_for_smoke_test")
+	await process_frame
+	root.remove_child(main_view)
+	main_view.free()
+	main_view = null
+	await process_frame
+	call_deferred("_finish")
+
+
+func _finish() -> void:
 	if failures.is_empty():
 		print("ANIMATION SMOKE PASSED")
 		quit(0)

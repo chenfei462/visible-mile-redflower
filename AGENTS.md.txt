@@ -1,0 +1,73 @@
+## 《看得见的一公里》Codex 开发规范
+
+## 项目基础
+
+- 引擎：Godot 4.6.2
+- 类型：PC 单机社区建设卡牌 Demo
+- 主场景：res://scenes/Main.tscn
+- 当前项目不是从零开始，而是已有完整主循环、卡牌、配方、棋盘、居民、事件、存档、AI fallback、安全面板和测试的可运行 Demo。
+
+## Codex 开发原则
+
+Codex 在开始任何任务前，必须先阅读：
+
+1. project-handoff-guide.md
+2. README.md
+3. project.godot
+
+然后再修改代码。
+
+## 禁止事项
+
+- 不允许推翻重写项目。
+- 不允许大规模重构 MainView.gd。
+- 不允许删除现有 DayCycle、EventManager、BoardRules、ResidentSystem、SaveManager、AIDirector。
+- 不允许让游戏强依赖联网 AI。
+- 不允许破坏本地 fallback。
+- 不允许接真实 Steam SDK，SteamBridge 当前只按 Mock 处理。
+
+## 高风险文件
+
+以下文件改动必须谨慎：
+
+- scripts/ui/MainView.gd
+- scripts/autoload/GameState.gd
+- scripts/autoload/DayCycle.gd
+- scripts/autoload/EventManager.gd
+- scripts/autoload/SaveManager.gd
+
+除非任务明确要求，否则不要大规模修改这些文件。
+
+## 每次任务必须输出
+
+1. 修改文件列表
+2. 修改内容说明
+3. 测试结果
+4. 风险点
+5. 手动验证步骤
+
+## 每次任务必须运行
+
+- run_tests.bat
+
+如果涉及 DayCycle、EventManager、SaveManager、AIDirector，还必须运行相关 smoke test。
+
+## 开发方向
+
+优先做：
+
+- 开局可玩性
+- 棋盘策略深度
+- 居民愿望链
+- 问题事件节奏
+- AI fallback 安全
+- UI 可读性
+- 音效反馈
+- 测试覆盖
+
+开发方式：
+
+- 小步修改
+- 数据驱动
+- 每次只做一个功能
+- 保持存档兼容

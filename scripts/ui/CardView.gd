@@ -6,23 +6,31 @@ signal problem_drop_requested(card_id: String, zone: String, item_index: int, po
 
 const TEXT_COLOR := Color(0.13, 0.15, 0.18)
 const MUTED_TEXT_COLOR := Color(0.34, 0.37, 0.42)
+const COMPACT_CARD_SIZE := Vector2(148, 108)
+const COMPACT_ART_HEIGHT := 38
 
 var card_id: String = ""
 var zone: String = ""
 var item_index: int = -1
+var _card_def: Dictionary = {}
+var _extra_text: String = ""
+var _showing_back: bool = false
 
 var _icon_texture_rect: TextureRect
 var _icon_fallback_label: Label
 var _title_label: Label
 var _meta_label: Label
 var _body_label: Label
+var _stack_badge_label: Label
+var _flip_button: Button
 var _action_button: Button
 var _highlighted: bool = false
+var _stack_count: int = 1
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	custom_minimum_size = Vector2(160, 116)
+	_apply_compact_size()
 	_ensure_ui()
 	if has_node("/root/SettingsManager"):
 		get_node("/root/SettingsManager").settings_changed.connect(_on_settings_changed)
@@ -31,46 +39,36 @@ func _ready() -> void:
 
 func configure(card_def: Dictionary, zone_name: String, index: int, extra_text: String = "", highlighted: bool = false) -> void:
 	_ensure_ui()
+	_apply_compact_size()
+	_card_def = card_def.duplicate(true)
+	_extra_text = extra_text
 	card_id = str(card_def.get("card_id", ""))
 	zone = zone_name
 	item_index = index
 	_highlighted = highlighted
-	_title_label.text = str(card_def.get("name", card_id))
+	_stack_count = int(card_def.get("stack_count", 1))
 	_apply_art(card_def)
-	var meta_text := "%s | %s" % [str(card_def.get("type", "")), str(card_def.get("rarity", ""))]
-	if not extra_text.is_empty():
-		meta_text += " | %s" % extra_text
-	_meta_label.text = meta_text
-
-	var body_lines: PackedStringArray = []
-	_action_button.visible = false
-	var fund_cost: int = int(card_def.get("fund_cost", 0))
-	var manpower_cost: int = int(card_def.get("manpower_cost", 0))
-	if bool(card_def.get("board_placeable", false)):
-		body_lines.append("建设消耗: 💰%d / 👥%d" % [fund_cost, manpower_cost])
-		body_lines.append("区域: %s" % str(card_def.get("preferred_zone", "")))
-	else:
-		body_lines.append("配方素材")
-	if str(card_def.get("type", "")) == "problem":
-		_action_button.visible = true
-		_action_button.text = "投入 1 人力"
-	if bool(card_def.get("board_placeable", false)):
-		body_lines.append("Output: %s +%d" % [
-			str(card_def.get("primary_resource", "")),
-			int(card_def.get("base_output", 0)) + int(card_def.get("preferred_zone_bonus", 0))
-		])
-	body_lines.append(str(card_def.get("description", "")))
-	if not extra_text.is_empty():
-		body_lines.append(extra_text)
-	_body_label.text = "\n".join(body_lines)
+	_showing_back = false
+	_render_face()
 	_apply_style(str(card_def.get("type", "")))
+	_update_stack_badge()
+	_update_tooltip()
 
 
 func set_dimmed(dimmed: bool) -> void:
 	modulate = Color(1, 1, 1, 0.35 if dimmed else 1.0)
 
 
+func set_stack_count(count: int) -> void:
+	_stack_count = maxi(count, 1)
+	_update_stack_badge()
+
+
 func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+		toggle_face()
+		accept_event()
+		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 		if zone == "problem":
 			emit_signal("problem_drop_requested", card_id, zone, item_index, event.position)
@@ -82,20 +80,21 @@ func _gui_input(event: InputEvent) -> void:
 func _ensure_ui() -> void:
 	if _title_label != null:
 		return
+	_apply_compact_size()
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 12)
-	margin.add_theme_constant_override("margin_top", 10)
-	margin.add_theme_constant_override("margin_right", 12)
-	margin.add_theme_constant_override("margin_bottom", 10)
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_top", 7)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_bottom", 7)
 	add_child(margin)
 
 	var layout := VBoxContainer.new()
-	layout.add_theme_constant_override("separation", 4)
+	layout.add_theme_constant_override("separation", 3)
 	margin.add_child(layout)
 
 	var art_frame := PanelContainer.new()
-	art_frame.custom_minimum_size = Vector2(0, 56)
+	art_frame.custom_minimum_size = Vector2(0, COMPACT_ART_HEIGHT)
 	art_frame.add_theme_stylebox_override("panel", _make_art_frame_style())
 	layout.add_child(art_frame)
 
@@ -111,7 +110,7 @@ func _ensure_ui() -> void:
 	art_margin.add_child(art_center)
 
 	_icon_texture_rect = TextureRect.new()
-	_icon_texture_rect.custom_minimum_size = Vector2(36, 36)
+	_icon_texture_rect.custom_minimum_size = Vector2(30, 30)
 	_icon_texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_icon_texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	art_center.add_child(_icon_texture_rect)
@@ -137,11 +136,191 @@ func _ensure_ui() -> void:
 	_body_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(_body_label)
 
+	var button_row := HBoxContainer.new()
+	button_row.add_theme_constant_override("separation", 4)
+	layout.add_child(button_row)
+
+	_flip_button = Button.new()
+	_flip_button.text = "详情"
+	_flip_button.custom_minimum_size = Vector2(54, 22)
+	_flip_button.pressed.connect(toggle_face)
+	button_row.add_child(_flip_button)
+
 	_action_button = Button.new()
 	_action_button.visible = false
 	_action_button.text = "执行"
 	_action_button.pressed.connect(_on_action_button_pressed)
-	layout.add_child(_action_button)
+	button_row.add_child(_action_button)
+
+	_stack_badge_label = Label.new()
+	_stack_badge_label.visible = false
+	_stack_badge_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_stack_badge_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_stack_badge_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_stack_badge_label.offset_left = COMPACT_CARD_SIZE.x - 44
+	_stack_badge_label.offset_top = COMPACT_CARD_SIZE.y - 30
+	_stack_badge_label.offset_right = COMPACT_CARD_SIZE.x - 8
+	_stack_badge_label.offset_bottom = COMPACT_CARD_SIZE.y - 7
+	_stack_badge_label.add_theme_font_size_override("font_size", 13)
+	_stack_badge_label.add_theme_color_override("font_color", Color(1, 1, 1))
+	var badge_style := StyleBoxFlat.new()
+	badge_style.bg_color = Color(0.18, 0.25, 0.28, 0.92)
+	badge_style.border_color = Color(0.95, 0.95, 0.88, 0.85)
+	badge_style.set_border_width_all(1)
+	badge_style.set_corner_radius_all(8)
+	_stack_badge_label.add_theme_stylebox_override("normal", badge_style)
+	add_child(_stack_badge_label)
+
+
+func _apply_compact_size() -> void:
+	custom_minimum_size = COMPACT_CARD_SIZE
+	size = COMPACT_CARD_SIZE
+
+
+func is_showing_back() -> bool:
+	return _showing_back
+
+
+func flip_to_back() -> void:
+	_showing_back = true
+	_render_face()
+
+
+func flip_to_front() -> void:
+	_showing_back = false
+	_render_face()
+
+
+func toggle_face() -> void:
+	_showing_back = not _showing_back
+	_render_face()
+
+
+func get_visible_face_text() -> String:
+	var parts := PackedStringArray()
+	if _title_label != null:
+		parts.append(_title_label.text)
+	if _meta_label != null:
+		parts.append(_meta_label.text)
+	if _body_label != null:
+		parts.append(_body_label.text)
+	return "\n".join(parts)
+
+
+func get_shape_summary_text() -> String:
+	return _shape_summary_text()
+
+
+func _render_face() -> void:
+	if _title_label == null:
+		return
+	if _card_def.is_empty():
+		return
+	_title_label.text = str(_card_def.get("name", card_id))
+	if _showing_back:
+		_meta_label.text = "背面 | 详情"
+		_body_label.text = _back_face_text()
+		_flip_button.text = "正面"
+	else:
+		_meta_label.text = "%s | %s" % [str(_card_def.get("type", "")), str(_card_def.get("rarity", ""))]
+		_body_label.text = _front_face_text()
+		_flip_button.text = "详情"
+	_action_button.visible = str(_card_def.get("type", "")) == "problem"
+	if _action_button.visible:
+		_action_button.text = "投入1"
+	_update_tooltip()
+
+
+func _front_face_text() -> String:
+	var lines := PackedStringArray()
+	var card_type := str(_card_def.get("type", ""))
+	if bool(_card_def.get("board_placeable", false)):
+		lines.append("花费 %d金/%d人" % [int(_card_def.get("fund_cost", 0)), int(_card_def.get("manpower_cost", 0))])
+		var shape_summary := _shape_summary_text()
+		if not shape_summary.is_empty():
+			lines.append(shape_summary)
+		lines.append("%s +%d | %s区" % [
+			str(_card_def.get("primary_resource", "")),
+			int(_card_def.get("base_output", 0)) + int(_card_def.get("preferred_zone_bonus", 0)),
+			str(_card_def.get("preferred_zone", ""))
+		])
+		var adjacency_bonus := int(_card_def.get("adjacency_bonus", 0))
+		if adjacency_bonus > 0:
+			lines.append("同组相邻 +%d" % adjacency_bonus)
+	elif card_type == "problem":
+		var payload: Dictionary = _card_def.get("problem_payload", {})
+		lines.append("问题 | %s" % str(payload.get("category", "risk")))
+		lines.append("翻面看惩罚")
+	else:
+		lines.append("配方素材")
+		var unlock_flower_cost := int(_card_def.get("unlock_flower_cost", 0))
+		if unlock_flower_cost > 0:
+			lines.append("小红花解锁 %d" % unlock_flower_cost)
+		var tags: Array = _card_def.get("tags", [])
+		if not tags.is_empty():
+			lines.append("标签 %s" % _short_tag_line(tags))
+	if _highlighted:
+		lines.append("高亮: 可用")
+	return "\n".join(lines)
+
+
+func _back_face_text() -> String:
+	var lines := PackedStringArray()
+	var description := str(_card_def.get("description", ""))
+	if not description.is_empty():
+		lines.append(description)
+	if not _extra_text.is_empty():
+		lines.append(_extra_text)
+	var resident_links: Array = _card_def.get("resident_links", [])
+	if not resident_links.is_empty():
+		lines.append("居民: %s" % ", ".join(_string_array(resident_links)))
+	if bool(_card_def.get("board_placeable", false)):
+		lines.append("建设: %d资金 / %d人力" % [int(_card_def.get("fund_cost", 0)), int(_card_def.get("manpower_cost", 0))])
+		var shape_summary := _shape_summary_text()
+		if not shape_summary.is_empty():
+			lines.append(shape_summary)
+	var tags: Array = _card_def.get("tags", [])
+	if not tags.is_empty():
+		lines.append("标签: %s" % _short_tag_line(tags, 4))
+	return "\n".join(lines)
+
+
+func _update_tooltip() -> void:
+	if _card_def.is_empty():
+		tooltip_text = ""
+		return
+	var lines := PackedStringArray()
+	lines.append(str(_card_def.get("name", card_id)))
+	var front := _front_face_text()
+	if not front.is_empty():
+		lines.append(front)
+	var back := _back_face_text()
+	if not back.is_empty():
+		lines.append(back)
+	tooltip_text = "\n".join(lines)
+
+
+func _short_tag_line(tags: Array, limit: int = 2) -> String:
+	var values := PackedStringArray()
+	for index: int in range(mini(tags.size(), limit)):
+		values.append(str(tags[index]))
+	return "/".join(values)
+
+
+func _string_array(values: Array) -> PackedStringArray:
+	var result := PackedStringArray()
+	for value in values:
+		result.append(str(value))
+	return result
+
+
+func _shape_summary_text() -> String:
+	if not bool(_card_def.get("board_placeable", false)):
+		return ""
+	var shape: Array = _card_def.get("shape_cells", [])
+	var cell_count := maxi(1, shape.size())
+	var rotate_text := "可旋转" if bool(_card_def.get("can_rotate", false)) else "不可旋转"
+	return "占地 %d 格 / %s" % [cell_count, rotate_text]
 
 
 func _apply_style(card_type: String) -> void:
@@ -195,6 +374,14 @@ func _on_settings_changed(settings: Dictionary) -> void:
 		self_modulate = Color(1.04, 1.04, 1.0)
 	else:
 		self_modulate = Color.WHITE
+	_update_stack_badge()
+
+
+func _update_stack_badge() -> void:
+	if _stack_badge_label == null:
+		return
+	_stack_badge_label.visible = _stack_count > 1
+	_stack_badge_label.text = "x%d" % _stack_count
 
 
 func _on_action_button_pressed() -> void:

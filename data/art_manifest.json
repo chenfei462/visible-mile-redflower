@@ -72,6 +72,42 @@
       "placeholder_path": "res://icon.svg",
       "fallback_label": "电话树名单"
     },
+    "card_welcome_table_plan": {
+      "kind": "card",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "欢迎桌方案"
+    },
+    "icon_welcome_table_plan": {
+      "kind": "icon",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "欢迎桌方案"
+    },
+    "card_folding_table_kit": {
+      "kind": "card",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "折叠桌套件"
+    },
+    "icon_folding_table_kit": {
+      "kind": "icon",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "折叠桌套件"
+    },
+    "card_welcome_table": {
+      "kind": "card",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "邻里欢迎桌"
+    },
+    "icon_welcome_table": {
+      "kind": "icon",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "邻里欢迎桌"
+    },
     "card_volunteer_station": {
       "kind": "card",
       "path": "",
@@ -1002,6 +1038,18 @@
       "placeholder_path": "res://icon.svg",
       "fallback_label": "孙同学"
     },
+    "portrait_gao_meihua": {
+      "kind": "portrait",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "高美华"
+    },
+    "portrait_a_qiang": {
+      "kind": "portrait",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "阿强"
+    },
     "event_day2_rain_path": {
       "kind": "event",
       "path": "",
@@ -1013,6 +1061,12 @@
       "path": "",
       "placeholder_path": "res://icon.svg",
       "fallback_label": "公告理解冲突"
+    },
+    "event_day3_first_notice_check": {
+      "kind": "event",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "第一次公告确认"
     },
     "event_day4_market_queue": {
       "kind": "event",

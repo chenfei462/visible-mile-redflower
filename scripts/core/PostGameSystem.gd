@@ -47,15 +47,15 @@ static func store_completed_run_summary(state: Dictionary, rating_summary: Dicti
 static func enter_free_mode(state: Dictionary) -> Dictionary:
 	ensure_runtime_fields(state)
 	if not bool(state.get("unlocked_modes", {}).get("free_mode", false)):
-		return {"success": false, "lines": ["Free Mode is locked."]}
+		return {"success": false, "lines": ["自由模式尚未解锁。"]}
 	state["post_game_mode"] = "free_mode"
 	if not state.has("free_mode_month"):
 		state["free_mode_month"] = 0
 	return {
 		"success": true,
 		"lines": PackedStringArray([
-			"Free Mode started.",
-			"The community will now report one autonomous month at a time."
+			"自由模式已开始。",
+			"社区会按月汇报自治运转情况。"
 		])
 	}
 
@@ -63,17 +63,17 @@ static func enter_free_mode(state: Dictionary) -> Dictionary:
 static func advance_free_mode_month(state: Dictionary, resource_manager: Node) -> Dictionary:
 	ensure_runtime_fields(state)
 	if str(state.get("post_game_mode", "")) != "free_mode":
-		return {"success": false, "lines": ["Enter Free Mode before advancing a month."]}
+		return {"success": false, "lines": ["请先进入自由模式，再推进月份。"]}
 	state["free_mode_month"] = int(state.get("free_mode_month", 0)) + 1
 	var month := int(state.get("free_mode_month", 1))
 	var resource_delta: Dictionary = {}
 	var lines := PackedStringArray()
-	lines.append("Free Mode month %d report." % month)
+	lines.append("自由模式第 %d 个月月报。" % month)
 	_apply_facility_outputs(state, resource_manager, resource_delta)
 	_apply_resident_outputs(state, resource_manager, resource_delta, month)
 	_refresh_resident_messages(state.get("resident_states", []), month)
-	lines.append("Autonomy Lv%d kept daily routines stable." % int(state.get("autonomy", 0)))
-	lines.append("Resources changed: flowers %+d, funds %+d, trust %+d." % [
+	lines.append("自治 Lv%d 让日常事务保持稳定。" % int(state.get("autonomy", 0)))
+	lines.append("资源变化：小红花 %+d，资金 %+d，信任 %+d。" % [
 		int(resource_delta.get("flowers", 0)),
 		int(resource_delta.get("funds", 0)),
 		int(resource_delta.get("trust", 0))
@@ -89,7 +89,7 @@ static func advance_free_mode_month(state: Dictionary, resource_manager: Node) -
 static func start_new_game_plus(state: Dictionary) -> Dictionary:
 	ensure_runtime_fields(state)
 	if not bool(state.get("unlocked_modes", {}).get("new_game_plus", false)):
-		return {"success": false, "lines": ["New Game+ is locked."], "state": state}
+		return {"success": false, "lines": ["新游戏+尚未解锁。"], "state": state}
 	var completed_summary: Dictionary = state.get("completed_run_summary", {}).duplicate(true)
 	var unlocked_modes: Dictionary = state.get("unlocked_modes", {}).duplicate(true)
 	var next_count := int(state.get("new_game_plus_count", 0)) + 1
@@ -105,8 +105,8 @@ static func start_new_game_plus(state: Dictionary) -> Dictionary:
 		"success": true,
 		"state": new_state,
 		"lines": PackedStringArray([
-			"New Game+ started.",
-			"Legacy bonus applied: trust +10, funds +2, flowers +2."
+			"新游戏+已开始。",
+			"继承加成已生效：信任 +10，资金 +2，小红花 +2。"
 		])
 	}
 
@@ -134,6 +134,11 @@ static func _fresh_state() -> Dictionary:
 		"free_mode_month": 0,
 		"rating": "D",
 		"selected_cards_today": 0,
+		"board_version": 4,
+		"flower_unlocks": [],
+		"inventory": BOARD_RULES.create_default_inventory(),
+		"pending_build_rotation": 0,
+		"next_building_instance_id": 1,
 		"board_cells": BOARD_RULES.create_default_board_cells(),
 		"built_facilities": [],
 		"resident_states": [],
@@ -157,8 +162,7 @@ static func _apply_facility_outputs(state: Dictionary, resource_manager: Node, r
 	for facility_variant in state.get("built_facilities", []):
 		if typeof(facility_variant) != TYPE_DICTIONARY:
 			continue
-		# Free Mode uses a small deterministic monthly output so the post-game
-		# demo does not need to refresh card data or re-enter the daily loop.
+		# Keep post-game output deterministic without re-entering the daily loop.
 		var resource_key := "funds"
 		var amount := 1
 		_add_delta(resource_delta, resource_key, amount)
@@ -189,7 +193,7 @@ static func _refresh_resident_messages(resident_states: Array, month: int) -> vo
 		if typeof(resident_variant) != TYPE_DICTIONARY:
 			continue
 		var resident: Dictionary = resident_variant
-		var text := "Free Mode month %d: %s sees the community taking care of itself." % [
+		var text := "自由模式第 %d 个月：%s 看见社区正在自己照顾自己。" % [
 			month,
 			str(resident.get("name", resident.get("resident_id", "Resident")))
 		]
