@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/FloatingNotifier.gd" id="1_floating_notifier"]
+
+[node name="FloatingNotifier" type="PanelContainer"]
+mouse_filter = 2
+script = ExtResource("1_floating_notifier")

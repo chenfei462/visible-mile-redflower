@@ -28,7 +28,7 @@ func resolve_sunrise() -> PackedStringArray:
 	RESIDENT_SYSTEM.ensure_runtime_fields(resident_states)
 	RESIDENT_SYSTEM.assign_daily_board_positions(state, state.get("board_cells", []))
 	var board_cells: Array[Dictionary] = state.get("board_cells", [])
-	BOARD_RULES.apply_trust_unlocks(board_cells, int(state.get("trust", 0)))
+	BOARD_RULES.apply_land_unlock_stage(board_cells, int(state.get("land_unlock_stage", BOARD_RULES.land_unlock_stage_from_cells(board_cells))))
 	var combo_cache: Array[Dictionary] = BOARD_RULES.build_board_combo_cache(state, DataRepository.cards_by_id)
 	var combo_effects: Dictionary = BOARD_RULES.aggregate_board_combo_effects(combo_cache)
 	var manpower_gain: int = RESIDENT_SYSTEM.calculate_daily_manpower(resident_states)
@@ -101,7 +101,8 @@ func resolve_dusk() -> PackedStringArray:
 	lines.append_array(RESIDENT_SYSTEM.resolve_daily_residents(state, DataRepository.cards_by_id, DataRepository.wishes_by_id, ResourceManager))
 	lines.append_array(_apply_board_combo_resident_effects(state))
 	lines.append_array(AUTONOMY_SYSTEM.resolve_dusk_autonomy(state, state.get("resident_states", [])))
-	BOARD_RULES.apply_trust_unlocks(state.get("board_cells", []), int(state.get("trust", 0)))
+	var board_cells: Array[Dictionary] = state.get("board_cells", [])
+	BOARD_RULES.apply_land_unlock_stage(board_cells, int(state.get("land_unlock_stage", BOARD_RULES.land_unlock_stage_from_cells(board_cells))))
 	GameState.last_settlement_lines = lines
 	emit_signal("day_ended", lines)
 	return lines

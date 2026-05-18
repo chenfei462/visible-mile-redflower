@@ -24,6 +24,42 @@
       "placeholder_path": "res://icon.svg",
       "fallback_label": "木料包"
     },
+    "card_info_notes": {
+      "kind": "card",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "信息记录"
+    },
+    "icon_info_notes": {
+      "kind": "icon",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "信息记录"
+    },
+    "card_tool_parts": {
+      "kind": "card",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "通用五金件"
+    },
+    "icon_tool_parts": {
+      "kind": "icon",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "通用五金件"
+    },
+    "card_care_pack": {
+      "kind": "card",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "照护物资包"
+    },
+    "icon_care_pack": {
+      "kind": "icon",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "照护物资包"
+    },
     "card_community_ramp": {
       "kind": "card",
       "path": "",

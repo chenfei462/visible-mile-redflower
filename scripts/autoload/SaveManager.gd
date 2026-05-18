@@ -36,6 +36,7 @@ func load_slot(slot_id: int) -> Dictionary:
 	var payload: Dictionary = parsed
 	if int(payload.get("version", 0)) > SAVE_VERSION:
 		return {"success": false, "reason": "future_save_version"}
+	payload["ui_state"] = _normalize_ui_state(payload.get("ui_state", {}))
 	_restore_payload(payload)
 	emit_signal("loaded", slot_id)
 	return {"success": true, "slot_id": slot_id, "ui_state": payload.get("ui_state", {})}
@@ -69,7 +70,7 @@ func _build_payload(slot_id: int, ui_state: Dictionary) -> Dictionary:
 		"community_state": GameState.get_state().duplicate(true),
 		"tutorial_progress": GameState.get_tutorial_progress().duplicate(true),
 		"ai_settings": AIDirector.settings.duplicate(true),
-		"ui_state": ui_state.duplicate(true)
+		"ui_state": _normalize_ui_state(ui_state)
 	}
 
 
@@ -126,6 +127,13 @@ func _restore_community_state(saved_state: Dictionary) -> Dictionary:
 		var legacy_bonus_v4: Dictionary = restored.get("legacy_bonus", {})
 		legacy_bonus_v4["board_reset_v4_shape_diversity"] = true
 		restored["legacy_bonus"] = legacy_bonus_v4
+	if int(restored.get("board_version", 0)) < 5:
+		var derived_land_stage := BOARD_RULES.land_unlock_stage_from_cells(restored.get("board_cells", []))
+		if restored.has("land_unlock_stage") and typeof(restored.get("land_unlock_stage")) == TYPE_INT:
+			derived_land_stage = clampi(int(restored.get("land_unlock_stage", derived_land_stage)), 0, 5)
+		restored["land_unlock_stage"] = derived_land_stage
+		restored["board_version"] = 5
+		BOARD_RULES.apply_land_unlock_stage(restored.get("board_cells", []), derived_land_stage)
 	if not restored.has("next_building_instance_id"):
 		restored["next_building_instance_id"] = 1
 	if not restored.has("pending_build_rotation"):
@@ -137,6 +145,8 @@ func _restore_community_state(saved_state: Dictionary) -> Dictionary:
 		restored["recipe_codex"] = {}
 	if typeof(restored.get("discovered_combos", [])) != TYPE_ARRAY:
 		restored["discovered_combos"] = []
+	if not restored.has("land_unlock_stage"):
+		restored["land_unlock_stage"] = BOARD_RULES.land_unlock_stage_from_cells(restored.get("board_cells", []))
 	if DataRepository != null and not DataRepository.cards_by_id.is_empty():
 		BOARD_RULES.build_board_combo_cache(restored, DataRepository.cards_by_id)
 	return restored
@@ -160,3 +170,32 @@ func _ensure_save_dir() -> void:
 
 func _slot_path(slot_id: int) -> String:
 	return "%s/slot_%d.json" % [SAVE_DIR, slot_id]
+
+
+func _normalize_ui_state(ui_state_variant: Variant) -> Dictionary:
+	if typeof(ui_state_variant) != TYPE_DICTIONARY:
+		return {}
+	var ui_state: Dictionary = (ui_state_variant as Dictionary).duplicate(true)
+	for key: String in ["bulletin_cards", "hand_cards", "craft_slots", "selected_recipe_ids", "hand_card_sources", "craft_slot_sources"]:
+		ui_state[key] = _string_array(ui_state.get(key, []))
+	for key: String in ["bulletin_card_prices", "hand_card_prices", "craft_slot_prices"]:
+		ui_state[key] = _int_array(ui_state.get(key, []))
+	return ui_state
+
+
+func _string_array(source: Variant) -> Array[String]:
+	var result: Array[String] = []
+	if typeof(source) != TYPE_ARRAY:
+		return result
+	for item in source:
+		result.append(str(item))
+	return result
+
+
+func _int_array(source: Variant) -> Array[int]:
+	var result: Array[int] = []
+	if typeof(source) != TYPE_ARRAY:
+		return result
+	for item in source:
+		result.append(int(item))
+	return result

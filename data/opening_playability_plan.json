@@ -7,7 +7,7 @@
         "lumber_pack",
         "welcome_table_plan",
         "folding_table_kit",
-        "volunteer_poster"
+        "paint_bucket"
       ],
       "recommended_goal_ids": [
         "craft",
@@ -15,6 +15,7 @@
         "wish_safe_ramp"
       ],
       "recommended_recipe_ids": [
+        "material_ramp_kit",
         "build_ramp",
         "build_welcome_table"
       ],
@@ -28,7 +29,7 @@
         "fresh_goods_box",
         "phone_tree",
         "bench_plan",
-        "paint_bucket"
+        "volunteer_poster"
       ]
     },
     {

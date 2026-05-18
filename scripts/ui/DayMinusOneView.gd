@@ -2,6 +2,9 @@ extends Control
 
 signal finished
 
+const LIGHT_SURFACE_PRIMARY_TEXT := Color(0.23, 0.13, 0.06)
+const LIGHT_SURFACE_MUTED_TEXT := Color(0.39, 0.28, 0.18)
+
 var title_label: Label
 var body_label: RichTextLabel
 
@@ -39,11 +42,14 @@ func _build_ui() -> void:
 
 	title_label = Label.new()
 	title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title_label.add_theme_color_override("font_color", LIGHT_SURFACE_PRIMARY_TEXT)
 	layout.add_child(title_label)
 
 	body_label = RichTextLabel.new()
 	body_label.bbcode_enabled = true
 	body_label.custom_minimum_size = Vector2(0, 600)
+	body_label.add_theme_color_override("default_color", LIGHT_SURFACE_PRIMARY_TEXT)
+	body_label.add_theme_color_override("font_color", LIGHT_SURFACE_PRIMARY_TEXT)
 	layout.add_child(body_label)
 
 	var button_row := HBoxContainer.new()
@@ -70,6 +76,14 @@ func _refresh() -> void:
 		lines.append("[b]%s[/b]" % str(step.get("title", "")))
 		lines.append(str(step.get("body", "")))
 	body_label.text = "\n".join(lines)
+
+
+func get_text_color_spec() -> Dictionary:
+	return {
+		"title": LIGHT_SURFACE_PRIMARY_TEXT,
+		"body": LIGHT_SURFACE_PRIMARY_TEXT,
+		"muted": LIGHT_SURFACE_MUTED_TEXT
+	}
 
 
 func _on_complete_pressed() -> void:

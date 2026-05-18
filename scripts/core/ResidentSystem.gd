@@ -408,7 +408,7 @@ static func _location_from_tags(tags: Array) -> String:
 	return "home"
 
 
-static func _preferred_cell_for_resident(resident: Dictionary, board_cells: Array[Dictionary], unlocked_indices: PackedInt32Array, seed: int) -> int:
+static func _preferred_cell_for_resident(resident: Dictionary, board_cells: Array[Dictionary], unlocked_indices: PackedInt32Array, random_seed: int) -> int:
 	var preferred_zone := "住宅"
 	match str(resident.get("location_id", "home")):
 		"service", "clinic", "event":
@@ -418,10 +418,10 @@ static func _preferred_cell_for_resident(resident: Dictionary, board_cells: Arra
 		"green":
 			preferred_zone = "绿地"
 	for offset: int in range(unlocked_indices.size()):
-		var candidate := unlocked_indices[(seed + offset) % unlocked_indices.size()]
+		var candidate := unlocked_indices[(random_seed + offset) % unlocked_indices.size()]
 		if str(board_cells[candidate].get("zone_type", "")) == preferred_zone:
 			return candidate
-	return unlocked_indices[seed % unlocked_indices.size()]
+	return unlocked_indices[random_seed % unlocked_indices.size()]
 
 
 static func _route_reason_for_resident(resident: Dictionary, state: Dictionary) -> String:

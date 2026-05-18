@@ -17,6 +17,23 @@ var _failures: PackedStringArray = []
 var _context: Dictionary = {}
 
 
+class IsoGridPainterSpy:
+	extends Control
+
+	var board_cells_updates := 0
+	var selected_cell_updates := 0
+	var hover_screen_updates := 0
+
+	func set_board_cells(_cells: Array) -> void:
+		board_cells_updates += 1
+
+	func set_selected_cell_index(_index: int, _label_text: String = "") -> void:
+		selected_cell_updates += 1
+
+	func set_hover_screen_position(_screen_position: Vector2) -> void:
+		hover_screen_updates += 1
+
+
 func run(context: Dictionary) -> PackedStringArray:
 	_failures.clear()
 	_context = context
@@ -27,7 +44,8 @@ func run(context: Dictionary) -> PackedStringArray:
 	_test_autonomy_level_thresholds()
 	_test_autonomy_auto_handles_simple_problems()
 	_test_sunrise_output_formula()
-	_test_trust_unlock_logic()
+	_test_land_unlock_stage_logic()
+	_test_board_land_unlock_purchase_flow()
 	_test_v05_board_16x16_center_unlock_and_zone_change()
 	_test_v05_zone_change_spends_resources()
 	_test_v05_multicell_zone_placement_and_demolition_scrap()
@@ -62,6 +80,7 @@ func run(context: Dictionary) -> PackedStringArray:
 	_test_public_space_story_chain_and_annual_report()
 	_test_problem_resolution()
 	_test_v04_flower_unlock_and_board_v2_defaults()
+	_test_board_v5_save_migration_preserves_unlocked_area()
 	_test_tetris_legacy_board_v4_save_reset()
 	_test_v05_demolish_without_replacement_flow()
 	_test_v04_facility_output_describes_synergy_sources()
@@ -74,14 +93,37 @@ func run(context: Dictionary) -> PackedStringArray:
 	_test_steam_bridge_mock_is_safe_without_sdk()
 	_test_audio_manager_accepts_missing_assets()
 	_test_audio_manager_registers_feedback_ids()
+	_test_floating_notifier_visual_and_lifecycle_contract()
 	_test_card_view_compact_double_sided_behavior()
 	_test_card_view_facility_shape_text()
+	_test_card_view_color_footprint_and_large_text_rendering()
 	_test_card_view_stack_badge_api()
 	_test_main_view_exposes_tabletop_layout_state()
+	_test_main_view_defaults_to_live_ui_instead_of_reference_overlay()
+	_test_main_view_wraps_primary_layout_in_a_page_scroll_container()
+	_test_main_view_bottom_strip_keeps_panel_border_inside_viewport()
+	_test_window_configuration_is_resizable_and_large_enough()
 	_test_main_view_tetris_rotation_helpers()
 	_test_main_view_v04_chinese_status_helpers()
 	_test_main_view_readability_feedback_helpers()
+	_test_main_view_dusk_phase_clarity_contract()
+	_test_placed_facility_map_preview_contract()
+	_test_main_view_selected_building_demolish_action_contract()
 	_test_main_view_audio_feedback_mapping()
+	_test_main_view_uses_floating_notifier_for_invalid_actions()
+	_test_main_view_craft_slot_guidance_and_failure_juice_contract()
+	_test_main_view_recipe_handbook_quick_craft_contract()
+	_test_main_view_hover_highlight_does_not_rebuild_full_board()
+	_test_main_view_non_board_drag_does_not_refresh_iso_grid()
+	_test_main_view_craft_drop_uses_light_drag_refresh()
+	_test_main_view_board_place_uses_light_drag_refresh()
+	_test_main_view_land_unlock_and_bulletin_action_contract()
+	_test_main_view_contextual_tutorial_coachmark_contract()
+	_test_problem_manpower_assignment_ui_contract()
+	_test_tutorial_and_resident_cards_use_dark_text_on_light_surfaces()
+	_test_tabletop_layout_spec_and_panel_stylebox_contract()
+	_test_left_panel_subcontroller_scenes_contract()
+	_test_isometric_grid_painter_projection_and_preview_contract()
 	_test_opening_playability_bulletins_and_hints()
 	_test_today_goal_completion_states()
 	_test_core_gameplay_regression_day1_to_day3_opening_flow()
@@ -97,7 +139,7 @@ func _test_json_loading_and_validation() -> void:
 	var repository: Node = _context.get("data_repository")
 	var ok: bool = repository.load_all("res://data")
 	_assert_true(ok, "repository should load bundled data")
-	_assert_equal(repository.card_list.size(), 83, "card count should include the three Day 1-3 starter cards")
+	_assert_equal(repository.card_list.size(), 86, "card count should include starter cards plus defined generic material outputs")
 	_assert_true(repository.recipes.size() >= 47, "recipe count should cover the demo recipe set plus opening alternatives")
 	_assert_equal(repository.residents.size(), 9, "resident count should include two new community members")
 	_assert_equal(repository.wishes.size(), 18, "wish count should cover two-stage chains for all residents")
@@ -106,6 +148,11 @@ func _test_json_loading_and_validation() -> void:
 	_assert_equal(repository.demo_balance_targets.get("daily_targets", []).size(), 10, "demo balance targets should cover 10 days")
 	_assert_equal(repository.opening_playability_plan.get("days", []).size(), 3, "opening playability plan should cover the first three days")
 	_assert_equal(repository.validation_errors.size(), 0, "data should validate cleanly")
+	for card: Dictionary in repository.card_list:
+		var material_outputs: Dictionary = card.get("material_outputs", card.get("production_outputs", {}))
+		for material_id_variant in material_outputs.keys():
+			var material_id := str(material_id_variant)
+			_assert_true(repository.cards_by_id.has(material_id), "produced material %s from %s should be defined as a card" % [material_id, str(card.get("card_id", ""))])
 
 
 func _test_unordered_recipe_match() -> void:
@@ -255,11 +302,89 @@ func _test_sunrise_output_formula() -> void:
 	_assert_equal(output.get("resource", ""), "flowers", "output should expose the card's primary resource")
 
 
-func _test_trust_unlock_logic() -> void:
-	_assert_equal(BOARD_RULES.count_unlocked_cells_for_trust(0), 36, "16x16 board should start with the center 6x6 unlocked")
-	_assert_true(BOARD_RULES.count_unlocked_cells_for_trust(25) > 36, "trust 25 should unlock more community land")
-	_assert_true(BOARD_RULES.count_unlocked_cells_for_trust(50) > BOARD_RULES.count_unlocked_cells_for_trust(25), "trust 50 should unlock another land band")
-	_assert_equal(BOARD_RULES.count_unlocked_cells_for_trust(100), 256, "trust 100 should unlock the full 16x16 community")
+func _test_land_unlock_stage_logic() -> void:
+	var rules: RefCounted = BOARD_RULES.new()
+	_assert_true(rules.has_method("count_unlocked_cells_for_stage"), "board rules should expose stage-based land unlock counts")
+	_assert_true(rules.has_method("land_unlock_stage_for_trust"), "board rules should expose trust thresholds for manual land unlocks")
+	if not rules.has_method("count_unlocked_cells_for_stage") or not rules.has_method("land_unlock_stage_for_trust"):
+		return
+	_assert_equal(int(rules.call("count_unlocked_cells_for_stage", 0)), 36, "stage 0 should keep the center 6x6 unlocked")
+	_assert_equal(int(rules.call("count_unlocked_cells_for_stage", 1)), 64, "stage 1 should unlock an 8x8 build area")
+	_assert_equal(int(rules.call("count_unlocked_cells_for_stage", 2)), 100, "stage 2 should unlock a 10x10 build area")
+	_assert_equal(int(rules.call("count_unlocked_cells_for_stage", 3)), 144, "stage 3 should unlock a 12x12 build area")
+	_assert_equal(int(rules.call("count_unlocked_cells_for_stage", 4)), 196, "stage 4 should unlock a 14x14 build area")
+	_assert_equal(int(rules.call("count_unlocked_cells_for_stage", 5)), 256, "stage 5 should unlock the full 16x16 community")
+	_assert_equal(int(rules.call("land_unlock_stage_for_trust", 19)), 0, "trust below 20 should not unlock the first expansion tier")
+	_assert_equal(int(rules.call("land_unlock_stage_for_trust", 20)), 1, "trust 20 should qualify the first expansion tier")
+	_assert_equal(int(rules.call("land_unlock_stage_for_trust", 40)), 2, "trust 40 should qualify the second expansion tier")
+	_assert_equal(int(rules.call("land_unlock_stage_for_trust", 60)), 3, "trust 60 should qualify the third expansion tier")
+	_assert_equal(int(rules.call("land_unlock_stage_for_trust", 80)), 4, "trust 80 should qualify the fourth expansion tier")
+	_assert_equal(int(rules.call("land_unlock_stage_for_trust", 100)), 5, "trust 100 should qualify the final expansion tier")
+
+
+func _test_board_land_unlock_purchase_flow() -> void:
+	var repository: Node = _context.get("data_repository")
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var state: Dictionary = game_state.get_state()
+	state["trust"] = 20
+	state["flowers"] = 25
+	var rules: RefCounted = PROTOTYPE_RULES.new()
+	_assert_true(rules.has_method("unlock_board_land_with_flowers"), "prototype rules should expose manual land expansion with flowers")
+	if not rules.has_method("unlock_board_land_with_flowers"):
+		return
+	var locked_next_ring := BOARD_RULES.cell_index(4, 4)
+	var far_locked_cell := BOARD_RULES.cell_index(0, 0)
+	_assert_true(not bool(state.get("board_cells", [])[locked_next_ring].get("unlocked", true)), "the first expansion ring should still be locked at stage 0")
+	var blocked: Dictionary = rules.call("unlock_board_land_with_flowers", state, far_locked_cell)
+	_assert_true(not bool(blocked.get("success", true)), "cells beyond the immediate next ring should not unlock out of order")
+	state["trust"] = 19
+	var trust_blocked: Dictionary = rules.call("unlock_board_land_with_flowers", state, locked_next_ring)
+	_assert_true(not bool(trust_blocked.get("success", true)), "manual land unlock should still respect trust thresholds")
+	state["trust"] = 20
+	var unlocked: Dictionary = rules.call("unlock_board_land_with_flowers", state, locked_next_ring)
+	_assert_true(bool(unlocked.get("success", false)), "selecting the next ring and spending flowers should unlock the whole next land band")
+	_assert_equal(int(state.get("flowers", -1)), 0, "the first land unlock should spend 25 flowers")
+	_assert_equal(int(state.get("land_unlock_stage", -1)), 1, "successful manual expansion should advance the saved land unlock stage")
+	_assert_true(bool(state.get("board_cells", [])[locked_next_ring].get("unlocked", false)), "unlocking the first ring should open the selected land cell")
+	_assert_true(repository.cards_by_id.has("clinic_desk_plan"), "repository regression guard should keep card data loaded during board unlock tests")
+
+
+func _test_bulletin_paid_purchase_flow() -> void:
+	var repository: Node = _context.get("data_repository")
+	var rules: RefCounted = PROTOTYPE_RULES.new()
+	_assert_true(rules.has_method("claim_bulletin_card"), "prototype rules should expose bulletin picks that can switch from free to paid")
+	if not rules.has_method("claim_bulletin_card"):
+		return
+	var state := {
+		"day_count": 5,
+		"flowers": 20,
+		"selected_cards_today": 0
+	}
+	var bulletin_cards: Array[String] = ["ramp_blueprint", "lumber_pack", "volunteer_poster", "", ""]
+	var bulletin_prices: Array = [4, 7, 2, 0, 0]
+	var hand_cards: Array[String] = []
+	var hand_card_sources: Array = []
+	var hand_card_prices: Array = []
+	var free_pick: Dictionary = rules.call("claim_bulletin_card", bulletin_cards, hand_cards, state, 0, 1, hand_card_sources, hand_card_prices, bulletin_prices, true)
+	_assert_true(bool(free_pick.get("success", false)), "the first day-5 bulletin card should still be free")
+	_assert_equal(int(state.get("selected_cards_today", -1)), 1, "the first day-5 bulletin pick should consume the only free pick")
+	_assert_equal(int(state.get("flowers", -1)), 20, "the free bulletin pick should not spend flowers")
+	_assert_equal(Array(hand_card_sources), ["bulletin_free"], "free bulletin picks should record an undoable hand source")
+	_assert_equal(Array(hand_card_prices), [4], "free picks should remember their day-fixed bulletin price for undo restore")
+	var paid_pick: Dictionary = rules.call("claim_bulletin_card", bulletin_cards, hand_cards, state, 1, 1, hand_card_sources, hand_card_prices, bulletin_prices, true)
+	_assert_true(bool(paid_pick.get("success", false)), "after the free pick is used, bulletin cards should become purchasable with flowers")
+	_assert_equal(int(state.get("selected_cards_today", -1)), 1, "paid bulletin purchases should not consume extra free-pick quota")
+	_assert_equal(int(state.get("flowers", -1)), 13, "paid bulletin purchases should spend the slot's flower price")
+	_assert_equal(Array(hand_card_sources), ["bulletin_free", "bulletin_paid"], "paid bulletin purchases should be marked as non-refundable")
+	_assert_equal(Array(hand_card_prices), [4, 7], "paid bulletin purchases should remember the price they were bought at")
+	var free_return: Dictionary = rules.call("return_hand_card_to_bulletin", bulletin_cards, hand_cards, state, 0, repository.recipes, hand_card_sources, hand_card_prices, bulletin_prices)
+	_assert_true(bool(free_return.get("success", false)), "uncrafted free bulletin picks should still be returnable to the bulletin")
+	_assert_equal(int(state.get("selected_cards_today", -1)), 0, "undoing a free pick should refund the single day-5 free pick")
+	_assert_true(Array(bulletin_cards).has("ramp_blueprint"), "undoing a free pick should put the card back on the bulletin")
+	_assert_true(Array(bulletin_prices).has(4), "undoing a free pick should restore the card's same-day bulletin price")
+	var paid_return: Dictionary = rules.call("return_hand_card_to_bulletin", bulletin_cards, hand_cards, state, hand_cards.find("lumber_pack"), repository.recipes, hand_card_sources, hand_card_prices, bulletin_prices)
+	_assert_true(not bool(paid_return.get("success", true)), "paid bulletin purchases should not be returnable for a refund")
 
 
 func _test_v05_board_16x16_center_unlock_and_zone_change() -> void:
@@ -658,6 +783,13 @@ func _test_v06_recipe_codex_and_tag_recipe_matching() -> void:
 	_assert_true(state.get("recipe_codex", {}).has("support_from_tags"), "discovering a recipe should update the codex")
 	_assert_true(state.get("discovered_combos", []).has("support_from_tags"), "discovering a recipe should record the combo id")
 
+	var repository: Node = _context.get("data_repository")
+	var generic_facility_recipe: Dictionary = RECIPE_RULES.find_matching_recipe_entries([
+		{"card_id": "lumber_pack", "type": "hand"},
+		{"card_id": "paint_bucket", "type": "hand"}
+	], repository.recipes, 0, repository.cards_by_id, BOARD_RULES.create_default_inventory())
+	_assert_equal(str(generic_facility_recipe.get("result_card_id", "")), "community_ramp", "facility crafting should support common material pairs without requiring a blueprint card")
+
 
 func _test_v06_support_items_handle_problems_without_manpower() -> void:
 	var event_manager: Node = _context.get("event_manager")
@@ -956,10 +1088,27 @@ func _test_pick_craft_place_flow() -> void:
 	var pick_two: Dictionary = PROTOTYPE_RULES.pick_bulletin_card(bulletin_cards, hand_cards, state, 1, 3)
 	var pick_three: Dictionary = PROTOTYPE_RULES.pick_bulletin_card(bulletin_cards, hand_cards, state, 2, 3)
 	_assert_true(bool(pick_one.get("success", false)) and bool(pick_two.get("success", false)) and bool(pick_three.get("success", false)), "three bulletin picks should succeed")
+	var return_hand: Array[String] = hand_cards.duplicate()
+	var return_bulletin: Array[String] = bulletin_cards.duplicate()
+	var return_state := state.duplicate(true)
+	var return_result: Dictionary = PROTOTYPE_RULES.return_hand_card_to_bulletin(return_bulletin, return_hand, return_state, 2, repository.recipes)
+	_assert_true(bool(return_result.get("success", false)), "uncrafted selected cards should be returnable to an empty bulletin slot")
+	_assert_equal(return_hand.size(), 2, "returning an uncrafted card should remove it from the handbook")
+	_assert_true(return_bulletin.has("volunteer_poster"), "returned uncrafted card should reappear in the bulletin")
+	_assert_equal(int(return_state.get("selected_cards_today", -1)), 2, "returning an uncrafted card should refund one daily pick")
 	var first_craft: Dictionary = PROTOTYPE_RULES.move_hand_card_to_craft(hand_cards, craft_slots, 0, repository.recipes, 0)
 	_assert_true(bool(first_craft.get("success", false)), "moving the first card to craft should succeed")
 	var second_craft: Dictionary = PROTOTYPE_RULES.move_hand_card_to_craft(hand_cards, craft_slots, 0, repository.recipes, 0)
 	_assert_true(bool(second_craft.get("success", false)) and bool(second_craft.get("crafted", false)), "the second craft input should resolve a recipe")
+	var crafted_return: Dictionary = PROTOTYPE_RULES.return_hand_card_to_bulletin(bulletin_cards, hand_cards, state, hand_cards.find("community_ramp"), repository.recipes)
+	_assert_true(not bool(crafted_return.get("success", true)), "crafted recipe result cards should not be returnable to the bulletin")
+	var carry_hand: Array[String] = ["paint_bucket", "community_ramp"]
+	var carry_slots: Array[String] = ["notice_design"]
+	var expire_result: Dictionary = PROTOTYPE_RULES.expire_unfinished_handbook_cards(carry_hand, carry_slots, repository.recipes)
+	_assert_equal(Array(carry_hand), ["community_ramp"], "new days should keep crafted result cards but clear unfinished picked materials")
+	_assert_equal(carry_slots.size(), 0, "new days should clear unfinished craft-slot cards instead of returning them to the handbook")
+	_assert_true(Array(expire_result.get("expired_card_ids", [])).has("paint_bucket"), "expired card report should include unfinished handbook materials")
+	_assert_true(Array(expire_result.get("expired_card_ids", [])).has("notice_design"), "expired card report should include unfinished craft-slot cards")
 	var facility_index := hand_cards.find("community_ramp")
 	var service_index := BOARD_RULES.cell_index(6, 6)
 	_prepare_shape_cells_for_card(state, "community_ramp", service_index, repository)
@@ -1313,7 +1462,7 @@ func _test_v04_flower_unlock_and_board_v2_defaults() -> void:
 	var game_state: Node = _context.get("game_state")
 	game_state.reset_state()
 	var state: Dictionary = game_state.get_state()
-	_assert_equal(int(state.get("board_version", 0)), 4, "new saves should default to board version 4")
+	_assert_equal(int(state.get("board_version", 0)), 5, "new saves should default to board version 5")
 	_assert_true(typeof(state.get("flower_unlocks", [])) == TYPE_ARRAY, "state should track flower unlock ids")
 	var rules: RefCounted = PROTOTYPE_RULES.new()
 	_assert_true(rules.has_method("unlock_card_with_flowers"), "prototype rules should expose flower unlocks")
@@ -1329,6 +1478,40 @@ func _test_v04_flower_unlock_and_board_v2_defaults() -> void:
 	_assert_true(bool(result.get("success", false)), "flower unlock should succeed when enough flowers are available")
 	_assert_true(state.get("flower_unlocks", []).has("clinic_desk_plan"), "flower unlock should record the unlocked card id")
 	_assert_equal(int(state.get("flowers", -1)), 8 - int(clinic_plan.get("unlock_flower_cost", 0)), "flower unlock should spend flowers")
+
+
+func _test_board_v5_save_migration_preserves_unlocked_area() -> void:
+	var save_manager: Node = _context.get("save_manager")
+	var board_rules: RefCounted = BOARD_RULES.new()
+	_assert_true(board_rules.has_method("apply_land_unlock_stage"), "board rules should expose stage-based board unlock application for save migration")
+	if not board_rules.has_method("apply_land_unlock_stage"):
+		return
+	var old_cells := BOARD_RULES.create_default_board_cells()
+	board_rules.call("apply_land_unlock_stage", old_cells, 1)
+	var old_state := {
+		"board_version": 4,
+		"day_count": 6,
+		"flowers": 11,
+		"funds": 9,
+		"trust": 100,
+		"resident_states": [{
+			"resident_id": "test_resident",
+			"name": "Test Resident",
+			"starting_satisfaction": 70,
+			"satisfaction": 70,
+			"daily_manpower": 1
+		}],
+		"board_cells": old_cells,
+		"built_facilities": [],
+		"board_combo_cache": [],
+		"legacy_bonus": {"kept": true}
+	}
+	var restored: Dictionary = save_manager.call("_restore_community_state", old_state)
+	_assert_equal(int(restored.get("board_version", 0)), 5, "existing board saves should migrate forward to board version 5")
+	_assert_equal(int(restored.get("land_unlock_stage", -1)), 1, "board version 5 migration should infer stage from the saved unlocked area instead of current trust")
+	_assert_equal(int(restored.get("trust", 0)), 100, "board version 5 migration should preserve trust while decoupling land unlock progress")
+	_assert_true(bool(restored.get("board_cells", [])[BOARD_RULES.cell_index(4, 4)].get("unlocked", false)), "board version 5 migration should preserve the 8x8 unlocked area")
+	_assert_true(not bool(restored.get("board_cells", [])[BOARD_RULES.cell_index(3, 3)].get("unlocked", true)), "board version 5 migration should not over-expand beyond the saved land stage")
 
 
 func _test_tetris_legacy_board_v4_save_reset() -> void:
@@ -1357,13 +1540,14 @@ func _test_tetris_legacy_board_v4_save_reset() -> void:
 		"legacy_bonus": {"kept": true}
 	}
 	var restored: Dictionary = save_manager.call("_restore_community_state", old_state)
-	_assert_equal(int(restored.get("board_version", 0)), 4, "legacy board saves should migrate to board version 4")
+	_assert_equal(int(restored.get("board_version", 0)), 5, "legacy board saves should migrate forward through board version 5")
 	_assert_equal(int(restored.get("day_count", 0)), 6, "board migration should preserve day count")
 	_assert_equal(int(restored.get("flowers", 0)), 11, "board migration should preserve resources")
 	_assert_true(restored.get("resident_states", []).size() == 1, "board migration should preserve residents")
 	_assert_equal(str(restored.get("board_cells", [])[occupied_index].get("occupied_card_id", "")), "", "board v4 migration should clear old board occupancy")
 	_assert_equal(restored.get("built_facilities", []).size(), 0, "board v4 migration should clear old built facilities")
 	_assert_equal(restored.get("board_combo_cache", []).size(), 0, "board v4 migration should clear old combo cache")
+	_assert_equal(int(restored.get("land_unlock_stage", -1)), 0, "legacy board resets should keep the fresh 6x6 land unlock stage after migrating to version 5")
 	_assert_true(bool(restored.get("legacy_bonus", {}).get("board_reset_v4_shape_diversity", false)), "board v4 migration should record the reset flag")
 	_assert_true(bool(restored.get("legacy_bonus", {}).get("kept", false)), "board v4 migration should preserve existing legacy bonus fields")
 
@@ -1578,8 +1762,11 @@ func _test_save_manager_round_trips_runtime_state() -> void:
 	state["built_facilities"] = [{"card_id": "community_ramp", "cell_index": 1}]
 	var saved: Dictionary = save_manager.save_slot(1, {
 		"bulletin_cards": ["ramp_blueprint"],
+		"bulletin_card_prices": [6, 0, 0, 0, 0],
 		"hand_cards": ["community_ramp"],
+		"hand_card_sources": ["bulletin_paid"],
 		"craft_slots": ["lumber_pack"],
+		"craft_slot_sources": ["bulletin_free"],
 		"selected_recipe_ids": ["build_ramp"],
 		"active_announcement": {"event_id": "event_day2_rain_path"}
 	})
@@ -1594,6 +1781,9 @@ func _test_save_manager_round_trips_runtime_state() -> void:
 	_assert_true(bool(loaded_state.get("tutorial_progress", {}).get("completed_day_minus_one", false)), "save should restore tutorial progress")
 	_assert_equal(str(ai_director.settings.get("mode", "")), "local", "save should restore ai settings")
 	_assert_equal(loaded.get("ui_state", {}).get("hand_cards", []), ["community_ramp"], "save should return UI hand cards")
+	_assert_equal(loaded.get("ui_state", {}).get("bulletin_card_prices", []), [6, 0, 0, 0, 0], "save should round-trip same-day bulletin prices")
+	_assert_equal(loaded.get("ui_state", {}).get("hand_card_sources", []), ["bulletin_paid"], "save should round-trip hand card source metadata")
+	_assert_equal(loaded.get("ui_state", {}).get("craft_slot_sources", []), ["bulletin_free"], "save should round-trip craft slot source metadata")
 	save_manager.delete_slot(1)
 
 
@@ -1674,6 +1864,29 @@ func _test_audio_manager_registers_feedback_ids() -> void:
 	if audio_manager.has_method("get_last_bgm_id") and audio_manager.has_method("was_last_bgm_fallback"):
 		_assert_equal(str(audio_manager.call("get_last_bgm_id")), "missing_bgm", "audio manager should record the requested missing BGM id")
 		_assert_true(bool(audio_manager.call("was_last_bgm_fallback")), "missing BGM should mark fallback status")
+
+
+func _test_floating_notifier_visual_and_lifecycle_contract() -> void:
+	var notifier_scene: PackedScene = load("res://scenes/FloatingNotifier.tscn")
+	_assert_true(notifier_scene != null, "floating notifier scene should exist")
+	if notifier_scene == null:
+		return
+	var notifier: Control = notifier_scene.instantiate()
+	_assert_true(notifier.has_method("show_error"), "floating notifier should expose show_error")
+	_assert_true(notifier.has_method("dismiss"), "floating notifier should expose dismiss")
+	_assert_true(notifier.has_method("get_follow_offset"), "floating notifier should expose its cursor follow offset")
+	_assert_true(notifier.has_method("get_background_color"), "floating notifier should expose its background color for visual regression")
+	_assert_true(notifier.has_method("get_is_dismissing"), "floating notifier should expose dismiss state")
+	if not notifier.has_method("show_error") or not notifier.has_method("dismiss"):
+		notifier.free()
+		return
+	notifier.call("show_error", "Area Mismatch", 0.2)
+	_assert_equal(notifier.call("get_follow_offset"), Vector2(20, 20), "floating notifier should follow the cursor with a 20px diagonal offset")
+	_assert_equal(notifier.call("get_background_color"), Color.html("#EAA96E"), "floating notifier should use the specified muted amber warning color")
+	_assert_true(str(notifier.call("get_visible_text")).contains("Area Mismatch"), "floating notifier should render the error text")
+	notifier.call("dismiss")
+	_assert_true(bool(notifier.call("get_is_dismissing")), "floating notifier should enter dismiss animation state")
+	notifier.free()
 
 
 func _test_card_view_compact_double_sided_behavior() -> void:
@@ -1762,6 +1975,80 @@ func _test_card_view_facility_shape_text() -> void:
 	card.free()
 
 
+func _test_card_view_color_footprint_and_large_text_rendering() -> void:
+	var card_scene: PackedScene = load("res://scenes/CardView.tscn")
+	var card: Control = card_scene.instantiate()
+	_assert_true(card.has_method("get_card_type_background_color"), "card view should expose its type background color")
+	_assert_true(card.has_method("get_footprint_preview_state"), "card view should expose footprint preview state")
+	_assert_true(card.has_method("get_label_font_sizes"), "card view should expose label font sizes for large text checks")
+	if not card.has_method("get_card_type_background_color") or not card.has_method("get_footprint_preview_state") or not card.has_method("get_label_font_sizes"):
+		card.free()
+		return
+
+	card.call("configure", {
+		"card_id": "test_blueprint_color",
+		"name": "Blueprint Color Test",
+		"type": "blueprint",
+		"rarity": "common",
+		"board_placeable": false,
+		"description": "color test"
+	}, "board", 0, "", false)
+	_assert_equal(card.call("get_card_type_background_color"), Color.html("#3A6B88"), "blueprint cards should use the design-spec engineering blue")
+
+	card.call("configure", {
+		"card_id": "test_material_color",
+		"name": "Material Color Test",
+		"type": "material",
+		"rarity": "common",
+		"board_placeable": false,
+		"description": "color test"
+	}, "board", 1, "", false)
+	_assert_equal(card.call("get_card_type_background_color"), Color.html("#E6D5B8"), "material cards should use the design-spec wheat color")
+
+	card.call("configure", {
+		"card_id": "test_problem_color",
+		"name": "Problem Color Test",
+		"type": "problem",
+		"rarity": "common",
+		"board_placeable": false,
+		"problem_payload": {"category": "risk"},
+		"description": "color test"
+	}, "problem", 2, "", false)
+	_assert_equal(card.call("get_card_type_background_color"), Color.html("#C05C54"), "problem cards should use the design-spec muted brick red")
+
+	card.call("configure", {
+		"card_id": "test_footprint",
+		"name": "Footprint Test",
+		"type": "facility",
+		"rarity": "common",
+		"board_placeable": true,
+		"fund_cost": 1,
+		"manpower_cost": 1,
+		"primary_resource": "trust",
+		"base_output": 1,
+		"preferred_zone": "service",
+		"shape_cells": [[0, 0], [1, 0]],
+		"can_rotate": true,
+		"description": "footprint test"
+	}, "hand", 0, "", false)
+	var preview: Dictionary = card.call("get_footprint_preview_state")
+	_assert_true(bool(preview.get("visible", false)), "facility cards should show the footprint preview")
+	_assert_equal(int(preview.get("grid_size", 0)), 3, "footprint preview should use a 3x3 micro grid")
+	_assert_true(Array(preview.get("occupied_cells", [])).has(Vector2i(0, 0)), "footprint preview should fill the root occupied cell")
+	_assert_true(Array(preview.get("occupied_cells", [])).has(Vector2i(1, 0)), "footprint preview should fill the second occupied cell")
+	_assert_equal(preview.get("root_cell", Vector2i(-1, -1)), Vector2i(0, 0), "footprint preview should mark the root cell")
+
+	var normal_sizes: Dictionary = card.call("get_label_font_sizes")
+	var normal_minimum := card.custom_minimum_size
+	card.call("_on_settings_changed", {"large_text": true, "high_contrast": false})
+	var large_sizes: Dictionary = card.call("get_label_font_sizes")
+	_assert_true(int(large_sizes.get("title", 0)) >= int(ceil(float(normal_sizes.get("title", 0)) * 1.3)), "large text should scale the title label by 30 percent")
+	_assert_true(int(large_sizes.get("body", 0)) >= int(ceil(float(normal_sizes.get("body", 0)) * 1.3)), "large text should scale the body label by 30 percent")
+	_assert_true(card.custom_minimum_size.x > normal_minimum.x, "large text should recompute card minimum width")
+	_assert_true(card.custom_minimum_size.y > normal_minimum.y, "large text should recompute card minimum height")
+	card.free()
+
+
 func _test_card_view_stack_badge_api() -> void:
 	var repository: Node = _context.get("data_repository")
 	var card_scene: PackedScene = load("res://scenes/CardView.tscn")
@@ -1783,6 +2070,84 @@ func _test_main_view_exposes_tabletop_layout_state() -> void:
 	main_view.free()
 
 
+func _test_main_view_defaults_to_live_ui_instead_of_reference_overlay() -> void:
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	var main_content_root: Control = main_view.get("main_content_root")
+	_assert_true(main_content_root != null, "main view should build a main content root")
+	if main_content_root == null:
+		main_view.free()
+		return
+	var root_margin := main_content_root.get_parent_control()
+	_assert_true(root_margin != null, "main content root should be wrapped in a root margin container")
+	if root_margin != null:
+		_assert_true(root_margin.visible, "main tabletop layout should be visible by default")
+	var has_visible_reference_overlay := false
+	for child: Node in main_view.get_children():
+		if child is CanvasLayer:
+			for overlay_child: Node in child.get_children():
+				if overlay_child is TextureRect and overlay_child.visible:
+					has_visible_reference_overlay = true
+	_assert_true(not has_visible_reference_overlay, "reference mock overlay should not cover the live game UI by default")
+	main_view.free()
+
+
+func _test_main_view_wraps_primary_layout_in_a_page_scroll_container() -> void:
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	var page_scroll_container: ScrollContainer = main_view.get("page_scroll_container")
+	_assert_true(page_scroll_container != null, "main view should build a page scroll container for tall layouts")
+	if page_scroll_container == null:
+		main_view.free()
+		return
+	var main_content_root: Control = main_view.get("main_content_root")
+	_assert_true(main_content_root != null, "main view should still expose its main content root")
+	if main_content_root != null:
+		var parent := main_content_root.get_parent_control()
+		_assert_true(parent == page_scroll_container, "main content root should live inside the page scroll container")
+	main_view.free()
+
+
+func _test_main_view_bottom_strip_keeps_panel_border_inside_viewport() -> void:
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	_assert_true(main_view.has_method("get_bottom_strip_layout_metrics"), "main view should expose bottom strip layout metrics")
+	if not main_view.has_method("get_bottom_strip_layout_metrics"):
+		main_view.free()
+		return
+	var metrics: Dictionary = main_view.call("get_bottom_strip_layout_metrics")
+	var lower_visual_extent := int(metrics.get("panel_shadow_size", 0)) + maxi(0, int(metrics.get("panel_shadow_offset_y", 0)))
+	_assert_true(metrics.has("action_panel_content_height"), "bottom strip metrics should include the taller action panel content height")
+	var action_content_height := int(metrics.get("action_panel_content_height", 0))
+	_assert_true(int(metrics.get("bottom_gap", 0)) >= lower_visual_extent, "bottom strip should leave enough viewport gap for the panel shadow")
+	_assert_true(
+		int(metrics.get("strip_height", 0)) >= action_content_height + lower_visual_extent,
+		"bottom strip should be tall enough for the action panel content plus lower visual extent"
+	)
+	_assert_true(
+		int(metrics.get("reserved_content_margin", 0)) >= int(metrics.get("strip_height", 0)) + int(metrics.get("bottom_gap", 0)),
+		"main content should reserve the full bottom strip footprint"
+	)
+	main_view.free()
+
+
+func _test_window_configuration_is_resizable_and_large_enough() -> void:
+	_assert_true(
+		not bool(ProjectSettings.get_setting("display/window/size/borderless", false)),
+		"project window should not start borderless so players can resize or maximize it"
+	)
+	_assert_true(
+		int(ProjectSettings.get_setting("display/window/size/viewport_width", 0)) >= 1280,
+		"project window should start wide enough for the main layout"
+	)
+	_assert_true(
+		int(ProjectSettings.get_setting("display/window/size/viewport_height", 0)) >= 720,
+		"project window should start tall enough for the main layout"
+	)
+
+
 func _test_main_view_tetris_rotation_helpers() -> void:
 	var game_state: Node = _context.get("game_state")
 	var repository: Node = _context.get("data_repository")
@@ -1794,6 +2159,7 @@ func _test_main_view_tetris_rotation_helpers() -> void:
 	_assert_true(main_view.has_method("rotate_pending_build"), "main view should expose a rotate action")
 	_assert_true(main_view.has_method("preview_board_shape_indices"), "main view should expose board shape preview indices")
 	_assert_true(main_view.has_method("is_rotate_build_button_available"), "main view should expose rotate button availability")
+	_assert_true(main_view.has_method("get_board_drag_preview_metrics"), "main view should expose board drag preview sizing metrics")
 	if main_view.has_method("get_pending_build_rotation") and main_view.has_method("rotate_pending_build"):
 		_assert_equal(int(main_view.call("get_pending_build_rotation")), 0, "pending build rotation should start at zero")
 		main_view.call("rotate_pending_build")
@@ -1806,6 +2172,12 @@ func _test_main_view_tetris_rotation_helpers() -> void:
 		_assert_equal(main_view.call("preview_board_shape_indices", "senior_gym", BOARD_RULES.cell_index(6, 6), 0).size(), 5, "shape preview should support cross facilities")
 	if main_view.has_method("is_rotate_build_button_available"):
 		_assert_true(bool(main_view.call("is_rotate_build_button_available")), "rotate button should be available on the main view")
+	if main_view.has_method("get_board_drag_preview_metrics"):
+		var drag_metrics: Dictionary = main_view.call("get_board_drag_preview_metrics")
+		var preview_size: Vector2 = drag_metrics.get("size", Vector2.ZERO)
+		var preview_offset: Vector2 = drag_metrics.get("offset", Vector2.ZERO)
+		_assert_true(preview_size.x <= 140 and preview_size.y <= 80, "board drag preview should stay compact so it does not hide the placement grid")
+		_assert_true(preview_offset.x >= 16 and preview_offset.y >= 16, "board drag preview should be offset from the cursor so the hovered cell stays visible")
 	main_view.free()
 
 
@@ -1881,6 +2253,700 @@ func _test_main_view_audio_feedback_mapping() -> void:
 		_assert_equal(str(main_view.call("audio_bgm_id_for_phase", "night")), "night", "night should have a BGM state")
 		_assert_equal(str(main_view.call("audio_bgm_id_for_phase", "day10_summary")), "day10_summary", "Day 10 settlement should have a BGM state")
 	main_view.free()
+
+
+func _test_main_view_dusk_phase_clarity_contract() -> void:
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	_assert_true(main_view.has_method("format_phase_action_hint"), "main view should explain what the current phase button will do")
+	_assert_true(main_view.has_method("format_dusk_settlement_summary"), "main view should expose a structured dusk settlement report")
+	if main_view.has_method("format_phase_action_hint"):
+		var day_hint := str(main_view.call("format_phase_action_hint", "day", {
+			"active_problems": [{"penalty": {"trust": 2, "satisfaction_delta": 1}}],
+			"resident_states": []
+		}))
+		var dusk_hint := str(main_view.call("format_phase_action_hint", "dusk", {}))
+		_assert_true(day_hint.contains("未处理问题"), "day hint should preview unresolved problem consequences")
+		_assert_true(day_hint.contains("居民反馈"), "day hint should preview resident feedback settlement")
+		_assert_true(dusk_hint.contains("日出") and dusk_hint.contains("新公告"), "dusk hint should explain the next click starts tomorrow's setup")
+	if main_view.has_method("format_dusk_settlement_summary"):
+		var report := str(main_view.call("format_dusk_settlement_summary", PackedStringArray([
+			"problem expired: 雨天通道",
+			"trust -2",
+			"居民满意度 +1",
+			"愿望完成: 王奶奶"
+		]), {"active_problems": []}))
+		_assert_true(report.contains("黄昏结算报告"), "dusk report should read like a result screen, not a raw log")
+		_assert_true(report.contains("问题后果"), "dusk report should group unresolved problem consequences")
+		_assert_true(report.contains("居民反馈"), "dusk report should group resident and wish feedback")
+		_assert_true(report.contains("资源变化"), "dusk report should group resource deltas")
+		_assert_true(report.contains("下一步"), "dusk report should explain why advancing again matters")
+	main_view.free()
+
+
+func _test_placed_facility_map_preview_contract() -> void:
+	var painter_script: Script = load("res://scripts/ui/IsometricGridPainter.gd")
+	var painter: Control = painter_script.new()
+	_assert_true(painter.has_method("get_facility_visual_spec"), "isometric painter should expose placed-facility visual specs")
+	_assert_true(painter.has_method("facility_root_index_at_screen_position"), "isometric painter should resolve clicks on the raised building visual back to the placed facility root")
+	_assert_true(painter.has_method("set_selected_cell_index"), "isometric painter should accept the selected board cell for visible feedback")
+	_assert_true(painter.has_method("get_selection_visual_state"), "isometric painter should expose the selected-building visual state for regression coverage")
+	if painter.has_method("get_facility_visual_spec"):
+		var visual_spec: Dictionary = painter.call("get_facility_visual_spec")
+		_assert_true(bool(visual_spec.get("draw_footprint", false)), "placed facilities should show their full occupied footprint")
+		_assert_true(bool(visual_spec.get("draw_icon_badge", false)), "placed facilities should show an icon badge instead of only a bare cube")
+		_assert_true(bool(visual_spec.get("draw_short_label", false)), "placed facilities should show a short label for map recognition")
+		_assert_true(bool(visual_spec.get("draw_selection_highlight", false)), "selected placed facilities should show an obvious map highlight")
+		_assert_true(bool(visual_spec.get("draw_inline_info_card", false)), "selected placed facilities should show an inline info card on the map")
+		_assert_true(float(visual_spec.get("min_detail_panel_height", 0.0)) >= 84.0, "building detail preview should reserve enough height for core info")
+	if painter.has_method("facility_root_index_at_screen_position"):
+		painter.call("set_tile_size", Vector2(128, 64))
+		painter.call("set_origin", Vector2(512, 64))
+		var cells_for_hit_test := BOARD_RULES.create_default_board_cells()
+		var root_index_for_hit_test := BOARD_RULES.cell_index(6, 6)
+		cells_for_hit_test[root_index_for_hit_test]["unlocked"] = true
+		cells_for_hit_test[root_index_for_hit_test]["zone_type"] = "服务"
+		cells_for_hit_test[root_index_for_hit_test]["occupied_card_id"] = "community_ramp"
+		cells_for_hit_test[root_index_for_hit_test]["root_index"] = root_index_for_hit_test
+		painter.call("set_board_cells", cells_for_hit_test)
+		var raised_visual_click: Vector2 = painter.call("tile_to_screen", Vector2i(6, 6)) + Vector2(0, -64)
+		_assert_equal(
+			painter.call("facility_root_index_at_screen_position", raised_visual_click),
+			root_index_for_hit_test,
+			"clicking the raised building body or badge should select the placed facility, not an empty tile behind it"
+		)
+		if painter.has_method("set_selected_cell_index") and painter.has_method("get_selection_visual_state"):
+			painter.call("set_selected_cell_index", root_index_for_hit_test, "Welcome Table")
+			var selection_state: Dictionary = painter.call("get_selection_visual_state")
+			_assert_true(bool(selection_state.get("visible", false)), "selecting a placed facility should make a map selection highlight visible")
+			_assert_equal(int(selection_state.get("root_index", -1)), root_index_for_hit_test, "selection feedback should be anchored to the placed facility root")
+			_assert_true(Array(selection_state.get("occupied_indices", [])).has(root_index_for_hit_test), "selection feedback should include the building footprint")
+			_assert_equal(str(selection_state.get("label", "")), "Welcome Table", "selection feedback should use the building name supplied by the main view")
+	painter.free()
+
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	_assert_true(main_view.has_method("format_board_facility_preview"), "main view should format selected building preview info")
+	_assert_true(main_view.has_method("get_board_detail_preview_metrics"), "main view should expose building preview layout metrics")
+	_assert_true(main_view.has_method("select_iso_board_at_local_position"), "main view should expose a testable isometric board click-selection path")
+	if main_view.has_method("format_board_facility_preview"):
+		var cells := BOARD_RULES.create_default_board_cells()
+		var root_index := BOARD_RULES.cell_index(6, 6)
+		cells[root_index]["unlocked"] = true
+		cells[root_index]["zone_type"] = "服务"
+		cells[root_index]["occupied_card_id"] = "community_ramp"
+		cells[root_index]["root_index"] = root_index
+		var preview := str(main_view.call("format_board_facility_preview", cells, root_index))
+		_assert_true(preview.contains("社区坡道") or preview.contains("community_ramp"), "building preview should include the placed building name")
+		_assert_true(preview.contains("占地") or preview.contains("形状"), "building preview should include footprint information")
+		_assert_true(preview.contains("基础") or preview.contains("产出") or preview.contains("收益"), "building preview should include basic output information")
+		_assert_true(preview.contains("问题") or preview.contains("对策"), "building preview should include problem-counter information when available")
+	if main_view.has_method("get_board_detail_preview_metrics"):
+		var metrics: Dictionary = main_view.call("get_board_detail_preview_metrics")
+		_assert_true(Vector2(metrics.get("min_size", Vector2.ZERO)).y >= 84.0, "board detail panel should be tall enough for selected building info")
+	if main_view.has_method("select_iso_board_at_local_position") and painter_script != null:
+		var game_state: Node = _context.get("game_state")
+		game_state.reset_state()
+		var state: Dictionary = game_state.get_state()
+		var click_cells := BOARD_RULES.create_default_board_cells()
+		var click_root_index := BOARD_RULES.cell_index(6, 6)
+		click_cells[click_root_index]["unlocked"] = true
+		click_cells[click_root_index]["zone_type"] = "服务"
+		click_cells[click_root_index]["occupied_card_id"] = "welcome_table"
+		click_cells[click_root_index]["root_index"] = click_root_index
+		state["board_cells"] = click_cells
+		var click_painter: Control = painter_script.new()
+		click_painter.call("set_tile_size", Vector2(128, 64))
+		click_painter.call("set_origin", Vector2(512, 64))
+		click_painter.call("set_board_cells", click_cells)
+		main_view.set("iso_grid_painter", click_painter)
+		var click_position: Vector2 = click_painter.call("tile_to_screen", Vector2i(6, 6)) + Vector2(0, -64)
+		_assert_equal(
+			int(main_view.call("select_iso_board_at_local_position", click_position)),
+			click_root_index,
+			"clicking the raised visible building should update the selected board index"
+		)
+		_assert_equal(int(main_view.get("selected_board_index")), click_root_index, "main view should keep the placed building selected after a map click")
+		if click_painter.has_method("get_selection_visual_state"):
+			var synced_selection: Dictionary = click_painter.call("get_selection_visual_state")
+			_assert_true(bool(synced_selection.get("visible", false)), "main view should sync selection feedback back into the isometric painter")
+		click_painter.free()
+	main_view.free()
+
+
+func _test_main_view_selected_building_demolish_action_contract() -> void:
+	var repository: Node = _context.get("data_repository")
+	var resource_manager: Node = _context.get("resource_manager")
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var state: Dictionary = game_state.get_state()
+	state["funds"] = 20
+	state["manpower"] = 20
+	var root_index := BOARD_RULES.cell_index(6, 6)
+	_prepare_shape_cells_for_card(state, "welcome_table", root_index, repository)
+	var hand_cards: Array[String] = ["welcome_table"]
+	var placed: Dictionary = PROTOTYPE_RULES.place_hand_card_on_board(hand_cards, 0, state, root_index, repository.cards_by_id, resource_manager)
+	_assert_true(bool(placed.get("success", false)), "demolition UI contract setup should place a facility")
+
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	_assert_true(main_view.has_method("get_board_demolish_action_state"), "main view should expose the selected-building demolish action state")
+	_assert_true(main_view.has_method("request_selected_board_demolition"), "main view should expose a selected-building demolish action")
+	if not main_view.has_method("get_board_demolish_action_state") or not main_view.has_method("request_selected_board_demolition"):
+		main_view.free()
+		return
+
+	main_view.set("selected_board_index", root_index)
+	var action_state: Dictionary = main_view.call("get_board_demolish_action_state")
+	_assert_true(bool(action_state.get("visible", false)), "selecting a placed facility should surface a demolish action in the live board UI")
+	_assert_true(int(action_state.get("selected_root_index", -1)) == root_index, "demolish action should target the selected facility root")
+	_assert_true(int(action_state.get("scrap_parts", 0)) > 0, "demolish action should preview returned scrap parts")
+	_assert_true(not str(action_state.get("button_text", "")).is_empty(), "demolish action should be labeled clearly")
+
+	var armed: Dictionary = main_view.call("request_selected_board_demolition")
+	_assert_true(bool(armed.get("success", false)), "first demolish action should arm confirmation instead of failing silently")
+	_assert_true(bool(armed.get("armed_confirmation", false)), "selected-building demolish should require an explicit confirmation click")
+	var armed_state: Dictionary = main_view.call("get_board_demolish_action_state")
+	_assert_true(bool(armed_state.get("pending_confirmation", false)), "after the first click the demolish action should expose pending confirmation state")
+	_assert_true(str(armed_state.get("button_text", "")) != str(action_state.get("button_text", "")), "confirmation state should be reflected in the button copy")
+
+	var demolished: Dictionary = main_view.call("request_selected_board_demolition")
+	_assert_true(bool(demolished.get("success", false)) and bool(demolished.get("demolished", false)), "second demolish action should remove the selected building")
+	_assert_equal(str(state.get("board_cells", [])[root_index].get("occupied_card_id", "")), "", "selected-building demolish should clear the occupied root cell")
+	_assert_true(int(state.get("inventory", {}).get("materials", {}).get("scrap_parts", 0)) > 0, "selected-building demolish should refund scrap parts")
+	var cleared_state: Dictionary = main_view.call("get_board_demolish_action_state")
+	_assert_true(not bool(cleared_state.get("visible", true)), "demolish action should hide once the selected building is gone")
+	main_view.free()
+
+
+func _test_main_view_uses_floating_notifier_for_invalid_actions() -> void:
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	_assert_true(main_view.has_method("show_floating_error"), "main view should expose non-blocking floating error feedback")
+	_assert_true(main_view.has_method("get_active_floating_notifier_count"), "main view should expose active floating notifier count for smoke coverage")
+	if not main_view.has_method("show_floating_error") or not main_view.has_method("get_active_floating_notifier_count"):
+		main_view.free()
+		return
+	main_view.call("show_floating_error", "Area Mismatch", 1.0)
+	_assert_equal(int(main_view.call("get_active_floating_notifier_count")), 1, "main view should create one floating notifier for invalid interactions")
+	main_view.free()
+
+
+func _test_main_view_craft_slot_guidance_and_failure_juice_contract() -> void:
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	_assert_true(main_view.has_method("refresh_craft_slot_guidance"), "main view should refresh craft slot visual guidance")
+	_assert_true(main_view.has_method("is_craft_slot_guidance_active"), "main view should expose whether slot 2 guidance is active")
+	_assert_true(main_view.has_method("get_craft_slot_guidance_color"), "main view should expose the guidance highlight color")
+	_assert_true(main_view.has_method("get_craft_slot_guidance_period"), "main view should expose the guidance breathing period")
+	_assert_true(main_view.has_method("play_craft_failure_feedback"), "main view should expose craft failure juice feedback")
+	_assert_true(main_view.has_method("get_last_craft_failure_feedback"), "main view should expose last craft failure feedback state")
+	if not main_view.has_method("refresh_craft_slot_guidance") or not main_view.has_method("play_craft_failure_feedback"):
+		main_view.free()
+		return
+	var one_slot: Array[String] = ["lumber_pack"]
+	main_view.call("set_craft_slots_state", one_slot)
+	main_view.call("refresh_craft_slot_guidance")
+	_assert_true(bool(main_view.call("is_craft_slot_guidance_active")), "slot 2 guidance should activate after the first craft card is mounted")
+	_assert_equal(main_view.call("get_craft_slot_guidance_color"), Color.html("#A4C2D3"), "slot 2 guidance should use the specified soft sea-blue color")
+	_assert_equal(float(main_view.call("get_craft_slot_guidance_period")), 0.5, "slot 2 guidance should breathe on a 0.5 second period")
+	var empty_slots: Array[String] = []
+	main_view.call("set_craft_slots_state", empty_slots)
+	main_view.call("refresh_craft_slot_guidance")
+	_assert_true(not bool(main_view.call("is_craft_slot_guidance_active")), "slot 2 guidance should stop when the first slot is no longer occupied")
+
+	main_view.call("play_craft_failure_feedback", ["lumber_pack", "phone_tree"], "Missing Blueprints")
+	var feedback: Dictionary = main_view.call("get_last_craft_failure_feedback")
+	_assert_equal(float(feedback.get("shake_offset_x", 0.0)), 12.0, "craft failure shake should move cards 12px horizontally")
+	_assert_equal(int(feedback.get("shake_loops", 0)), 3, "craft failure shake should loop three times")
+	_assert_equal(float(feedback.get("shake_duration", 0.0)), 0.25, "craft failure shake should last 0.25 seconds")
+	_assert_equal(Array(feedback.get("card_ids", [])), ["lumber_pack", "phone_tree"], "craft failure feedback should remember the rejected card ids")
+	_assert_true(str(feedback.get("message", "")).contains("Missing Blueprints"), "craft failure feedback should remember the failure reason")
+	_assert_equal(int(main_view.call("get_active_floating_notifier_count")), 1, "craft failure feedback should raise a non-blocking floating notifier")
+	main_view.free()
+
+
+func _test_main_view_recipe_handbook_quick_craft_contract() -> void:
+	var repository: Node = _context.get("data_repository")
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var state: Dictionary = game_state.get_state()
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	_assert_true(main_view.has_method("get_recipe_handbook_layout_metrics"), "main view should expose recipe handbook layout metrics")
+	_assert_true(main_view.has_method("find_quick_craft_suggestion"), "main view should expose quick craft suggestion lookup")
+	_assert_true(main_view.has_method("quick_craft_hand_card_index"), "main view should expose a one-click craft action")
+	_assert_true(main_view.has_method("return_hand_card_to_bulletin"), "main view should let players undo an uncrafted bulletin pick")
+	_assert_true(main_view.has_method("expire_unfinished_handbook_cards_for_new_day"), "main view should clear unfinished handbook cards when a new day starts")
+	if main_view.has_method("get_recipe_handbook_layout_metrics"):
+		var metrics: Dictionary = main_view.call("get_recipe_handbook_layout_metrics")
+		_assert_true(int(metrics.get("hand_panel_min_width", 0)) >= 220, "recipe handbook should be wide enough for readable preview cards")
+		_assert_true(int(metrics.get("recipe_codex_min_height", 0)) >= 96, "recipe codex preview should be tall enough to show multiple readable recipes")
+		_assert_true(str(metrics.get("craft_hint", "")).contains("点"), "craft hint should tell players they can click quick craft instead of only dragging")
+		_assert_true(bool(metrics.get("facility_section_first", false)), "crafted facility cards should appear first in the handbook so they are easy to drag")
+		_assert_true(int(metrics.get("empty_section_placeholder_height", 99)) <= 28, "empty handbook sections should not use tall placeholder cards that push facilities below the fold")
+	if main_view.has_method("find_quick_craft_suggestion"):
+		var suggest_hand: Array[String] = ["ramp_blueprint", "lumber_pack"]
+		var suggest_slots: Array[String] = []
+		main_view.call("set_hand_cards_state", suggest_hand)
+		main_view.call("set_craft_slots_state", suggest_slots)
+		var suggestion: Dictionary = main_view.call("find_quick_craft_suggestion", "ramp_blueprint", "hand", 0)
+		_assert_equal(str(suggestion.get("recipe_id", "")), "build_ramp", "starter blueprint should find its craftable partner")
+		_assert_equal(str(suggestion.get("partner_card_id", "")), "lumber_pack", "quick craft should name the matching hand partner")
+		var material_suggest_hand: Array[String] = ["lumber_pack", "paint_bucket"]
+		var material_suggest_slots: Array[String] = []
+		main_view.call("set_hand_cards_state", material_suggest_hand)
+		main_view.call("set_craft_slots_state", material_suggest_slots)
+		var material_suggestion: Dictionary = main_view.call("find_quick_craft_suggestion", "lumber_pack", "hand", 0)
+		_assert_equal(str(material_suggestion.get("result_card_id", "")), "community_ramp", "quick craft should suggest a facility from two common materials, not only blueprint-plus-specific-material pairs")
+	if main_view.has_method("quick_craft_hand_card_index"):
+		var quick_hand: Array[String] = ["ramp_blueprint", "lumber_pack"]
+		var quick_slots: Array[String] = []
+		main_view.call("set_hand_cards_state", quick_hand)
+		main_view.call("set_craft_slots_state", quick_slots)
+		var result: Dictionary = main_view.call("quick_craft_hand_card_index", 0)
+		_assert_true(bool(result.get("success", false)) and bool(result.get("crafted", false)), "one-click craft should complete the matched recipe")
+		var hand_cards: Array = main_view.get("hand_cards")
+		var craft_slots: Array = main_view.get("craft_slots")
+		_assert_true(hand_cards.has("community_ramp"), "one-click craft should add the result card to the handbook")
+		_assert_equal(craft_slots.size(), 0, "one-click craft should leave the craft slots empty after success")
+		_assert_true(state.get("recipe_codex", {}).has("build_ramp"), "one-click craft should record recipe discovery")
+	if main_view.has_method("return_hand_card_to_bulletin"):
+		var undo_hand: Array[String] = ["ramp_blueprint"]
+		var undo_bulletin: Array[String] = ["", "lumber_pack", "volunteer_poster", "", ""]
+		state["selected_cards_today"] = 1
+		main_view.call("set_hand_cards_state", undo_hand)
+		main_view.call("set_bulletin_cards_state", undo_bulletin)
+		var undo_result: Dictionary = main_view.call("return_hand_card_to_bulletin", 0)
+		_assert_true(bool(undo_result.get("success", false)), "dragging an uncrafted handbook card back to the bulletin should undo the pick")
+		_assert_equal(Array(main_view.get("hand_cards")), [], "undoing a pick should remove the card from the handbook")
+		_assert_true(Array(main_view.get("bulletin_cards")).has("ramp_blueprint"), "undoing a pick should put the card back into an empty bulletin slot")
+		_assert_equal(int(state.get("selected_cards_today", -1)), 0, "undoing a pick should restore the daily pick allowance")
+	if main_view.has_method("expire_unfinished_handbook_cards_for_new_day"):
+		var carry_hand: Array[String] = ["paint_bucket", "community_ramp"]
+		var carry_slots: Array[String] = ["notice_design"]
+		main_view.call("set_hand_cards_state", carry_hand)
+		main_view.call("set_craft_slots_state", carry_slots)
+		var expire_result: Dictionary = main_view.call("expire_unfinished_handbook_cards_for_new_day")
+		_assert_equal(Array(main_view.get("hand_cards")), ["community_ramp"], "starting a new day should remove uncrafted material cards from the handbook")
+		_assert_equal(Array(main_view.get("craft_slots")).size(), 0, "starting a new day should clear unfinished craft slots")
+		_assert_equal(int(expire_result.get("expired_count", 0)), 2, "new day cleanup should report the removed unfinished cards")
+	main_view.free()
+
+
+func _test_main_view_land_unlock_and_bulletin_action_contract() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var state: Dictionary = game_state.get_state()
+	state["day_count"] = 5
+	state["trust"] = 20
+	state["flowers"] = 25
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	_assert_true(main_view.has_method("get_board_land_unlock_action_state"), "main view should expose the selected land unlock action state for the board UI")
+	_assert_true(main_view.has_method("get_bulletin_card_action_state"), "main view should expose bulletin action state so free picks and paid purchases share one UI contract")
+	if not main_view.has_method("get_board_land_unlock_action_state") or not main_view.has_method("get_bulletin_card_action_state"):
+		main_view.free()
+		return
+	main_view.call("set_bulletin_cards_state", ["ramp_blueprint", "lumber_pack", "", "", ""], [6, 4, 0, 0, 0])
+	state["selected_cards_today"] = 1
+	main_view.call("_update_all_ui")
+	var paid_state: Dictionary = main_view.call("get_bulletin_card_action_state", 0)
+	_assert_true(bool(paid_state.get("visible", false)), "bulletin cards should expose a primary action state")
+	_assert_true(str(paid_state.get("label", "")).contains("6"), "day-5 paid bulletin cards should surface their flower price in the action label")
+	main_view.set("selected_board_index", BOARD_RULES.cell_index(4, 4))
+	main_view.call("_update_all_ui")
+	var unlock_state: Dictionary = main_view.call("get_board_land_unlock_action_state")
+	_assert_true(bool(unlock_state.get("visible", false)) and bool(unlock_state.get("enabled", false)), "selecting the next locked ring should surface an enabled board expansion action")
+	_assert_true(str(unlock_state.get("button_text", "")).contains("8x8"), "board expansion UI should say which target size will be unlocked next")
+	main_view.set("selected_board_index", BOARD_RULES.cell_index(0, 0))
+	main_view.call("_update_all_ui")
+	var blocked_state: Dictionary = main_view.call("get_board_land_unlock_action_state")
+	_assert_true(bool(blocked_state.get("visible", false)) and not bool(blocked_state.get("enabled", true)), "selecting a future outer ring should surface a blocked land expansion state instead of unlocking out of order")
+	main_view.free()
+
+
+func _test_main_view_hover_highlight_does_not_rebuild_full_board() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var state: Dictionary = game_state.get_state()
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	var painter_spy := IsoGridPainterSpy.new()
+	main_view.set("iso_grid_painter", painter_spy)
+	main_view.call("_update_board_ui", state.get("board_cells", []))
+	var baseline_updates := int(painter_spy.board_cells_updates)
+	_assert_true(baseline_updates >= 1, "initial board sync should push cells to the isometric painter once")
+	main_view.call("_update_board_highlights", BOARD_RULES.cell_index(5, 5))
+	_assert_equal(
+		int(painter_spy.board_cells_updates),
+		baseline_updates,
+		"hover/highlight refresh should not rebuild the full board when board state did not change"
+	)
+	main_view.free()
+	painter_spy.free()
+
+
+func _test_main_view_non_board_drag_does_not_refresh_iso_grid() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	var painter_spy := IsoGridPainterSpy.new()
+	main_view.set("iso_grid_painter", painter_spy)
+	main_view.set("is_dragging", true)
+	main_view.set("drag_source_zone", "hand")
+	main_view.set("drag_card_id", "lumber_pack")
+	var motion := InputEventMouseMotion.new()
+	motion.position = Vector2(320, 240)
+	main_view.call("_input", motion)
+	_assert_equal(
+		int(painter_spy.hover_screen_updates),
+		0,
+		"dragging a non-board card should not redraw the isometric board on every mouse move"
+	)
+	main_view.free()
+	painter_spy.free()
+
+
+func _test_main_view_craft_drop_uses_light_drag_refresh() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("set_hand_cards_state", ["ramp_blueprint"], ["bulletin_free"], [0])
+	main_view.set("drag_source_zone", "hand")
+	main_view.set("drag_source_index", 0)
+	main_view.set("drag_card_id", "ramp_blueprint")
+	main_view.set("is_dragging", true)
+	var result: bool = bool(main_view.call("_drop_from_hand", {"type": "craft"}))
+	_assert_true(result, "dropping a valid hand card into the craft area should succeed")
+	_assert_equal(
+		str(main_view.call("get_drag_finish_refresh_mode")),
+		"card_zone",
+		"moving cards between handbook and craft slots should request a lightweight card-zone refresh"
+	)
+	main_view.free()
+
+
+func _test_main_view_board_place_uses_light_drag_refresh() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var state: Dictionary = game_state.get_state()
+	state["funds"] = 99
+	state["manpower"] = 99
+	var repository: Node = _context.get("data_repository")
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	_assert_true(main_view.has_method("get_drag_finish_refresh_mode"), "main view should expose the pending drag refresh mode for placement performance tests")
+	if not main_view.has_method("get_drag_finish_refresh_mode"):
+		main_view.free()
+		return
+	main_view.call("set_hand_cards_state", ["community_ramp"], ["crafted"], [0])
+	main_view.set("drag_source_zone", "hand")
+	main_view.set("drag_source_index", 0)
+	main_view.set("drag_card_id", "community_ramp")
+	main_view.set("is_dragging", true)
+	var target_index := -1
+	var cells: Array[Dictionary] = state.get("board_cells", [])
+	var card_def: Dictionary = repository.cards_by_id.get("community_ramp", {})
+	for index: int in range(cells.size()):
+		var placement: Dictionary = BOARD_RULES.can_place_facility(cells, index, card_def, 0)
+		if bool(placement.get("success", false)):
+			target_index = index
+			break
+	_assert_true(target_index != -1, "test setup should find a valid board placement target")
+	if target_index == -1:
+		main_view.free()
+		return
+	var result: bool = bool(main_view.call("_drop_from_hand", {"type": "board", "index": target_index}))
+	_assert_true(result, "placing a valid facility card on the board should succeed")
+	_assert_equal(
+		str(main_view.call("get_drag_finish_refresh_mode")),
+		"board_place",
+		"successful board placement should request a lightweight drag-finish refresh instead of the full UI rebuild"
+	)
+	main_view.free()
+
+
+func _test_main_view_contextual_tutorial_coachmark_contract() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	_assert_true(main_view.has_method("get_active_tutorial_coachmark"), "main view should expose the active contextual coachmark")
+	_assert_true(main_view.has_method("get_tutorial_pointer_visual_spec"), "main view should expose tutorial pointer visual design")
+	if not main_view.has_method("get_active_tutorial_coachmark"):
+		main_view.free()
+		return
+	var progress: Dictionary = game_state.get_tutorial_progress()
+	progress["completed_day_minus_one"] = true
+	var pick_hint: Dictionary = main_view.call("get_active_tutorial_coachmark")
+	_assert_equal(str(pick_hint.get("target", "")), "bulletin", "before the first pick, coachmark should target the bulletin cards")
+	_assert_true(str(pick_hint.get("body", "")).contains("公告栏"), "pick coachmark should say what to do in the bulletin")
+
+	progress["first_pick_done"] = true
+	var craft_slots: Array[String] = []
+	var hand_cards: Array[String] = ["ramp_blueprint", "lumber_pack"]
+	main_view.call("set_craft_slots_state", craft_slots)
+	main_view.call("set_hand_cards_state", hand_cards)
+	var craft_hint: Dictionary = main_view.call("get_active_tutorial_coachmark")
+	_assert_equal(str(craft_hint.get("target", "")), "hand_quick_craft", "with a valid recipe pair, coachmark should point to the quick craft affordance")
+	_assert_true(str(craft_hint.get("body", "")).contains("合"), "craft coachmark should teach the quick craft action")
+
+	progress["first_craft_done"] = true
+	hand_cards = ["community_ramp"]
+	main_view.call("set_hand_cards_state", hand_cards)
+	var place_hint: Dictionary = main_view.call("get_active_tutorial_coachmark")
+	_assert_equal(str(place_hint.get("target", "")), "hand_facility", "after crafting, coachmark should point to the facility card before the board")
+	_assert_true(str(place_hint.get("body", "")).contains("设施"), "place coachmark should mention dragging a facility")
+
+	progress["first_place_done"] = true
+	var state: Dictionary = game_state.get_state()
+	state["active_problems"] = [{"problem_card_id": "noise_complaint", "assigned_manpower": 0}]
+	var problem_hint: Dictionary = main_view.call("get_active_tutorial_coachmark")
+	_assert_equal(str(problem_hint.get("target", "")), "problem", "when a problem exists, coachmark should point to the problem card")
+
+	if main_view.has_method("get_tutorial_pointer_visual_spec"):
+		var visual: Dictionary = main_view.call("get_tutorial_pointer_visual_spec")
+		_assert_true(not bool(visual.get("has_spotlight", true)), "tutorial pointer should not draw a red selection box around the target")
+		_assert_true(bool(visual.get("has_bubble", false)), "tutorial pointer should include a readable instruction bubble")
+		_assert_true(int(visual.get("arrow_font_size", 0)) >= 40, "tutorial arrow should be large enough to read over the game UI")
+		var bubble_size: Vector2 = visual.get("bubble_size", Vector2.ZERO)
+		_assert_true(bubble_size.x > 0 and bubble_size.y > 0, "tutorial visual spec should declare the actual bubble size")
+		_assert_true(bubble_size.x <= 260 and bubble_size.y <= 72, "tutorial bubble should stay compact so it does not block the board")
+		_assert_equal(visual.get("text_color", Color.TRANSPARENT), Color.html("#3A210F"), "tutorial bubble text should use a high-contrast dark color")
+		_assert_true(bool(visual.get("problem_targets_card", false)), "problem tutorial target should resolve to the concrete problem card, not the whole container")
+		_assert_true(bool(visual.get("tracks_scroll", false)), "tutorial pointer should recompute its screen position after the page scrolls")
+		_assert_true(bool(visual.get("repositions_same_target", false)), "tutorial pointer should update even when the active tutorial target name has not changed")
+	main_view.free()
+
+
+func _test_problem_manpower_assignment_ui_contract() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var state: Dictionary = game_state.get_state()
+	state["manpower"] = 1
+	state["current_problem_tokens"] = 1
+	state["active_problems"] = [{
+		"event_id": "ui_problem_assignment",
+		"title": "ui problem assignment",
+		"problem_card_id": "problem_notice_conflict",
+		"required_manpower": 1,
+		"assigned_manpower": 0,
+		"status": "active",
+		"reward": {"trust": 1},
+		"penalty": {},
+		"target_resident_ids": []
+	}]
+
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	_assert_true(main_view.has_method("assign_manpower_to_problem_from_ui"), "problem UI should expose a direct one-click manpower assignment action")
+
+	var board_panel := PanelContainer.new()
+	board_panel.set_position(Vector2.ZERO)
+	board_panel.set_size(Vector2(420, 260))
+	var problem_card := Control.new()
+	problem_card.set_position(Vector2(300, 70))
+	problem_card.set_size(Vector2(90, 130))
+	main_view.add_child(board_panel)
+	board_panel.add_child(problem_card)
+	main_view.set("board_panel", board_panel)
+	main_view.set("iso_grid_painter", null)
+	var problem_views: Array[Control] = [problem_card]
+	main_view.set("problem_card_views", problem_views)
+	main_view.set("drag_source_zone", "problem")
+
+	var problem_target: Dictionary = main_view.call("_resolve_drop_target", Vector2(320, 90))
+	_assert_equal(str(problem_target.get("type", "")), "problem", "dropping a manpower token over a problem card should target the card instead of the map behind it")
+	_assert_equal(int(problem_target.get("index", -1)), 0, "problem card target should keep the active problem index")
+
+	if main_view.has_method("assign_manpower_to_problem_from_ui"):
+		var result: Dictionary = main_view.call("assign_manpower_to_problem_from_ui", 0, "problem_notice_conflict")
+		_assert_true(bool(result.get("success", false)) and bool(result.get("resolved", false)), "clicking the problem card action should immediately invest one manpower")
+		_assert_equal(int(state.get("current_problem_tokens", -1)), 0, "direct problem action should consume one available problem token")
+		_assert_equal(state.get("active_problems", []).size(), 0, "direct problem action should resolve a one-point teaching problem")
+	main_view.free()
+
+
+func _test_tutorial_and_resident_cards_use_dark_text_on_light_surfaces() -> void:
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	_assert_true(main_view.has_method("get_light_surface_text_color_spec"), "main view should expose light-surface text color choices")
+	if main_view.has_method("get_light_surface_text_color_spec"):
+		var spec: Dictionary = main_view.call("get_light_surface_text_color_spec")
+		var dark_text: Color = spec.get("primary", Color.WHITE)
+		_assert_true(dark_text.get_luminance() < 0.25, "light-surface primary text should be dark enough to read")
+		_assert_equal(spec.get("day_minus_one", Color.TRANSPARENT), dark_text, "Day -1 tutorial should use the same dark text on its light panel")
+		_assert_equal(spec.get("resident_name", Color.TRANSPARENT), dark_text, "resident card names should use dark text, not inherited white")
+	main_view.free()
+
+	var day_minus_one_scene: PackedScene = load("res://scenes/DayMinusOne.tscn")
+	var day_minus_one: Control = day_minus_one_scene.instantiate()
+	_assert_true(day_minus_one.has_method("get_text_color_spec"), "Day -1 view should expose text color choices")
+	if day_minus_one.has_method("get_text_color_spec"):
+		var day_spec: Dictionary = day_minus_one.call("get_text_color_spec")
+		_assert_true(Color(day_spec.get("title", Color.WHITE)).get_luminance() < 0.25, "Day -1 title text should be dark on a light panel")
+		_assert_true(Color(day_spec.get("body", Color.WHITE)).get_luminance() < 0.25, "Day -1 body text should be dark on a light panel")
+	day_minus_one.free()
+
+
+func _test_tabletop_layout_spec_and_panel_stylebox_contract() -> void:
+	var style_script: Script = load("res://scripts/ui/theme/TabletopStyle.gd")
+	_assert_true(style_script != null, "tabletop style helper should exist")
+	if style_script == null:
+		return
+	var layout_spec: Dictionary = style_script.call("layout_spec")
+	_assert_equal(str(layout_spec.get("root", "")), "MainRoot", "layout spec should name the tabletop root")
+	_assert_true(Array(layout_spec.get("flat_layers", [])).has("TopResourceBar"), "layout spec should keep the resource bar as a top flat layer")
+	_assert_true(Array(layout_spec.get("flat_layers", [])).has("BottomResidentsBar"), "layout spec should keep residents as a bottom flat layer")
+	_assert_equal(str(layout_spec.get("split_container", "")), "MainHSplit", "layout spec should use an HSplitContainer for the main columns")
+	_assert_equal(float(layout_spec.get("left_ratio", 0.0)), 0.45, "layout spec should reserve about 45 percent for the left operation board")
+	_assert_equal(float(layout_spec.get("right_ratio", 0.0)), 0.55, "layout spec should reserve about 55 percent for the planning map")
+	var required_nodes: Array = layout_spec.get("required_nodes", [])
+	for node_name: String in ["LeftCorkBoard", "BulletinBoard", "CraftingStation", "RecipeBook", "RightBlueprintViewport"]:
+		_assert_true(required_nodes.has(node_name), "layout spec should include %s" % node_name)
+
+	var paper_style: StyleBoxFlat = style_script.call("make_paper_panel_style")
+	_assert_equal(paper_style.corner_radius_top_left, 12, "paper panel style should use 12px top-left corner radius")
+	_assert_equal(paper_style.corner_radius_top_right, 12, "paper panel style should use 12px top-right corner radius")
+	_assert_equal(paper_style.corner_radius_bottom_left, 12, "paper panel style should use 12px bottom-left corner radius")
+	_assert_equal(paper_style.corner_radius_bottom_right, 12, "paper panel style should use 12px bottom-right corner radius")
+	_assert_true(paper_style.shadow_size > 0, "paper panel style should include a subtle drop shadow")
+	_assert_true(paper_style.shadow_offset.length() > 0.0, "paper panel style should offset the shadow like a folded sheet")
+
+
+func _test_left_panel_subcontroller_scenes_contract() -> void:
+	var scene_paths := {
+		"bulletin": "res://scenes/ui/BulletinBoard.tscn",
+		"crafting": "res://scenes/ui/CraftingStation.tscn",
+		"recipe": "res://scenes/ui/RecipeBook.tscn"
+	}
+	for key: String in scene_paths.keys():
+		var packed: PackedScene = load(str(scene_paths[key]))
+		_assert_true(packed != null, "%s subcontroller scene should exist" % key)
+		if packed == null:
+			continue
+		var instance: Control = packed.instantiate()
+		_assert_true(instance.has_method("set_panel_title"), "%s subcontroller should support setting its panel title" % key)
+		_assert_true(instance.has_method("apply_tabletop_style"), "%s subcontroller should apply shared tabletop styles" % key)
+		instance.free()
+
+	var bulletin: Control = load("res://scenes/ui/BulletinBoard.tscn").instantiate()
+	_assert_true(bulletin.has_method("set_cards"), "BulletinBoard should expose set_cards for MainView data binding")
+	bulletin.free()
+	var crafting: Control = load("res://scenes/ui/CraftingStation.tscn").instantiate()
+	_assert_true(crafting.has_method("set_slots"), "CraftingStation should expose set_slots for MainView data binding")
+	_assert_true(crafting.has_signal("slot_one_card_mounted"), "CraftingStation should emit when slot 1 receives a card")
+	crafting.free()
+	var recipe_book: Control = load("res://scenes/ui/RecipeBook.tscn").instantiate()
+	_assert_true(recipe_book.has_method("set_entries"), "RecipeBook should expose set_entries for recipe codex data")
+	recipe_book.free()
+
+
+func _test_isometric_grid_painter_projection_and_preview_contract() -> void:
+	var painter_script: Script = load("res://scripts/ui/IsometricGridPainter.gd")
+	_assert_true(painter_script != null, "isometric grid painter script should exist")
+	if painter_script == null:
+		return
+	var painter: Control = painter_script.new()
+	_assert_true(painter.has_method("tile_to_screen"), "isometric painter should expose tile_to_screen")
+	_assert_true(painter.has_method("screen_to_tile"), "isometric painter should expose screen_to_tile")
+	_assert_true(painter.has_method("start_drag_preview"), "isometric painter should expose drag preview start")
+	_assert_true(painter.has_method("get_hover_preview_state"), "isometric painter should expose hover preview state")
+	_assert_true(painter.has_method("get_cell_visual_state"), "isometric painter should expose cell visual state for locked-vs-open map styling")
+	_assert_true(painter.has_method("get_board_visual_bounds"), "isometric painter should expose board visual bounds for viewport fitting")
+	_assert_true(painter.has_method("fit_board_to_viewport"), "isometric painter should fit the community map inside its frame")
+	_assert_true(painter.has_method("get_backdrop_visual_spec"), "isometric painter should expose a subdued backdrop spec")
+	if not painter.has_method("tile_to_screen") or not painter.has_method("screen_to_tile") or not painter.has_method("get_cell_visual_state"):
+		painter.free()
+		return
+
+	painter.call("set_tile_size", Vector2(128, 64))
+	painter.call("set_origin", Vector2(512, 64))
+	var tile_screen: Vector2 = painter.call("tile_to_screen", Vector2i(8, 8))
+	_assert_equal(tile_screen, Vector2(512, 576), "2:1 isometric projection should map tile center with x-y and x+y axes")
+	_assert_equal(painter.call("screen_to_tile", tile_screen), Vector2i(8, 8), "screen_to_tile should invert tile_to_screen for tile centers")
+	_assert_equal(
+		painter.call("screen_to_tile", tile_screen + Vector2(-20, 0)),
+		Vector2i(8, 8),
+		"screen_to_tile should keep points from the left half of a diamond on that same tile"
+	)
+	var diamond: PackedVector2Array = painter.call("tile_polygon", Vector2i(8, 8))
+	_assert_equal(diamond.size(), 4, "isometric tile polygon should be a four point diamond")
+	_assert_equal(diamond[1].x - diamond[3].x, 128.0, "isometric diamond should use the configured tile width")
+	_assert_equal(diamond[2].y - diamond[0].y, 64.0, "isometric diamond should use the configured tile height")
+
+	if painter.has_method("fit_board_to_viewport") and painter.has_method("get_board_visual_bounds"):
+		var viewport_size := Vector2(430, 212)
+		var viewport_padding := 12.0
+		painter.call("set_tile_size", Vector2(30, 15))
+		painter.call("fit_board_to_viewport", viewport_size, viewport_padding)
+		var fitted_bounds: Rect2 = painter.call("get_board_visual_bounds")
+		_assert_true(fitted_bounds.position.x >= viewport_padding - 0.01, "fitted board should not overflow the left side of the map frame")
+		_assert_true(fitted_bounds.position.y >= viewport_padding - 0.01, "fitted board should not overflow the top of the map frame")
+		_assert_true(fitted_bounds.end.x <= viewport_size.x - viewport_padding + 0.01, "fitted board should not overflow the right side of the map frame")
+		_assert_true(fitted_bounds.end.y <= viewport_size.y - viewport_padding + 0.01, "fitted board should not overflow the bottom of the map frame")
+
+	if painter.has_method("get_backdrop_visual_spec"):
+		var backdrop_spec: Dictionary = painter.call("get_backdrop_visual_spec")
+		_assert_true(not bool(backdrop_spec.get("draw_full_grid", true)), "community map backdrop should not draw a full competing grid behind the isometric board")
+		_assert_true(float(backdrop_spec.get("ambient_grid_alpha", 1.0)) <= 0.04, "community map ambient grid should stay subtle enough not to compete with board cells")
+
+	var cells := BOARD_RULES.create_default_board_cells()
+	for index in [BOARD_RULES.cell_index(6, 6), BOARD_RULES.cell_index(7, 6), BOARD_RULES.cell_index(6, 7), BOARD_RULES.cell_index(7, 7)]:
+		cells[index]["unlocked"] = true
+		cells[index]["zone_type"] = "服务"
+	cells[BOARD_RULES.cell_index(9, 6)]["zone_type"] = "unknown_test_zone"
+	painter.call("set_board_cells", cells)
+	var unlocked_service_visual: Dictionary = painter.call("get_cell_visual_state", BOARD_RULES.cell_index(6, 6))
+	var locked_service_visual: Dictionary = painter.call("get_cell_visual_state", BOARD_RULES.cell_index(8, 3))
+	var unknown_zone_visual: Dictionary = painter.call("get_cell_visual_state", BOARD_RULES.cell_index(9, 6))
+	_assert_true(not bool(unlocked_service_visual.get("draw_locked_hatch", true)), "unlocked cells should not render the locked-cell hatch overlay")
+	_assert_true(bool(locked_service_visual.get("draw_locked_hatch", false)), "locked cells should render a hatch overlay so players can tell they are unavailable")
+	_assert_true(
+		unlocked_service_visual.get("fill_color", Color.TRANSPARENT) != locked_service_visual.get("fill_color", Color.TRANSPARENT),
+		"locked service cells should not share the same fill color as unlocked service cells"
+	)
+	_assert_true(
+		unlocked_service_visual.get("fill_color", Color.TRANSPARENT) != unknown_zone_visual.get("fill_color", Color.TRANSPARENT),
+		"real service cells should have a distinct fill color instead of falling back to the unknown-zone color"
+	)
+	var two_by_one_card := {
+		"card_id": "iso_two_by_one",
+		"type": "facility",
+		"board_placeable": true,
+		"size_type": "2x1",
+		"zone_requirements": ["服务"]
+	}
+	painter.call("start_drag_preview", two_by_one_card)
+	painter.call("set_hover_screen_position", painter.call("tile_to_screen", Vector2i(6, 6)))
+	var valid_preview: Dictionary = painter.call("get_hover_preview_state")
+	_assert_true(bool(valid_preview.get("visible", false)), "drag preview should be visible while dragging a facility")
+	_assert_true(bool(valid_preview.get("is_valid", false)), "matching unlocked 2x1 service cells should be a valid placement")
+	_assert_equal(valid_preview.get("root_cell", Vector2i(-1, -1)), Vector2i(6, 6), "hover preview should track the root cell under the mouse")
+	_assert_equal(Array(valid_preview.get("occupied_indices", [])), [BOARD_RULES.cell_index(6, 6), BOARD_RULES.cell_index(7, 6)], "2x1 size_type should render a two-cell ghost footprint")
+	_assert_equal(valid_preview.get("fill_color", Color.TRANSPARENT), Color(0.2980392156862745, 0.6862745098039216, 0.3137254901960784, 0.35), "valid placement should use the specified translucent green")
+	_assert_true(bool(valid_preview.get("should_hide_mouse", false)), "active ghost preview should request hiding the original mouse cursor")
+	painter.call("start_drag_preview", two_by_one_card, 90)
+	painter.call("set_hover_screen_position", painter.call("tile_to_screen", Vector2i(6, 6)))
+	var rotated_preview: Dictionary = painter.call("get_hover_preview_state")
+	_assert_equal(Array(rotated_preview.get("occupied_indices", [])), [BOARD_RULES.cell_index(6, 6), BOARD_RULES.cell_index(6, 7)], "90 degree drag preview should rotate the footprint to vertical cells")
+
+	var mismatch_card := two_by_one_card.duplicate(true)
+	mismatch_card["zone_requirements"] = ["商业"]
+	painter.call("start_drag_preview", mismatch_card)
+	painter.call("set_hover_screen_position", painter.call("tile_to_screen", Vector2i(6, 6)))
+	var invalid_preview: Dictionary = painter.call("get_hover_preview_state")
+	_assert_true(not bool(invalid_preview.get("is_valid", true)), "zone mismatch should invalidate the hover preview")
+	_assert_equal(str(invalid_preview.get("reason_code", "")), "zone_mismatch", "zone mismatch should expose a rule reason")
+	_assert_equal(invalid_preview.get("fill_color", Color.TRANSPARENT), Color(1.0, 0.3411764705882353, 0.13333333333333333, 0.4), "invalid placement should use the specified translucent orange-red")
+
+	painter.call("end_drag_preview")
+	_assert_true(not bool(painter.call("get_hover_preview_state").get("visible", true)), "ending drag preview should hide ghost placement state")
+	painter.free()
 
 
 func _test_opening_playability_bulletins_and_hints() -> void:

@@ -30,4 +30,11 @@ if not defined GODOT_EXE_RESOLVED (
   exit /b 1
 )
 "%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/run_tests.gd --quit
+if errorlevel 1 exit /b %errorlevel%
+set "RFT_AUTO_PUSH_CLICK=1"
+"%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/drag_to_board_smoke.gd
+if errorlevel 1 exit /b %errorlevel%
+"%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/board_land_unlock_os_click_smoke.gd
+if errorlevel 1 exit /b %errorlevel%
+"%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/bulletin_paid_purchase_os_click_smoke.gd
 endlocal

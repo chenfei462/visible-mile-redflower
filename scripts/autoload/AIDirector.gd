@@ -75,7 +75,7 @@ func set_force_local_fallback(enabled: bool) -> void:
 	save_settings(settings)
 
 
-func generate_event_candidate(state_snapshot: Dictionary, event_def: Dictionary) -> Dictionary:
+func generate_event_candidate(_state_snapshot: Dictionary, event_def: Dictionary) -> Dictionary:
 	var mode: String = _mode_name()
 	if _should_use_local_mode(mode):
 		return _fallback_result(event_def, "local_mode")

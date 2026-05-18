@@ -32,7 +32,7 @@ static func get_bulletin_cards_for_day(state: Dictionary, unlocked_cards: Array[
 	return _fill_to_count(planned, unlocked_cards, offset, count)
 
 
-static func build_today_goals(state: Dictionary, hand_cards: Array, craft_slots: Array, selected_recipe_ids: Array = [], wishes_by_id: Dictionary = {}, opening_plan: Dictionary = {}, recipes: Array[Dictionary] = [], cards_by_id: Dictionary = {}) -> Array[Dictionary]:
+static func build_today_goals(state: Dictionary, hand_cards: Array, _craft_slots: Array, selected_recipe_ids: Array = [], wishes_by_id: Dictionary = {}, opening_plan: Dictionary = {}, recipes: Array[Dictionary] = [], cards_by_id: Dictionary = {}) -> Array[Dictionary]:
 	var built_facilities: Array = state.get("built_facilities", [])
 	var active_problems: Array = state.get("active_problems", [])
 	var resolved_problem_history: Array = state.get("resolved_problem_history", [])

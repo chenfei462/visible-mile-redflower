@@ -6,8 +6,63 @@ signal problem_drop_requested(card_id: String, zone: String, item_index: int, po
 
 const TEXT_COLOR := Color(0.13, 0.15, 0.18)
 const MUTED_TEXT_COLOR := Color(0.34, 0.37, 0.42)
-const COMPACT_CARD_SIZE := Vector2(148, 108)
-const COMPACT_ART_HEIGHT := 38
+const LIGHT_TEXT_COLOR := Color(0.98, 0.96, 0.90)
+const LIGHT_MUTED_TEXT_COLOR := Color(0.88, 0.90, 0.90)
+const COMPACT_CARD_SIZE := Vector2(58, 94)
+const COMPACT_ART_HEIGHT := 22
+const LARGE_TEXT_SCALE := 1.3
+const FOOTPRINT_GRID_SIZE := 3
+const FOOTPRINT_CELL_SIZE := 10
+
+
+class FootprintPreviewCell:
+	extends Control
+
+	var occupied := false
+	var root := false
+	var fill_color := Color(0.24, 0.42, 0.53)
+	var line_color := Color(0.24, 0.42, 0.53, 0.28)
+	var root_color := Color(0.98, 0.74, 0.33)
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(FOOTPRINT_CELL_SIZE, FOOTPRINT_CELL_SIZE)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func configure_cell(is_occupied: bool, is_root: bool, occupied_color: Color, empty_line_color: Color, anchor_color: Color) -> void:
+		occupied = is_occupied
+		root = is_root
+		fill_color = occupied_color
+		line_color = empty_line_color
+		root_color = anchor_color
+		queue_redraw()
+
+	func _draw() -> void:
+		var rect := Rect2(Vector2.ZERO, size).grow(-0.5)
+		if occupied:
+			draw_rect(rect.grow(-1.0), fill_color, true)
+		_draw_dashed_rect(rect, line_color)
+		if root:
+			var radius := maxf(2.0, minf(size.x, size.y) * 0.24)
+			draw_circle(size * 0.5, radius, root_color)
+			draw_arc(size * 0.5, radius + 1.5, 0.0, TAU, 18, Color(0.12, 0.13, 0.12, 0.75), 1.0)
+
+	func _draw_dashed_rect(rect: Rect2, color: Color) -> void:
+		_draw_dashed_line(rect.position, rect.position + Vector2(rect.size.x, 0), color)
+		_draw_dashed_line(rect.position + Vector2(rect.size.x, 0), rect.position + rect.size, color)
+		_draw_dashed_line(rect.position + rect.size, rect.position + Vector2(0, rect.size.y), color)
+		_draw_dashed_line(rect.position + Vector2(0, rect.size.y), rect.position, color)
+
+	func _draw_dashed_line(start_point: Vector2, end_point: Vector2, color: Color) -> void:
+		var direction := end_point - start_point
+		var line_length := direction.length()
+		if line_length <= 0.01:
+			return
+		var unit := direction / line_length
+		var cursor := 0.0
+		while cursor < line_length:
+			var next := minf(cursor + 2.0, line_length)
+			draw_line(start_point + unit * cursor, start_point + unit * next, color, 1.0)
+			cursor += 4.0
 
 var card_id: String = ""
 var zone: String = ""
@@ -24,8 +79,23 @@ var _body_label: Label
 var _stack_badge_label: Label
 var _flip_button: Button
 var _action_button: Button
+var _art_frame: PanelContainer
+var _footprint_grid: GridContainer
+var _footprint_cells: Array[FootprintPreviewCell] = []
 var _highlighted: bool = false
 var _stack_count: int = 1
+var _large_text_enabled := false
+var _primary_action_visible := false
+var _primary_action_text := ""
+var _current_type_background_color := Color(0.98, 0.96, 0.92)
+var _current_text_color := TEXT_COLOR
+var _current_muted_text_color := MUTED_TEXT_COLOR
+var _footprint_preview_state := {
+	"visible": false,
+	"grid_size": FOOTPRINT_GRID_SIZE,
+	"occupied_cells": [],
+	"root_cell": Vector2i.ZERO
+}
 
 
 func _ready() -> void:
@@ -46,11 +116,14 @@ func configure(card_def: Dictionary, zone_name: String, index: int, extra_text: 
 	zone = zone_name
 	item_index = index
 	_highlighted = highlighted
+	_primary_action_visible = false
+	_primary_action_text = ""
 	_stack_count = int(card_def.get("stack_count", 1))
 	_apply_art(card_def)
 	_showing_back = false
 	_render_face()
-	_apply_style(str(card_def.get("type", "")))
+	_apply_style(_card_type_from_def(card_def))
+	_update_footprint_preview()
 	_update_stack_badge()
 	_update_tooltip()
 
@@ -70,6 +143,15 @@ func _gui_input(event: InputEvent) -> void:
 		accept_event()
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		var mouse_event := event as InputEventMouseButton
+		if _action_button != null and _action_button.visible and _control_rect_in_card(_action_button).grow(10.0).has_point(mouse_event.position):
+			_on_action_button_pressed()
+			accept_event()
+			return
+		if _flip_button != null and _flip_button.visible and _control_rect_in_card(_flip_button).grow(6.0).has_point(mouse_event.position):
+			toggle_face()
+			accept_event()
+			return
 		if zone == "problem":
 			emit_signal("problem_drop_requested", card_id, zone, item_index, event.position)
 		else:
@@ -82,73 +164,99 @@ func _ensure_ui() -> void:
 		return
 	_apply_compact_size()
 	var margin := MarginContainer.new()
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 8)
-	margin.add_theme_constant_override("margin_top", 7)
-	margin.add_theme_constant_override("margin_right", 8)
-	margin.add_theme_constant_override("margin_bottom", 7)
+	margin.add_theme_constant_override("margin_left", 6)
+	margin.add_theme_constant_override("margin_top", 6)
+	margin.add_theme_constant_override("margin_right", 6)
+	margin.add_theme_constant_override("margin_bottom", 6)
 	add_child(margin)
 
 	var layout := VBoxContainer.new()
-	layout.add_theme_constant_override("separation", 3)
+	layout.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layout.add_theme_constant_override("separation", 2)
 	margin.add_child(layout)
 
 	var art_frame := PanelContainer.new()
+	_art_frame = art_frame
+	art_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	art_frame.custom_minimum_size = Vector2(0, COMPACT_ART_HEIGHT)
 	art_frame.add_theme_stylebox_override("panel", _make_art_frame_style())
 	layout.add_child(art_frame)
 
 	var art_margin := MarginContainer.new()
+	art_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	art_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	art_margin.add_theme_constant_override("margin_left", 8)
+	art_margin.add_theme_constant_override("margin_left", 6)
 	art_margin.add_theme_constant_override("margin_top", 6)
-	art_margin.add_theme_constant_override("margin_right", 8)
+	art_margin.add_theme_constant_override("margin_right", 6)
 	art_margin.add_theme_constant_override("margin_bottom", 6)
 	art_frame.add_child(art_margin)
 
 	var art_center := CenterContainer.new()
+	art_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	art_margin.add_child(art_center)
 
 	_icon_texture_rect = TextureRect.new()
-	_icon_texture_rect.custom_minimum_size = Vector2(30, 30)
+	_icon_texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_icon_texture_rect.custom_minimum_size = Vector2(18, 18)
 	_icon_texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_icon_texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	art_center.add_child(_icon_texture_rect)
 
 	_icon_fallback_label = Label.new()
+	_icon_fallback_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_icon_fallback_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_icon_fallback_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_icon_fallback_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_icon_fallback_label.visible = false
 	art_center.add_child(_icon_fallback_label)
 
+	_footprint_grid = GridContainer.new()
+	_footprint_grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_footprint_grid.columns = FOOTPRINT_GRID_SIZE
+	_footprint_grid.visible = false
+	_footprint_grid.custom_minimum_size = Vector2(FOOTPRINT_CELL_SIZE * FOOTPRINT_GRID_SIZE + 6, FOOTPRINT_CELL_SIZE * FOOTPRINT_GRID_SIZE + 6)
+	_footprint_grid.add_theme_constant_override("h_separation", 2)
+	_footprint_grid.add_theme_constant_override("v_separation", 2)
+	for index: int in range(FOOTPRINT_GRID_SIZE * FOOTPRINT_GRID_SIZE):
+		var footprint_cell := FootprintPreviewCell.new()
+		_footprint_cells.append(footprint_cell)
+		_footprint_grid.add_child(footprint_cell)
+	art_center.add_child(_footprint_grid)
+
 	_title_label = Label.new()
+	_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	layout.add_child(_title_label)
 
 	_meta_label = Label.new()
+	_meta_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_meta_label.modulate = Color(0.35, 0.38, 0.42)
 	_meta_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	layout.add_child(_meta_label)
 
 	_body_label = Label.new()
+	_body_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_body_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(_body_label)
 
 	var button_row := HBoxContainer.new()
+	button_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button_row.add_theme_constant_override("separation", 4)
 	layout.add_child(button_row)
 
 	_flip_button = Button.new()
-	_flip_button.text = "详情"
-	_flip_button.custom_minimum_size = Vector2(54, 22)
+	_flip_button.text = "详"
+	_flip_button.custom_minimum_size = Vector2(36, 18)
 	_flip_button.pressed.connect(toggle_face)
 	button_row.add_child(_flip_button)
 
 	_action_button = Button.new()
 	_action_button.visible = false
 	_action_button.text = "执行"
+	_action_button.custom_minimum_size = Vector2(42, 18)
 	_action_button.pressed.connect(_on_action_button_pressed)
 	button_row.add_child(_action_button)
 
@@ -170,11 +278,19 @@ func _ensure_ui() -> void:
 	badge_style.set_corner_radius_all(8)
 	_stack_badge_label.add_theme_stylebox_override("normal", badge_style)
 	add_child(_stack_badge_label)
+	_apply_label_scaling()
 
 
 func _apply_compact_size() -> void:
-	custom_minimum_size = COMPACT_CARD_SIZE
-	size = COMPACT_CARD_SIZE
+	var text_scale := LARGE_TEXT_SCALE if _large_text_enabled else 1.0
+	custom_minimum_size = Vector2(ceil(COMPACT_CARD_SIZE.x * (1.16 if _large_text_enabled else 1.0)), ceil(COMPACT_CARD_SIZE.y * text_scale))
+	size = custom_minimum_size
+	if _art_frame != null:
+		_art_frame.custom_minimum_size = Vector2(0, ceil(COMPACT_ART_HEIGHT * (1.2 if _large_text_enabled else 1.0)))
+	if _footprint_grid != null:
+		var cell_size: float = ceil(FOOTPRINT_CELL_SIZE * (1.15 if _large_text_enabled else 1.0))
+		_footprint_grid.custom_minimum_size = Vector2(cell_size * FOOTPRINT_GRID_SIZE + 6, cell_size * FOOTPRINT_GRID_SIZE + 6)
+	queue_redraw()
 
 
 func is_showing_back() -> bool:
@@ -211,6 +327,40 @@ func get_shape_summary_text() -> String:
 	return _shape_summary_text()
 
 
+func get_card_type_background_color() -> Color:
+	return _current_type_background_color
+
+
+func get_footprint_preview_state() -> Dictionary:
+	return _footprint_preview_state.duplicate(true)
+
+
+func get_label_font_sizes() -> Dictionary:
+	return {
+		"title": _font_size_for("title"),
+		"meta": _font_size_for("meta"),
+		"body": _font_size_for("body"),
+		"icon": _font_size_for("icon"),
+		"stack": _font_size_for("stack")
+	}
+
+
+func set_primary_action(label: String, should_show: bool = true) -> void:
+	_primary_action_text = label
+	_primary_action_visible = should_show and not label.is_empty()
+	_update_primary_action_button()
+
+
+func is_primary_action_visible() -> bool:
+	return _action_button != null and _action_button.visible
+
+
+func _control_rect_in_card(control: Control) -> Rect2:
+	var global_rect := control.get_global_rect()
+	var local_position: Vector2 = get_global_transform_with_canvas().affine_inverse() * global_rect.position
+	return Rect2(local_position, global_rect.size)
+
+
 func _render_face() -> void:
 	if _title_label == null:
 		return
@@ -218,16 +368,16 @@ func _render_face() -> void:
 		return
 	_title_label.text = str(_card_def.get("name", card_id))
 	if _showing_back:
+		_meta_label.visible = true
 		_meta_label.text = "背面 | 详情"
 		_body_label.text = _back_face_text()
-		_flip_button.text = "正面"
+		_flip_button.text = "正"
 	else:
+		_meta_label.visible = str(_card_def.get("type", "")) == "problem"
 		_meta_label.text = "%s | %s" % [str(_card_def.get("type", "")), str(_card_def.get("rarity", ""))]
 		_body_label.text = _front_face_text()
-		_flip_button.text = "详情"
-	_action_button.visible = str(_card_def.get("type", "")) == "problem"
-	if _action_button.visible:
-		_action_button.text = "投入1"
+		_flip_button.text = "详"
+	_update_primary_action_button()
 	_update_tooltip()
 
 
@@ -235,32 +385,27 @@ func _front_face_text() -> String:
 	var lines := PackedStringArray()
 	var card_type := str(_card_def.get("type", ""))
 	if bool(_card_def.get("board_placeable", false)):
-		lines.append("花费 %d金/%d人" % [int(_card_def.get("fund_cost", 0)), int(_card_def.get("manpower_cost", 0))])
 		var shape_summary := _shape_summary_text()
 		if not shape_summary.is_empty():
 			lines.append(shape_summary)
-		lines.append("%s +%d | %s区" % [
+		lines.append("%s +%d" % [
 			str(_card_def.get("primary_resource", "")),
-			int(_card_def.get("base_output", 0)) + int(_card_def.get("preferred_zone_bonus", 0)),
-			str(_card_def.get("preferred_zone", ""))
+			int(_card_def.get("base_output", 0)) + int(_card_def.get("preferred_zone_bonus", 0))
 		])
-		var adjacency_bonus := int(_card_def.get("adjacency_bonus", 0))
-		if adjacency_bonus > 0:
-			lines.append("同组相邻 +%d" % adjacency_bonus)
+		lines.append("%d金/%d人" % [int(_card_def.get("fund_cost", 0)), int(_card_def.get("manpower_cost", 0))])
 	elif card_type == "problem":
 		var payload: Dictionary = _card_def.get("problem_payload", {})
 		lines.append("问题 | %s" % str(payload.get("category", "risk")))
 		lines.append("翻面看惩罚")
 	else:
-		lines.append("配方素材")
 		var unlock_flower_cost := int(_card_def.get("unlock_flower_cost", 0))
 		if unlock_flower_cost > 0:
 			lines.append("小红花解锁 %d" % unlock_flower_cost)
 		var tags: Array = _card_def.get("tags", [])
 		if not tags.is_empty():
-			lines.append("标签 %s" % _short_tag_line(tags))
+			lines.append(_short_tag_line(tags, 3))
 	if _highlighted:
-		lines.append("高亮: 可用")
+		lines.append("可用")
 	return "\n".join(lines)
 
 
@@ -324,56 +469,42 @@ func _shape_summary_text() -> String:
 
 
 func _apply_style(card_type: String) -> void:
-	var background := Color(0.98, 0.96, 0.92)
-	var border := Color(0.70, 0.54, 0.37)
-	match card_type:
-		"facility":
-			background = Color(0.91, 0.96, 0.92)
-			border = Color(0.32, 0.56, 0.39)
-		"blueprint":
-			background = Color(0.93, 0.95, 0.99)
-			border = Color(0.34, 0.49, 0.77)
-		"material":
-			background = Color(0.99, 0.94, 0.89)
-			border = Color(0.73, 0.47, 0.25)
-		"problem":
-			background = Color(0.99, 0.92, 0.92)
-			border = Color(0.80, 0.32, 0.30)
-		"support":
-			background = Color(0.95, 0.94, 0.99)
-			border = Color(0.47, 0.36, 0.74)
+	var background := _background_color_for_card_type(card_type)
+	var border := _border_color_for_background(background, card_type)
 	var style := StyleBoxFlat.new()
 	if _highlighted:
 		background = background.lightened(0.06)
 		border = Color(0.93, 0.58, 0.16)
+	_current_type_background_color = background
 	style.bg_color = background
 	style.border_color = border
 	style.set_border_width_all(4 if _highlighted else 2)
-	style.set_corner_radius_all(8)
+	style.set_corner_radius_all(10)
 	style.shadow_color = Color(0, 0, 0, 0.10)
 	style.shadow_size = 6 if _highlighted else 3
 	add_theme_stylebox_override("panel", style)
+	_apply_readable_label_colors(background)
 	if _icon_fallback_label != null:
 		_icon_fallback_label.modulate = border.darkened(0.18)
 
 
 func _on_settings_changed(settings: Dictionary) -> void:
-	var font_size := 17 if bool(settings.get("large_text", false)) else 14
+	_large_text_enabled = bool(settings.get("large_text", false))
+	_apply_compact_size()
+	_apply_label_scaling()
 	if _title_label != null:
-		_title_label.add_theme_font_size_override("font_size", font_size + 1)
-		_title_label.add_theme_color_override("font_color", TEXT_COLOR)
+		_title_label.add_theme_color_override("font_color", _current_text_color)
 	if _meta_label != null:
-		_meta_label.add_theme_font_size_override("font_size", font_size - 1)
-		_meta_label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
+		_meta_label.add_theme_color_override("font_color", _current_muted_text_color)
 	if _body_label != null:
-		_body_label.add_theme_font_size_override("font_size", font_size)
-		_body_label.add_theme_color_override("font_color", TEXT_COLOR)
+		_body_label.add_theme_color_override("font_color", _current_text_color)
 	if _icon_fallback_label != null:
-		_icon_fallback_label.add_theme_color_override("font_color", TEXT_COLOR)
+		_icon_fallback_label.add_theme_color_override("font_color", _current_text_color)
 	if bool(settings.get("high_contrast", false)):
 		self_modulate = Color(1.04, 1.04, 1.0)
 	else:
 		self_modulate = Color.WHITE
+	_update_footprint_preview()
 	_update_stack_badge()
 
 
@@ -382,10 +513,28 @@ func _update_stack_badge() -> void:
 		return
 	_stack_badge_label.visible = _stack_count > 1
 	_stack_badge_label.text = "x%d" % _stack_count
+	var text_scale := LARGE_TEXT_SCALE if _large_text_enabled else 1.0
+	var badge_width: float = ceil(36.0 * text_scale)
+	var badge_height: float = ceil(23.0 * text_scale)
+	_stack_badge_label.offset_left = custom_minimum_size.x - badge_width - 8
+	_stack_badge_label.offset_top = custom_minimum_size.y - badge_height - 7
+	_stack_badge_label.offset_right = custom_minimum_size.x - 8
+	_stack_badge_label.offset_bottom = custom_minimum_size.y - 7
 
 
 func _on_action_button_pressed() -> void:
 	emit_signal("primary_action_requested", card_id, zone, item_index)
+
+
+func _update_primary_action_button() -> void:
+	if _action_button == null:
+		return
+	var problem_action := str(_card_def.get("type", "")) == "problem"
+	_action_button.visible = _primary_action_visible or problem_action
+	if _primary_action_visible:
+		_action_button.text = _primary_action_text
+	elif problem_action:
+		_action_button.text = "投入1"
 
 
 func _apply_art(card_def: Dictionary) -> void:
@@ -418,5 +567,188 @@ func _make_art_frame_style() -> StyleBoxFlat:
 	style.bg_color = Color(1, 1, 1, 0.55)
 	style.border_color = Color(0.83, 0.83, 0.86, 0.9)
 	style.set_border_width_all(1)
-	style.set_corner_radius_all(12)
+	style.set_corner_radius_all(10)
 	return style
+
+
+func _card_type_from_def(card_def: Dictionary) -> String:
+	return str(card_def.get("card_type", card_def.get("type", ""))).to_lower()
+
+
+func _background_color_for_card_type(card_type: String) -> Color:
+	match card_type:
+		"blueprint":
+			return Color.html("#3A6B88")
+		"material":
+			return Color.html("#E6D5B8")
+		"problem":
+			return Color.html("#C05C54")
+		"facility":
+			return Color(0.91, 0.96, 0.92)
+		"support":
+			return Color(0.95, 0.94, 0.99)
+		_:
+			return Color(0.98, 0.96, 0.92)
+
+
+func _border_color_for_background(background: Color, card_type: String) -> Color:
+	match card_type:
+		"blueprint":
+			return background.darkened(0.28)
+		"material":
+			return Color(0.68, 0.50, 0.28)
+		"problem":
+			return background.darkened(0.20)
+		"facility":
+			return Color(0.32, 0.56, 0.39)
+		"support":
+			return Color(0.47, 0.36, 0.74)
+		_:
+			return Color(0.70, 0.54, 0.37)
+
+
+func _apply_readable_label_colors(background: Color) -> void:
+	var use_light_text := _relative_luminance(background) < 0.38
+	_current_text_color = LIGHT_TEXT_COLOR if use_light_text else TEXT_COLOR
+	_current_muted_text_color = LIGHT_MUTED_TEXT_COLOR if use_light_text else MUTED_TEXT_COLOR
+	if _title_label != null:
+		_title_label.add_theme_color_override("font_color", _current_text_color)
+	if _meta_label != null:
+		_meta_label.add_theme_color_override("font_color", _current_muted_text_color)
+	if _body_label != null:
+		_body_label.add_theme_color_override("font_color", _current_text_color)
+	if _icon_fallback_label != null:
+		_icon_fallback_label.add_theme_color_override("font_color", _current_text_color)
+
+
+func _relative_luminance(color: Color) -> float:
+	return 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b
+
+
+func _apply_label_scaling() -> void:
+	if _title_label != null:
+		_title_label.add_theme_font_size_override("font_size", _font_size_for("title"))
+		_title_label.queue_redraw()
+	if _meta_label != null:
+		_meta_label.add_theme_font_size_override("font_size", _font_size_for("meta"))
+		_meta_label.queue_redraw()
+	if _body_label != null:
+		_body_label.add_theme_font_size_override("font_size", _font_size_for("body"))
+		_body_label.queue_redraw()
+	if _icon_fallback_label != null:
+		_icon_fallback_label.add_theme_font_size_override("font_size", _font_size_for("icon"))
+		_icon_fallback_label.queue_redraw()
+	if _stack_badge_label != null:
+		_stack_badge_label.add_theme_font_size_override("font_size", _font_size_for("stack"))
+		_stack_badge_label.queue_redraw()
+	if _flip_button != null:
+		_flip_button.add_theme_font_size_override("font_size", _font_size_for("button"))
+		_flip_button.custom_minimum_size = Vector2(ceil(36.0 * (1.18 if _large_text_enabled else 1.0)), ceil(22.0 * (1.22 if _large_text_enabled else 1.0)))
+		_flip_button.queue_redraw()
+	if _action_button != null:
+		_action_button.add_theme_font_size_override("font_size", _font_size_for("button"))
+		_action_button.custom_minimum_size = Vector2(ceil(42.0 * (1.18 if _large_text_enabled else 1.0)), ceil(22.0 * (1.22 if _large_text_enabled else 1.0)))
+		_action_button.queue_redraw()
+
+
+func _font_size_for(role: String) -> int:
+	var base_size := 14
+	match role:
+		"title":
+			base_size = 9
+		"meta":
+			base_size = 8
+		"body":
+			base_size = 8
+		"icon":
+			base_size = 8
+		"stack":
+			base_size = 8
+		"button":
+			base_size = 8
+	var text_scale := LARGE_TEXT_SCALE if _large_text_enabled else 1.0
+	return int(ceil(float(base_size) * text_scale))
+
+
+func _update_footprint_preview() -> void:
+	if _footprint_grid == null:
+		return
+	var preview := _build_footprint_preview_state()
+	_footprint_preview_state = preview
+	var show_preview := bool(preview.get("visible", false))
+	_footprint_grid.visible = show_preview
+	if _icon_texture_rect != null:
+		_icon_texture_rect.visible = not show_preview and _icon_texture_rect.texture != null
+	if _icon_fallback_label != null:
+		_icon_fallback_label.visible = not show_preview and _icon_texture_rect != null and _icon_texture_rect.texture == null
+	if not show_preview:
+		return
+	var occupied: Array = preview.get("occupied_cells", [])
+	var root_cell: Vector2i = preview.get("root_cell", Vector2i.ZERO)
+	var occupied_color := _footprint_occupied_color()
+	var empty_line_color := _current_text_color
+	empty_line_color.a = 0.22
+	var anchor_color := Color.html("#F6C15B")
+	for y: int in range(FOOTPRINT_GRID_SIZE):
+		for x: int in range(FOOTPRINT_GRID_SIZE):
+			var index := y * FOOTPRINT_GRID_SIZE + x
+			var point := Vector2i(x, y)
+			_footprint_cells[index].configure_cell(occupied.has(point), point == root_cell, occupied_color, empty_line_color, anchor_color)
+
+
+func _build_footprint_preview_state() -> Dictionary:
+	var shape := _normalized_shape_cells_for_preview()
+	var should_show_preview := bool(_card_def.get("board_placeable", false)) or _card_def.has("shape_cells") or _card_def.has("footprint")
+	if not should_show_preview or Array(shape.get("cells", [])).is_empty():
+		return {
+			"visible": false,
+			"grid_size": FOOTPRINT_GRID_SIZE,
+			"occupied_cells": [],
+			"root_cell": Vector2i.ZERO
+		}
+	var occupied: Array[Vector2i] = []
+	for point: Vector2i in shape.get("cells", []):
+		if point.x >= 0 and point.x < FOOTPRINT_GRID_SIZE and point.y >= 0 and point.y < FOOTPRINT_GRID_SIZE:
+			occupied.append(point)
+	return {
+		"visible": true,
+		"grid_size": FOOTPRINT_GRID_SIZE,
+		"occupied_cells": occupied,
+		"root_cell": shape.get("root_cell", Vector2i.ZERO)
+	}
+
+
+func _normalized_shape_cells_for_preview() -> Dictionary:
+	var raw_shape: Array = _card_def.get("shape_cells", _card_def.get("footprint", []))
+	var cells: Array[Vector2i] = []
+	if raw_shape.is_empty() and bool(_card_def.get("board_placeable", false)):
+		cells.append(Vector2i.ZERO)
+	for raw_cell in raw_shape:
+		var point := Vector2i.ZERO
+		if typeof(raw_cell) == TYPE_ARRAY and raw_cell.size() >= 2:
+			point = Vector2i(int(raw_cell[0]), int(raw_cell[1]))
+		elif typeof(raw_cell) == TYPE_DICTIONARY:
+			point = Vector2i(int(raw_cell.get("x", 0)), int(raw_cell.get("y", 0)))
+		else:
+			continue
+		cells.append(point)
+	if cells.is_empty():
+		return {"cells": [], "root_cell": Vector2i.ZERO}
+	var min_x := 0
+	var min_y := 0
+	for point: Vector2i in cells:
+		min_x = mini(min_x, point.x)
+		min_y = mini(min_y, point.y)
+	var normalized: Array[Vector2i] = []
+	for point: Vector2i in cells:
+		normalized.append(Vector2i(point.x - min_x, point.y - min_y))
+	return {
+		"cells": normalized,
+		"root_cell": Vector2i(-min_x, -min_y)
+	}
+
+
+func _footprint_occupied_color() -> Color:
+	if _relative_luminance(_current_type_background_color) < 0.38:
+		return Color(1.0, 1.0, 0.94, 0.88)
+	return _border_color_for_background(_current_type_background_color, _card_type_from_def(_card_def)).darkened(0.05)

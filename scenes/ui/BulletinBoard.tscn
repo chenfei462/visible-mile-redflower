@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/modules/BulletinBoard.gd" id="1_2w7xf"]
+
+[node name="BulletinBoard" type="PanelContainer"]
+custom_minimum_size = Vector2(0, 174)
+script = ExtResource("1_2w7xf")

@@ -9,6 +9,17 @@
     "unlock_trust": 0
   },
   {
+    "recipe_id": "material_ramp_kit",
+    "ingredient_card_ids": [],
+    "ingredient_tags": [
+      ["construction", "material"],
+      ["care", "material"]
+    ],
+    "result_card_id": "community_ramp",
+    "result_type": "facility",
+    "unlock_trust": 0
+  },
+  {
     "recipe_id": "build_handrail",
     "ingredient_card_ids": [
       "ramp_blueprint",
@@ -33,6 +44,17 @@
       "folding_table_kit"
     ],
     "result_card_id": "welcome_table",
+    "unlock_trust": 0
+  },
+  {
+    "recipe_id": "material_welcome_table",
+    "ingredient_card_ids": [],
+    "ingredient_tags": [
+      ["community", "material"],
+      ["communication"]
+    ],
+    "result_card_id": "welcome_table",
+    "result_type": "facility",
     "unlock_trust": 0
   },
   {

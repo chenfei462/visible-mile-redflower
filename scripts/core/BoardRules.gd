@@ -2,6 +2,9 @@ extends RefCounted
 
 const BOARD_SIZE := 16
 const INITIAL_UNLOCKED_SIDE := 6
+const LAND_UNLOCK_SIDES := [6, 8, 10, 12, 14, 16]
+const LAND_UNLOCK_TRUST_THRESHOLDS := [0, 20, 40, 60, 80, 100]
+const LAND_UNLOCK_FLOWER_COSTS := [0, 25, 50, 75, 100, 125]
 const VALID_ZONES := ["住宅", "服务", "商业", "绿地"]
 const INVENTORY_SECTIONS := ["materials", "facilities", "consumables"]
 const NAMED_ADJACENCY_RULES := [
@@ -33,7 +36,7 @@ static func create_default_board_cells() -> Array[Dictionary]:
 	var cells: Array[Dictionary] = []
 	for index: int in range(BOARD_SIZE * BOARD_SIZE):
 		var x := index % BOARD_SIZE
-		var y := index / BOARD_SIZE
+		var y := int(index / float(BOARD_SIZE))
 		cells.append({
 			"index": index,
 			"row": y,
@@ -50,17 +53,71 @@ static func create_default_board_cells() -> Array[Dictionary]:
 	return cells
 
 
-static func apply_trust_unlocks(cells: Array[Dictionary], trust: int) -> void:
+static func board_side_for_land_unlock_stage(stage: int) -> int:
+	var clamped_stage := clampi(stage, 0, LAND_UNLOCK_SIDES.size() - 1)
+	return int(LAND_UNLOCK_SIDES[clamped_stage])
+
+
+static func land_unlock_stage_for_trust(trust: int) -> int:
+	var stage := 0
+	for threshold_index: int in range(LAND_UNLOCK_TRUST_THRESHOLDS.size()):
+		if trust >= int(LAND_UNLOCK_TRUST_THRESHOLDS[threshold_index]):
+			stage = threshold_index
+	return stage
+
+
+static func land_unlock_trust_requirement(stage: int) -> int:
+	var clamped_stage := clampi(stage, 0, LAND_UNLOCK_TRUST_THRESHOLDS.size() - 1)
+	return int(LAND_UNLOCK_TRUST_THRESHOLDS[clamped_stage])
+
+
+static func land_unlock_flower_cost(stage: int) -> int:
+	var clamped_stage := clampi(stage, 0, LAND_UNLOCK_FLOWER_COSTS.size() - 1)
+	return int(LAND_UNLOCK_FLOWER_COSTS[clamped_stage])
+
+
+static func count_unlocked_cells_for_stage(stage: int) -> int:
+	var count := 0
+	for index: int in range(BOARD_SIZE * BOARD_SIZE):
+		if _is_index_unlocked(index, stage):
+			count += 1
+	return count
+
+
+static func apply_land_unlock_stage(cells: Array[Dictionary], stage: int) -> void:
 	for cell: Dictionary in cells:
-		cell["unlocked"] = _is_index_unlocked(int(cell.get("index", -1)), trust)
+		cell["unlocked"] = _is_index_unlocked(int(cell.get("index", -1)), stage)
+
+
+static func land_unlock_stage_from_unlocked_cell_count(unlocked_cell_count: int) -> int:
+	var matched_stage := 0
+	for stage: int in range(LAND_UNLOCK_SIDES.size()):
+		if unlocked_cell_count >= count_unlocked_cells_for_stage(stage):
+			matched_stage = stage
+	return matched_stage
+
+
+static func land_unlock_stage_from_cells(cells: Array[Dictionary]) -> int:
+	var unlocked_cell_count := 0
+	for cell: Dictionary in cells:
+		if bool(cell.get("unlocked", false)):
+			unlocked_cell_count += 1
+	return land_unlock_stage_from_unlocked_cell_count(unlocked_cell_count)
+
+
+static func is_index_in_next_land_unlock_ring(index: int, current_stage: int) -> bool:
+	var next_stage := mini(current_stage + 1, LAND_UNLOCK_SIDES.size() - 1)
+	if next_stage == current_stage:
+		return false
+	return not _is_index_unlocked(index, current_stage) and _is_index_unlocked(index, next_stage)
+
+
+static func apply_trust_unlocks(cells: Array[Dictionary], trust: int) -> void:
+	apply_land_unlock_stage(cells, land_unlock_stage_for_trust(trust))
 
 
 static func count_unlocked_cells_for_trust(trust: int) -> int:
-	var count := 0
-	for index: int in range(BOARD_SIZE * BOARD_SIZE):
-		if _is_index_unlocked(index, trust):
-			count += 1
-	return count
+	return count_unlocked_cells_for_stage(land_unlock_stage_for_trust(trust))
 
 
 static func cell_index(x: int, y: int) -> int:
@@ -150,7 +207,7 @@ static func rotated_shape_cells(card_def: Dictionary, rotation: int = 0) -> Arra
 
 
 static func normalized_rotation(rotation: int) -> int:
-	var turns := ((rotation / 90) % 4 + 4) % 4
+	var turns := ((int(rotation / 90.0)) % 4 + 4) % 4
 	return turns * 90
 
 
@@ -159,7 +216,7 @@ static func occupied_indices_for_shape(root_index: int, card_def: Dictionary, ro
 	if root_index < 0:
 		return result
 	var root_x := root_index % BOARD_SIZE
-	var root_y := root_index / BOARD_SIZE
+	var root_y := int(root_index / float(BOARD_SIZE))
 	for offset: Vector2i in rotated_shape_cells(card_def, rotation):
 		var index := cell_index(root_x + offset.x, root_y + offset.y)
 		if index == -1:
@@ -601,7 +658,7 @@ static func _orthogonal_neighbor_card_ids(index: int, all_cells: Array[Dictionar
 
 static func _orthogonal_neighbor_indices(index: int, all_cells: Array[Dictionary]) -> PackedInt32Array:
 	var matching_indices := PackedInt32Array()
-	var row: int = index / BOARD_SIZE
+	var row: int = int(index / float(BOARD_SIZE))
 	var col: int = index % BOARD_SIZE
 	var offsets: Array[Vector2i] = [
 		Vector2i(-1, 0),
@@ -621,21 +678,13 @@ static func _orthogonal_neighbor_indices(index: int, all_cells: Array[Dictionary
 	return matching_indices
 
 
-static func _is_index_unlocked(index: int, trust: int) -> bool:
+static func _is_index_unlocked(index: int, land_unlock_stage: int) -> bool:
 	if index < 0 or index >= BOARD_SIZE * BOARD_SIZE:
 		return false
-	if trust >= 100:
-		return true
 	var x := index % BOARD_SIZE
-	var y := index / BOARD_SIZE
-	var unlocked_side := INITIAL_UNLOCKED_SIDE
-	if trust >= 75:
-		unlocked_side = 12
-	elif trust >= 50:
-		unlocked_side = 10
-	elif trust >= 25:
-		unlocked_side = 8
-	var start := (BOARD_SIZE - unlocked_side) / 2
+	var y := int(index / float(BOARD_SIZE))
+	var unlocked_side := board_side_for_land_unlock_stage(land_unlock_stage)
+	var start := int((BOARD_SIZE - unlocked_side) / 2.0)
 	var edge := start + unlocked_side - 1
 	return x >= start and x <= edge and y >= start and y <= edge
 
@@ -651,7 +700,7 @@ static func _default_zone_for(x: int, y: int) -> String:
 
 
 static func _rotate_point(point: Vector2i, rotation: int) -> Vector2i:
-	var turns := ((rotation / 90) % 4 + 4) % 4
+	var turns := ((int(rotation / 90.0)) % 4 + 4) % 4
 	match turns:
 		1:
 			return Vector2i(-point.y, point.x)
