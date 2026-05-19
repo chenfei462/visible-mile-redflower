@@ -158,6 +158,22 @@ def test_editor_session_wraps_bridge_commands() -> None:
     }
 
 
+def test_editor_session_allows_name_payloads_for_create_node_commands() -> None:
+    sock = FakeSocket(responses=[{"ok": True, "path": "Probe"}])
+    session = EditorSession(host="127.0.0.1", port=9600, socket_factory=lambda *_args, **_kwargs: sock)
+    session.connect()
+
+    reply = session.command("create_node", parent_path=".", type="Node", name="Probe")
+
+    assert reply["path"] == "Probe"
+    assert json.loads(sock.sent.decode("utf-8").rstrip("\n")) == {
+        "cmd": "create_node",
+        "parent_path": ".",
+        "type": "Node",
+        "name": "Probe",
+    }
+
+
 def test_editor_session_accepts_timeout_keyword_and_passes_it_to_transport() -> None:
     calls: list[tuple[tuple[str, int], float]] = []
     sock = FakeSocket(responses=[{"ok": True}])

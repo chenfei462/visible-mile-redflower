@@ -16,7 +16,7 @@ class EditorSemanticDriver:
             connected=bool(reply.get("ok", False)),
             window_active=bool(reply.get("window_active", False)),
             scene_open=bool(reply.get("has_scene", False)),
-            scene_path=str(reply.get("scene_path", "")),
+            scene_path=self._string_or_empty(reply.get("scene_path", "")),
             scene_dirty=bool(reply.get("scene_dirty", False)),
             editor_playing=bool(reply.get("is_playing", False)),
         )
@@ -61,6 +61,10 @@ class EditorSemanticDriver:
             source="semantic",
             command=command_name,
             payload=reply,
-            error=str(reply.get("error", "")),
+            error=self._string_or_empty(reply.get("error", "")),
             confidence=ConfidenceLevel.HIGH if ok else ConfidenceLevel.LOW,
         )
+
+    @staticmethod
+    def _string_or_empty(value: Any) -> str:
+        return "" if value is None else str(value)

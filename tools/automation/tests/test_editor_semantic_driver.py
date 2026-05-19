@@ -38,6 +38,24 @@ def test_get_editor_state_maps_bridge_reply() -> None:
     assert state.editor_playing is False
 
 
+def test_get_editor_state_keeps_null_scene_path_as_empty_string() -> None:
+    session = FakeSession(
+        {
+            "get_editor_state": {
+                "ok": True,
+                "has_scene": False,
+                "scene_path": None,
+                "is_playing": False,
+            }
+        }
+    )
+    driver = EditorSemanticDriver(session)
+
+    state = driver.get_editor_state()
+
+    assert state.scene_path == ""
+
+
 def test_open_scene_returns_high_confidence_action_result() -> None:
     session = FakeSession({"open_scene": {"ok": True, "scene_path": "res://scenes/Main.tscn"}})
     driver = EditorSemanticDriver(session)
@@ -50,6 +68,18 @@ def test_open_scene_returns_high_confidence_action_result() -> None:
     assert result.payload["scene_path"] == "res://scenes/Main.tscn"
     assert result.confidence is ConfidenceLevel.HIGH
     assert session.calls == [("open_scene", {"path": "res://scenes/Main.tscn"})]
+
+
+def test_open_scene_returns_low_confidence_action_result_for_failure_reply() -> None:
+    session = FakeSession({"open_scene": {"ok": False, "error": None}})
+    driver = EditorSemanticDriver(session)
+
+    result = driver.open_scene("res://scenes/Missing.tscn")
+
+    assert result.ok is False
+    assert result.command == "open_scene"
+    assert result.error == ""
+    assert result.confidence is ConfidenceLevel.LOW
 
 
 def test_semantic_driver_forwards_bridge_commands_for_scene_mutations() -> None:
@@ -75,3 +105,15 @@ def test_semantic_driver_forwards_bridge_commands_for_scene_mutations() -> None:
         ("stop_project", {}),
         ("get_output", {}),
     ]
+
+
+def test_semantic_driver_maps_failed_replies_to_low_confidence_results() -> None:
+    session = FakeSession({"delete_node": {"ok": False, "error": None}})
+    driver = EditorSemanticDriver(session)
+
+    result = driver.delete_node("MissingNode")
+
+    assert result.ok is False
+    assert result.command == "delete_node"
+    assert result.error == ""
+    assert result.confidence is ConfidenceLevel.LOW
