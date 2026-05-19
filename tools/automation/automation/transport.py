@@ -62,9 +62,9 @@ class JsonLineClient:
             if newline_index >= 0:
                 line = self._buffer[:newline_index]
                 self._buffer = self._buffer[newline_index + 1 :]
-                if line:
-                    return line
-                continue
+                if not line:
+                    raise TransportError("empty response from peer")
+                return line
 
             assert self._socket is not None
             chunk = self._socket.recv(65536)

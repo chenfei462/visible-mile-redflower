@@ -94,6 +94,19 @@ def test_json_line_client_raises_if_the_peer_returns_an_empty_response() -> None
         client.send({"cmd": "get_editor_state"})
 
 
+def test_json_line_client_treats_newline_only_frame_as_empty_response() -> None:
+    sock = FakeSocket(raw_responses=[b"\n", b'{"ok": true}\n'])
+    client = JsonLineClient("127.0.0.1", 9600, socket_factory=lambda *_args, **_kwargs: sock)
+    client.connect()
+
+    with pytest.raises(TransportError, match="empty response"):
+        client.send({"cmd": "get_editor_state"})
+
+    reply = client.send({"cmd": "get_editor_state"})
+
+    assert reply == {"ok": True}
+
+
 def test_json_line_client_wraps_invalid_json_as_transport_error() -> None:
     sock = FakeSocket(raw_responses=[b"not json\n"])
     client = JsonLineClient("127.0.0.1", 9600, socket_factory=lambda *_args, **_kwargs: sock)
