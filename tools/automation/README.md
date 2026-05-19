@@ -16,6 +16,10 @@ python -m pytest tools/automation/tests -q
 
 ## Run the editor/runtime smoke recipe
 
+The smoke recipe entry point is added in a later task and is not available in this scaffold yet.
+
+When that module exists, run:
+
 1. Start the editor with:
 
 ```powershell
