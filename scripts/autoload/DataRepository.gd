@@ -9,8 +9,7 @@ const REQUIRED_CARD_KEYS := [
 const REQUIRED_RECIPE_KEYS := ["recipe_id", "ingredient_card_ids", "result_card_id", "unlock_trust"]
 const REQUIRED_RESIDENT_KEYS := [
 	"resident_id", "name", "portrait", "starting_satisfaction", "daily_manpower",
-	"specialty_resource", "specialty_amount", "active_wish_ids",
-	"portrait_key", "bio", "event_affinity_tags"
+	"specialty_resource", "specialty_amount", "portrait_key", "bio", "event_affinity_tags"
 ]
 const REQUIRED_WISH_KEYS := [
 	"wish_id", "resident_id", "title", "stage", "required_card_ids", "required_tags",
@@ -21,8 +20,8 @@ const REQUIRED_EVENT_KEYS := [
 	"target_resident_ids", "manpower_required", "reward", "penalty",
 	"ai_prompt_template_id", "fallback_event_id", "icon_key"
 ]
-const RESOURCE_KEYS := ["flowers", "funds", "manpower", "trust"]
-const CARD_TYPES := ["facility", "blueprint", "material", "problem", "support"]
+const RESOURCE_KEYS := ["flowers", "funds", "manpower", "moral", "trust"]
+const CARD_TYPES := ["facility", "building_permit", "material"]
 const EVENT_CATEGORIES := ["fixed", "ai", "hybrid"]
 
 var cards_by_id: Dictionary = {}
@@ -69,49 +68,81 @@ func load_all(base_path: String = "res://data") -> bool:
 	opening_playability_plan.clear()
 	validation_errors.clear()
 
-	card_list = _load_array("%s/cards.json" % base_path)
+	card_list = _filter_cards_for_current_rules(_load_array("%s/cards.json" % base_path))
 	recipes = _load_array("%s/recipes.json" % base_path)
 	residents = _load_array("%s/residents.json" % base_path)
-	wishes = _load_array("%s/wishes.json" % base_path)
-	autonomy_levels = _load_array("%s/autonomy_levels.json" % base_path)
-	events = _load_array("%s/events.json" % base_path)
+	wishes = []
+	autonomy_levels = []
+	events = []
 	day_sequence = _load_dictionary("%s/day_sequence.json" % base_path)
 	strings = _load_dictionary("%s/strings.json" % base_path)
 	tutorial = _load_dictionary("%s/tutorial.json" % base_path)
 	art_manifest = _load_dictionary("%s/art_manifest.json" % base_path)
-	demo_balance_targets = _load_dictionary("%s/demo_balance_targets.json" % base_path)
-	opening_playability_plan = _load_dictionary("%s/opening_playability_plan.json" % base_path)
+	demo_balance_targets = {}
+	opening_playability_plan = _sanitize_opening_playability_plan(_load_dictionary("%s/opening_playability_plan.json" % base_path))
 
 	for card: Dictionary in card_list:
 		if _validate_required_keys(card, REQUIRED_CARD_KEYS, "card"):
 			cards_by_id[str(card.get("card_id", ""))] = card
+	recipes = _filter_recipes_for_current_rules(recipes)
 	for recipe: Dictionary in recipes:
 		_validate_required_keys(recipe, REQUIRED_RECIPE_KEYS, "recipe")
 	for resident: Dictionary in residents:
 		if _validate_required_keys(resident, REQUIRED_RESIDENT_KEYS, "resident"):
 			residents_by_id[str(resident.get("resident_id", ""))] = resident
-	for wish: Dictionary in wishes:
-		if _validate_required_keys(wish, REQUIRED_WISH_KEYS, "wish"):
-			wishes_by_id[str(wish.get("wish_id", ""))] = wish
-	for event_def: Dictionary in events:
-		if _validate_required_keys(event_def, REQUIRED_EVENT_KEYS, "event"):
-			events_by_id[str(event_def.get("event_id", ""))] = event_def
 
 	_validate_phase_two_content_counts()
 	_validate_cards()
 	_validate_recipes()
-	_validate_wishes()
-	_validate_autonomy_levels()
 	_validate_residents()
-	_validate_events()
 	_validate_day_sequence()
 	_validate_strings()
 	_validate_tutorial()
 	_validate_art_manifest()
-	_validate_demo_balance_targets()
 	_validate_opening_playability_plan()
 
 	return validation_errors.is_empty()
+
+
+func _filter_cards_for_current_rules(raw_cards: Array[Dictionary]) -> Array[Dictionary]:
+	var filtered: Array[Dictionary] = []
+	for card: Dictionary in raw_cards:
+		var card_type := str(card.get("type", ""))
+		if not CARD_TYPES.has(card_type):
+			continue
+		filtered.append(card)
+	return filtered
+
+
+func _filter_recipes_for_current_rules(raw_recipes: Array[Dictionary]) -> Array[Dictionary]:
+	var filtered: Array[Dictionary] = []
+	for recipe: Dictionary in raw_recipes:
+		var result_card_id := str(recipe.get("result_card_id", ""))
+		if result_card_id.is_empty() or not cards_by_id.has(result_card_id):
+			continue
+		var all_ingredients_available := true
+		for ingredient_variant in recipe.get("ingredient_card_ids", []):
+			if not cards_by_id.has(str(ingredient_variant)):
+				all_ingredients_available = false
+				break
+		if not all_ingredients_available:
+			continue
+		filtered.append(recipe)
+	return filtered
+
+
+func _sanitize_opening_playability_plan(raw_plan: Dictionary) -> Dictionary:
+	var sanitized := raw_plan.duplicate(true)
+	var sanitized_days: Array[Dictionary] = []
+	for day_plan_variant in raw_plan.get("days", []):
+		if typeof(day_plan_variant) != TYPE_DICTIONARY:
+			continue
+		var day_plan: Dictionary = (day_plan_variant as Dictionary).duplicate(true)
+		day_plan["recommended_wish_ids"] = []
+		day_plan["pressure_event_ids"] = []
+		sanitized_days.append(day_plan)
+	sanitized["days"] = sanitized_days
+	return sanitized
 
 
 func get_card(card_id: String) -> Dictionary:
@@ -152,6 +183,18 @@ func get_cards_available_for_state(state: Dictionary) -> Array[Dictionary]:
 	return unlocked
 
 
+func is_bulletin_card_type(card_type: String) -> bool:
+	return card_type == "material" or card_type == "building_permit"
+
+
+func filter_bulletin_cards(cards: Array[Dictionary]) -> Array[Dictionary]:
+	var filtered: Array[Dictionary] = []
+	for card: Dictionary in cards:
+		if is_bulletin_card_type(str(card.get("type", ""))):
+			filtered.append(card)
+	return filtered
+
+
 func get_art_entry(resource_key: String) -> Dictionary:
 	return art_manifest.get("entries", {}).get(resource_key, {})
 
@@ -179,6 +222,34 @@ func resolve_art_entry(resource_key: String, expected_kind: String = "", default
 
 func get_string(section: String, key: String, fallback: String = "") -> String:
 	return str(strings.get(section, {}).get(key, fallback))
+
+
+func display_resource_name(resource_key: String) -> String:
+	return get_string("resources", resource_key, resource_key)
+
+
+func display_card_type(card_type: String) -> String:
+	return get_string("card_types", card_type, card_type)
+
+
+func display_rarity(rarity: String) -> String:
+	return get_string("rarities", rarity, rarity)
+
+
+func display_tag_name(tag: String) -> String:
+	return get_string("tags", tag, tag)
+
+
+func display_phase_name(phase: String) -> String:
+	return get_string("phases", phase, phase)
+
+
+func display_location_name(location: String) -> String:
+	return get_string("locations", location, location)
+
+
+func display_general_label(key: String, fallback: String = "") -> String:
+	return get_string("general", key, fallback if not fallback.is_empty() else key)
 
 
 func _load_array(path: String) -> Array[Dictionary]:
@@ -229,18 +300,12 @@ func _validate_required_keys(entry: Dictionary, required_keys: Array, entry_type
 
 
 func _validate_phase_two_content_counts() -> void:
-	if card_list.size() < 80:
-		validation_errors.append("cards.json should contain at least 80 cards for Phase 2")
-	if recipes.size() < 40:
-		validation_errors.append("recipes.json should contain at least 40 recipes for Phase 2")
+	if card_list.size() < 20:
+		validation_errors.append("cards.json should contain at least 20 live tabletop cards")
+	if recipes.size() < 10:
+		validation_errors.append("recipes.json should contain at least 10 live tabletop recipes")
 	if residents.size() < 7:
 		validation_errors.append("residents.json should contain at least 7 residents for Phase 2")
-	if wishes.size() < 14:
-		validation_errors.append("wishes.json should contain at least 14 wishes for the resident wish chain")
-	if autonomy_levels.size() < 5:
-		validation_errors.append("autonomy_levels.json should contain Lv0-Lv4")
-	if events.size() < 12:
-		validation_errors.append("events.json should contain at least 12 events for Phase 2")
 
 
 func _validate_cards() -> void:
@@ -286,14 +351,20 @@ func _validate_recipes() -> void:
 		var recipe_id: String = str(recipe.get("recipe_id", ""))
 		var ingredient_ids: Array = recipe.get("ingredient_card_ids", [])
 		var ingredient_tags: Array = recipe.get("ingredient_tags", [])
-		if ingredient_ids.size() != 2 and ingredient_tags.size() != 2:
-			validation_errors.append("recipe %s should define exactly 2 card ids or 2 tag slots" % recipe_id)
+		var id_size := ingredient_ids.size()
+		var tag_size := ingredient_tags.size()
+		var has_valid_ids := id_size >= 2 and id_size <= 4
+		var has_valid_tags := tag_size >= 2 and tag_size <= 4
+		if not has_valid_ids and not has_valid_tags:
+			validation_errors.append("recipe %s should define 2-4 card ids or 2-4 tag slots" % recipe_id)
 		for ingredient_variant in ingredient_ids:
 			var ingredient_id: String = str(ingredient_variant)
 			if not cards_by_id.has(ingredient_id):
 				validation_errors.append("recipe %s references missing ingredient %s" % [recipe_id, ingredient_id])
 		if recipe.has("material_costs") and typeof(recipe.get("material_costs", {})) != TYPE_DICTIONARY:
 			validation_errors.append("recipe %s material_costs should be a dictionary when present" % recipe_id)
+		if recipe.has("first_discovery_reward") and typeof(recipe.get("first_discovery_reward", {})) != TYPE_DICTIONARY:
+			validation_errors.append("recipe %s first_discovery_reward should be a dictionary when present" % recipe_id)
 		var result_card_id: String = str(recipe.get("result_card_id", ""))
 		if not cards_by_id.has(result_card_id):
 			validation_errors.append("recipe %s references missing result %s" % [recipe_id, result_card_id])
@@ -303,12 +374,6 @@ func _validate_residents() -> void:
 	var art_entries: Dictionary = art_manifest.get("entries", {})
 	for resident: Dictionary in residents:
 		var resident_id: String = str(resident.get("resident_id", ""))
-		if typeof(resident.get("active_wish_ids", [])) != TYPE_ARRAY:
-			validation_errors.append("resident %s active_wish_ids should be an array" % resident_id)
-		for wish_id_variant in resident.get("active_wish_ids", []):
-			var wish_id: String = str(wish_id_variant)
-			if not wishes_by_id.has(wish_id):
-				validation_errors.append("resident %s references missing wish %s" % [resident_id, wish_id])
 		if typeof(resident.get("event_affinity_tags", [])) != TYPE_ARRAY:
 			validation_errors.append("resident %s event_affinity_tags should be an array" % resident_id)
 		if resident.has("concerns") and typeof(resident.get("concerns", [])) != TYPE_ARRAY:
@@ -394,6 +459,9 @@ func _validate_strings() -> void:
 		validation_errors.append("strings phases should be a dictionary")
 	if typeof(strings.get("resources", {})) != TYPE_DICTIONARY:
 		validation_errors.append("strings resources should be a dictionary")
+	for section: String in ["card_types", "rarities", "tags", "locations", "general"]:
+		if typeof(strings.get(section, {})) != TYPE_DICTIONARY:
+			validation_errors.append("strings %s should be a dictionary" % section)
 
 
 func _validate_tutorial() -> void:
@@ -420,7 +488,7 @@ func _validate_demo_balance_targets() -> void:
 	if int(goal.get("days", 0)) != 10:
 		validation_errors.append("demo_balance_targets demo_goal days should be 10")
 	if bool(goal.get("s_is_demo_target", true)):
-		validation_errors.append("demo_balance_targets should mark S as outside the Demo target")
+		validation_errors.append("demo_balance_targets should mark S as outside the demo target")
 	if typeof(demo_balance_targets.get("action_cost_seconds", {})) != TYPE_DICTIONARY:
 		validation_errors.append("demo_balance_targets action_cost_seconds should be a dictionary")
 	var daily_targets: Array = demo_balance_targets.get("daily_targets", [])
@@ -462,18 +530,26 @@ func _validate_opening_playability_plan() -> void:
 			var card_id := str(card_id_variant)
 			if not cards_by_id.has(card_id):
 				validation_errors.append("opening_playability_plan day %d references missing card %s" % [day, card_id])
+				continue
+			var card_type := str(cards_by_id.get(card_id, {}).get("type", ""))
+			if not is_bulletin_card_type(card_type):
+				validation_errors.append("opening_playability_plan day %d bulletin card %s must be material or building_permit" % [day, card_id])
+		for card_id_variant in day_plan.get("fallback_card_ids", []):
+			var card_id := str(card_id_variant)
+			if not cards_by_id.has(card_id):
+				validation_errors.append("opening_playability_plan day %d references missing fallback card %s" % [day, card_id])
+				continue
+			var card_type := str(cards_by_id.get(card_id, {}).get("type", ""))
+			if not is_bulletin_card_type(card_type):
+				validation_errors.append("opening_playability_plan day %d fallback card %s must be material or building_permit" % [day, card_id])
 		for recipe_id_variant in day_plan.get("recommended_recipe_ids", []):
 			var recipe_id := str(recipe_id_variant)
 			if not recipe_ids.has(recipe_id):
 				validation_errors.append("opening_playability_plan day %d references missing recipe %s" % [day, recipe_id])
-		for wish_id_variant in day_plan.get("recommended_wish_ids", []):
-			var wish_id := str(wish_id_variant)
-			if not wishes_by_id.has(wish_id):
-				validation_errors.append("opening_playability_plan day %d references missing wish %s" % [day, wish_id])
-		for event_id_variant in day_plan.get("pressure_event_ids", []):
-			var event_id := str(event_id_variant)
-			if not events_by_id.has(event_id):
-				validation_errors.append("opening_playability_plan day %d references missing event %s" % [day, event_id])
+		if day_plan.get("recommended_wish_ids", []).size() != 0:
+			validation_errors.append("opening_playability_plan day %d should not expose legacy wish goals" % day)
+		if day_plan.get("pressure_event_ids", []).size() != 0:
+			validation_errors.append("opening_playability_plan day %d should not expose legacy pressure events" % day)
 
 
 func _validate_resource_bundle(bundle_name: String, bundle: Dictionary) -> void:

@@ -7,7 +7,7 @@ const RESIDENT_SYSTEM := preload("res://scripts/core/ResidentSystem.gd")
 const AUTONOMY_SYSTEM := preload("res://scripts/core/AutonomySystem.gd")
 const POST_GAME_SYSTEM := preload("res://scripts/core/PostGameSystem.gd")
 const BOARD_RULES := preload("res://scripts/core/BoardRules.gd")
-const SAVE_VERSION := 1
+const SAVE_VERSION := 2
 const SAVE_DIR := "user://saves"
 const AUTOSAVE_SLOT := 0
 
@@ -34,8 +34,11 @@ func load_slot(slot_id: int) -> Dictionary:
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return {"success": false, "reason": "invalid_json"}
 	var payload: Dictionary = parsed
-	if int(payload.get("version", 0)) > SAVE_VERSION:
+	var version := int(payload.get("version", 0))
+	if version > SAVE_VERSION:
 		return {"success": false, "reason": "future_save_version"}
+	if version < SAVE_VERSION:
+		return {"success": false, "reason": "incompatible_save_version"}
 	payload["ui_state"] = _normalize_ui_state(payload.get("ui_state", {}))
 	_restore_payload(payload)
 	emit_signal("loaded", slot_id)
@@ -97,7 +100,10 @@ func _restore_community_state(saved_state: Dictionary) -> Dictionary:
 		"event_history",
 		"announcement_queue",
 		"pending_problem_escalations",
-		"board_combo_cache"
+		"board_combo_cache",
+		"daily_need_queue",
+		"resident_need_queue",
+		"resident_need_entities"
 	]:
 		restored[key] = _dictionary_array(saved_state.get(key, []))
 	AUTONOMY_SYSTEM.ensure_runtime_fields(restored)
@@ -145,6 +151,24 @@ func _restore_community_state(saved_state: Dictionary) -> Dictionary:
 		restored["recipe_codex"] = {}
 	if typeof(restored.get("discovered_combos", [])) != TYPE_ARRAY:
 		restored["discovered_combos"] = []
+	if typeof(restored.get("recipe_first_discovery_claimed", [])) != TYPE_ARRAY:
+		restored["recipe_first_discovery_claimed"] = []
+	if typeof(restored.get("recently_discovered_recipes", [])) != TYPE_ARRAY:
+		restored["recently_discovered_recipes"] = []
+	if str(restored.get("weather_today", "")).is_empty():
+		restored["weather_today"] = "sunny"
+	if typeof(restored.get("weather_history", [])) != TYPE_ARRAY:
+		restored["weather_history"] = []
+	if typeof(restored.get("event_flags", {})) != TYPE_DICTIONARY:
+		restored["event_flags"] = {}
+	if typeof(restored.get("diary_log", [])) != TYPE_ARRAY:
+		restored["diary_log"] = []
+	if typeof(restored.get("community_landmarks", [])) != TYPE_ARRAY:
+		restored["community_landmarks"] = []
+	if typeof(restored.get("weekly_reports", [])) != TYPE_ARRAY:
+		restored["weekly_reports"] = []
+	if typeof(restored.get("resident_interactions", [])) != TYPE_ARRAY:
+		restored["resident_interactions"] = []
 	if not restored.has("land_unlock_stage"):
 		restored["land_unlock_stage"] = BOARD_RULES.land_unlock_stage_from_cells(restored.get("board_cells", []))
 	if DataRepository != null and not DataRepository.cards_by_id.is_empty():

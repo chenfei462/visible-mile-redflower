@@ -14,6 +14,11 @@ func reset_state() -> void:
 	community_state = {
 		"day_count": 1,
 		"phase": "sunrise",
+		"day_seconds_per_day": 120,
+		"day_elapsed_seconds": 0.0,
+		"moral": 10,
+		"moral_max": 20,
+		"moral_failure_streak": 0,
 		"flowers": 3,
 		"funds": 4,
 		"manpower": 0,
@@ -39,6 +44,15 @@ func reset_state() -> void:
 		"inventory": BOARD_RULES.create_default_inventory(),
 		"recipe_codex": {},
 		"discovered_combos": [],
+		"recipe_first_discovery_claimed": [],
+		"recently_discovered_recipes": [],
+		"weather_today": "sunny",
+		"weather_history": [],
+		"event_flags": {},
+		"diary_log": [],
+		"community_landmarks": [],
+		"weekly_reports": [],
+		"resident_interactions": [],
 		"board_combo_cache": [],
 		"pending_build_rotation": 0,
 		"pending_problem_escalations": [],
@@ -51,6 +65,10 @@ func reset_state() -> void:
 		"event_history": [],
 		"announcement_queue": [],
 		"current_problem_tokens": 0,
+		"daily_need_queue": [],
+		"resident_need_queue": [],
+		"resident_need_entities": [],
+		"day_rollover_pending": false,
 		"day_minus_one_mode": false,
 		"tutorial_progress": {
 			"completed_day_minus_one": false,
@@ -61,6 +79,25 @@ func reset_state() -> void:
 		}
 	}
 	last_settlement_lines.clear()
+
+
+func reset_day_clock() -> void:
+	community_state["day_elapsed_seconds"] = 0.0
+	community_state["day_rollover_pending"] = false
+
+
+func set_moral(value: int) -> int:
+	var moral_max := int(community_state.get("moral_max", 20))
+	community_state["moral"] = clampi(value, 0, moral_max)
+	return int(community_state.get("moral", 0))
+
+
+func add_moral(delta: int) -> int:
+	return set_moral(int(community_state.get("moral", 10)) + delta)
+
+
+func is_moral_depleted() -> bool:
+	return int(community_state.get("moral", 0)) <= 0
 
 
 func set_phase(phase: String) -> void:

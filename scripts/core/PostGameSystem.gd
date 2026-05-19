@@ -72,7 +72,7 @@ static func advance_free_mode_month(state: Dictionary, resource_manager: Node) -
 	_apply_facility_outputs(state, resource_manager, resource_delta)
 	_apply_resident_outputs(state, resource_manager, resource_delta, month)
 	_refresh_resident_messages(state.get("resident_states", []), month)
-	lines.append("自治 Lv%d 让日常事务保持稳定。" % int(state.get("autonomy", 0)))
+	lines.append("自治 %d 级让日常事务保持稳定。" % int(state.get("autonomy", 0)))
 	lines.append("资源变化：小红花 %+d，资金 %+d，信任 %+d。" % [
 		int(resource_delta.get("flowers", 0)),
 		int(resource_delta.get("funds", 0)),

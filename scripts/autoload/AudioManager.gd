@@ -12,6 +12,7 @@ var _sfx_paths := {
 	"place": "res://assets/audio/facility_place.ogg",
 	"card_pick": "res://assets/audio/card_pick.ogg",
 	"facility_place": "res://assets/audio/facility_place.ogg",
+	"craft_start": "res://assets/audio/craft_start.ogg",
 	"craft_success": "res://assets/audio/craft_success.ogg",
 	"craft_fail": "res://assets/audio/craft_fail.ogg",
 	"problem_resolved": "res://assets/audio/problem_resolved.ogg",

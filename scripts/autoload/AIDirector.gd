@@ -99,7 +99,7 @@ func run_test_request() -> Dictionary:
 		"event_id": "test_request",
 		"category": "hybrid",
 		"trigger_days": [2],
-		"title": "AI 测试请求",
+		"title": "智能测试请求",
 		"announcement_text": "验证当前模式、Schema 校验与回退链路。",
 		"problem_card_id": "problem_notice_conflict",
 		"target_resident_ids": ["xiao_lin"],

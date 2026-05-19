@@ -1,4 +1,4 @@
-extends SceneTree
+﻿extends SceneTree
 
 const PLAYABILITY_DIRECTOR := preload("res://scripts/core/PlayabilityDirector.gd")
 const PROTOTYPE_RULES := preload("res://scripts/core/PrototypeRules.gd")
@@ -27,7 +27,8 @@ func _run() -> void:
 	data_repository.load_all("res://data")
 	game_state.reset_state()
 	event_manager.reset_runtime()
-	game_state.set_resident_states(RESIDENT_SYSTEM.build_initial_states(data_repository.residents))
+	var initial_residents: Array[Dictionary] = RESIDENT_SYSTEM.build_initial_states(data_repository.residents)
+	game_state.set_resident_states(initial_residents.slice(0, 2))
 
 	var state: Dictionary = game_state.get_state()
 	day_cycle.resolve_sunrise()
@@ -43,10 +44,11 @@ func _run() -> void:
 	var placement: Dictionary = PROTOTYPE_RULES.place_hand_card_on_board(hand_cards, hand_cards.find("community_ramp"), state, service_cell, data_repository.cards_by_id, resource_manager)
 	_assert_true(bool(placement.get("success", false)), "new player should place the crafted ramp")
 	var dusk_lines: PackedStringArray = day_cycle.resolve_dusk()
-	_assert_true(_resident_has_completed_wish(state, "wang_nainai", "wish_safe_ramp"), "placing the ramp should complete Wang Nainai's first wish")
-	_assert_true(_lines_contain(dusk_lines, "愿望") or _resident_has_message(state, "wang_nainai"), "wish completion should create resident feedback")
+	_assert_true(not _lines_contain(dusk_lines, "wish"), "dusk should not use legacy wish feedback")
+	_assert_true(int(state.get("moral", 0)) > 0, "day 1 service settlement should leave moral above zero")
 	var goals_after_day_one: Array[Dictionary] = PLAYABILITY_DIRECTOR.build_today_goals(state, hand_cards, craft_slots, Array(selected_recipe_ids), data_repository.wishes_by_id)
 	_assert_equal(goals_after_day_one.size(), 3, "today goal panel data should stay stable after day 1 actions")
+	_assert_true(_goal_completed(goals_after_day_one, "moral"), "today goals should track moral instead of legacy problems")
 
 	day_cycle.resolve_night()
 	day_cycle.resolve_sunrise()
@@ -70,13 +72,10 @@ func _run() -> void:
 	day_cycle.resolve_sunrise()
 	event_manager.resolve_sunrise_events()
 	_start_day_bulletin(state, data_repository, 10)
-	_assert_true(bulletin_cards.has("shade_sail_plan") and bulletin_cards.has("fabric_roll"), "day 3 should expose a comfort recipe for the next wish payoff")
-	_assert_equal(state.get("active_problems", []).size(), 1, "day 3 should introduce exactly one lightweight teaching problem")
-	_assert_equal(str(state.get("active_problems", [])[0].get("event_id", "")), "event_day3_first_notice_check", "day 3 should use the teaching problem event")
-	var progress: Dictionary = event_manager.assign_manpower_to_problem(0, 1)
-	_assert_true(bool(progress.get("success", false)) and bool(progress.get("resolved", false)), "new player should resolve the day 3 teaching problem with one manpower")
-	var goals_after_problem: Array[Dictionary] = PLAYABILITY_DIRECTOR.build_today_goals(state, hand_cards, craft_slots, Array(selected_recipe_ids), data_repository.wishes_by_id)
-	_assert_true(_goal_completed(goals_after_problem, "problem"), "today goals should show problem progress")
+	_assert_true(bulletin_cards.has("shade_sail_plan") and bulletin_cards.has("fabric_roll"), "day 3 should expose a comfort recipe without legacy pressure events")
+	_assert_equal(state.get("active_problems", []).size(), 0, "day 3 should not introduce legacy teaching problems")
+	var goals_after_day_three: Array[Dictionary] = PLAYABILITY_DIRECTOR.build_today_goals(state, hand_cards, craft_slots, Array(selected_recipe_ids), data_repository.wishes_by_id)
+	_assert_true(not _goal_completed(goals_after_day_three, "problem"), "today goals should not expose legacy problem progress")
 	_pick_card("shade_sail_plan")
 	_pick_card("fabric_roll")
 	_craft_card(hand_cards.find("shade_sail_plan"))
@@ -112,21 +111,6 @@ func _craft_card(hand_index: int) -> void:
 	_assert_true(bool(result.get("success", false)), "craft move should succeed")
 	if bool(result.get("crafted", false)):
 		selected_recipe_ids.append(str(result.get("recipe_id", "")))
-
-
-func _resident_has_completed_wish(state: Dictionary, resident_id: String, wish_id: String) -> bool:
-	for resident: Dictionary in state.get("resident_states", []):
-		if str(resident.get("resident_id", "")) != resident_id:
-			continue
-		return bool(resident.get("wish_progress", {}).get(wish_id, {}).get("completed", false))
-	return false
-
-
-func _resident_has_message(state: Dictionary, resident_id: String) -> bool:
-	for resident: Dictionary in state.get("resident_states", []):
-		if str(resident.get("resident_id", "")) == resident_id:
-			return not resident.get("personal_messages", []).is_empty()
-	return false
 
 
 func _goal_completed(goals: Array[Dictionary], goal_id: String) -> bool:

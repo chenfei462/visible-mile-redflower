@@ -90,6 +90,24 @@ var _primary_action_text := ""
 var _current_type_background_color := Color(0.98, 0.96, 0.92)
 var _current_text_color := TEXT_COLOR
 var _current_muted_text_color := MUTED_TEXT_COLOR
+
+const PICKUP_SCALE := Vector2(1.05, 1.05)
+const PICKUP_TILT_DEGREES := -4.0
+const PICKUP_DURATION := 0.12
+const DROP_SQUASH_SCALE := Vector2(1.15, 0.85)
+const DROP_SQUASH_DURATION := 0.08
+const DROP_SETTLE_DURATION := 0.22
+const PICKUP_Z_INDEX := 50
+const DEFAULT_SHADOW_SIZE := 3
+const DEFAULT_SHADOW_OFFSET := Vector2(0, 1)
+const PICKUP_SHADOW_SIZE := 10
+const PICKUP_SHADOW_OFFSET := Vector2(3, 6)
+const PICKUP_SHADOW_COLOR := Color(0, 0, 0, 0.28)
+
+var _anim_tween: Tween
+var _default_z_index: int = 0
+var _picked_up: bool = false
+var _current_panel_style: StyleBoxFlat = null
 var _footprint_preview_state := {
 	"visible": false,
 	"grid_size": FOOTPRINT_GRID_SIZE,
@@ -102,6 +120,8 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_apply_compact_size()
 	_ensure_ui()
+	_default_z_index = z_index
+	pivot_offset = size * 0.5
 	if has_node("/root/SettingsManager"):
 		get_node("/root/SettingsManager").settings_changed.connect(_on_settings_changed)
 		_on_settings_changed(get_node("/root/SettingsManager").settings)
@@ -110,6 +130,13 @@ func _ready() -> void:
 func configure(card_def: Dictionary, zone_name: String, index: int, extra_text: String = "", highlighted: bool = false) -> void:
 	_ensure_ui()
 	_apply_compact_size()
+	if _picked_up:
+		_picked_up = false
+		set_process_unhandled_input(false)
+		_kill_anim_tween()
+		scale = Vector2.ONE
+		rotation_degrees = 0.0
+		z_index = _default_z_index
 	_card_def = card_def.duplicate(true)
 	_extra_text = extra_text
 	card_id = str(card_def.get("card_id", ""))
@@ -126,6 +153,12 @@ func configure(card_def: Dictionary, zone_name: String, index: int, extra_text: 
 	_update_footprint_preview()
 	_update_stack_badge()
 	_update_tooltip()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_EXIT_TREE:
+		_kill_anim_tween()
+		_picked_up = false
 
 
 func set_dimmed(dimmed: bool) -> void:
@@ -152,11 +185,19 @@ func _gui_input(event: InputEvent) -> void:
 			toggle_face()
 			accept_event()
 			return
+		_begin_pickup_feedback()
 		if zone == "problem":
 			emit_signal("problem_drop_requested", card_id, zone, item_index, event.position)
 		else:
 			emit_signal("drag_requested", card_id, zone, item_index, event.position)
 		accept_event()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not _picked_up:
+		return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		_end_pickup_feedback()
 
 
 func _ensure_ui() -> void:
@@ -285,6 +326,7 @@ func _apply_compact_size() -> void:
 	var text_scale := LARGE_TEXT_SCALE if _large_text_enabled else 1.0
 	custom_minimum_size = Vector2(ceil(COMPACT_CARD_SIZE.x * (1.16 if _large_text_enabled else 1.0)), ceil(COMPACT_CARD_SIZE.y * text_scale))
 	size = custom_minimum_size
+	pivot_offset = size * 0.5
 	if _art_frame != null:
 		_art_frame.custom_minimum_size = Vector2(0, ceil(COMPACT_ART_HEIGHT * (1.2 if _large_text_enabled else 1.0)))
 	if _footprint_grid != null:
@@ -373,8 +415,11 @@ func _render_face() -> void:
 		_body_label.text = _back_face_text()
 		_flip_button.text = "正"
 	else:
-		_meta_label.visible = str(_card_def.get("type", "")) == "problem"
-		_meta_label.text = "%s | %s" % [str(_card_def.get("type", "")), str(_card_def.get("rarity", ""))]
+		_meta_label.visible = true
+		_meta_label.text = "%s | %s" % [
+			_display_card_type(str(_card_def.get("type", ""))),
+			_display_rarity(str(_card_def.get("rarity", "")))
+		]
 		_body_label.text = _front_face_text()
 		_flip_button.text = "详"
 	_update_primary_action_button()
@@ -389,13 +434,13 @@ func _front_face_text() -> String:
 		if not shape_summary.is_empty():
 			lines.append(shape_summary)
 		lines.append("%s +%d" % [
-			str(_card_def.get("primary_resource", "")),
+			_display_resource_name(str(_card_def.get("primary_resource", ""))),
 			int(_card_def.get("base_output", 0)) + int(_card_def.get("preferred_zone_bonus", 0))
 		])
 		lines.append("%d金/%d人" % [int(_card_def.get("fund_cost", 0)), int(_card_def.get("manpower_cost", 0))])
 	elif card_type == "problem":
 		var payload: Dictionary = _card_def.get("problem_payload", {})
-		lines.append("问题 | %s" % str(payload.get("category", "risk")))
+		lines.append("问题 | %s" % _display_tag_name(str(payload.get("category", "risk"))))
 		lines.append("翻面看惩罚")
 	else:
 		var unlock_flower_cost := int(_card_def.get("unlock_flower_cost", 0))
@@ -418,7 +463,7 @@ func _back_face_text() -> String:
 		lines.append(_extra_text)
 	var resident_links: Array = _card_def.get("resident_links", [])
 	if not resident_links.is_empty():
-		lines.append("居民: %s" % ", ".join(_string_array(resident_links)))
+		lines.append("居民：%s" % "、".join(_string_array(resident_links)))
 	if bool(_card_def.get("board_placeable", false)):
 		lines.append("建设: %d资金 / %d人力" % [int(_card_def.get("fund_cost", 0)), int(_card_def.get("manpower_cost", 0))])
 		var shape_summary := _shape_summary_text()
@@ -426,7 +471,7 @@ func _back_face_text() -> String:
 			lines.append(shape_summary)
 	var tags: Array = _card_def.get("tags", [])
 	if not tags.is_empty():
-		lines.append("标签: %s" % _short_tag_line(tags, 4))
+		lines.append("标签：%s" % _short_tag_line(tags, 4))
 	return "\n".join(lines)
 
 
@@ -448,8 +493,32 @@ func _update_tooltip() -> void:
 func _short_tag_line(tags: Array, limit: int = 2) -> String:
 	var values := PackedStringArray()
 	for index: int in range(mini(tags.size(), limit)):
-		values.append(str(tags[index]))
+		values.append(_display_tag_name(str(tags[index])))
 	return "/".join(values)
+
+
+func _display_resource_name(resource_key: String) -> String:
+	if resource_key.is_empty():
+		return ""
+	return DataRepository.display_resource_name(resource_key)
+
+
+func _display_card_type(card_type: String) -> String:
+	if card_type.is_empty():
+		return ""
+	return DataRepository.display_card_type(card_type)
+
+
+func _display_rarity(rarity: String) -> String:
+	if rarity.is_empty():
+		return ""
+	return DataRepository.display_rarity(rarity)
+
+
+func _display_tag_name(tag: String) -> String:
+	if tag.is_empty():
+		return ""
+	return DataRepository.display_tag_name(tag)
 
 
 func _string_array(values: Array) -> PackedStringArray:
@@ -481,7 +550,9 @@ func _apply_style(card_type: String) -> void:
 	style.set_border_width_all(4 if _highlighted else 2)
 	style.set_corner_radius_all(10)
 	style.shadow_color = Color(0, 0, 0, 0.10)
-	style.shadow_size = 6 if _highlighted else 3
+	style.shadow_size = (PICKUP_SHADOW_SIZE if _picked_up else (6 if _highlighted else DEFAULT_SHADOW_SIZE))
+	style.shadow_offset = PICKUP_SHADOW_OFFSET if _picked_up else DEFAULT_SHADOW_OFFSET
+	_current_panel_style = style
 	add_theme_stylebox_override("panel", style)
 	_apply_readable_label_colors(background)
 	if _icon_fallback_label != null:
@@ -577,7 +648,7 @@ func _card_type_from_def(card_def: Dictionary) -> String:
 
 func _background_color_for_card_type(card_type: String) -> Color:
 	match card_type:
-		"blueprint":
+		"building_permit":
 			return Color.html("#3A6B88")
 		"material":
 			return Color.html("#E6D5B8")
@@ -593,7 +664,7 @@ func _background_color_for_card_type(card_type: String) -> Color:
 
 func _border_color_for_background(background: Color, card_type: String) -> Color:
 	match card_type:
-		"blueprint":
+		"building_permit":
 			return background.darkened(0.28)
 		"material":
 			return Color(0.68, 0.50, 0.28)
@@ -752,3 +823,105 @@ func _footprint_occupied_color() -> Color:
 	if _relative_luminance(_current_type_background_color) < 0.38:
 		return Color(1.0, 1.0, 0.94, 0.88)
 	return _border_color_for_background(_current_type_background_color, _card_type_from_def(_card_def)).darkened(0.05)
+
+
+func _begin_pickup_feedback() -> void:
+	if _picked_up:
+		return
+	_picked_up = true
+	set_process_unhandled_input(true)
+	_play_audio_cue("card_pick")
+	play_pickup_animation()
+
+
+func _end_pickup_feedback() -> void:
+	if not _picked_up:
+		return
+	_picked_up = false
+	set_process_unhandled_input(false)
+	_play_audio_cue("place")
+	play_drop_animation()
+
+
+func play_pickup_animation() -> void:
+	pivot_offset = size * 0.5
+	_apply_pickup_shadow(true)
+	if not _motion_enabled():
+		scale = Vector2.ONE
+		rotation_degrees = 0.0
+		z_index = PICKUP_Z_INDEX
+		return
+	_kill_anim_tween()
+	z_index = PICKUP_Z_INDEX
+	_anim_tween = create_tween()
+	_anim_tween.tween_property(self, "scale", PICKUP_SCALE, PICKUP_DURATION) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_anim_tween.parallel().tween_property(self, "rotation_degrees", PICKUP_TILT_DEGREES, PICKUP_DURATION) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_anim_tween.tween_property(self, "scale", Vector2.ONE, PICKUP_DURATION) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_anim_tween.parallel().tween_property(self, "rotation_degrees", 0.0, PICKUP_DURATION) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+func play_drop_animation() -> void:
+	pivot_offset = size * 0.5
+	_apply_pickup_shadow(false)
+	if not _motion_enabled():
+		scale = Vector2.ONE
+		rotation_degrees = 0.0
+		z_index = _default_z_index
+		return
+	_kill_anim_tween()
+	_anim_tween = create_tween()
+	_anim_tween.tween_property(self, "rotation_degrees", 0.0, DROP_SQUASH_DURATION) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_anim_tween.parallel().tween_property(self, "scale", DROP_SQUASH_SCALE, DROP_SQUASH_DURATION) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_anim_tween.tween_property(self, "scale", Vector2.ONE, DROP_SETTLE_DURATION) \
+		.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+	_anim_tween.tween_callback(Callable(self, "_reset_z_index_to_default"))
+
+
+func _reset_z_index_to_default() -> void:
+	z_index = _default_z_index
+
+
+func _kill_anim_tween() -> void:
+	if _anim_tween != null and _anim_tween.is_valid():
+		_anim_tween.kill()
+	_anim_tween = null
+
+
+func _apply_pickup_shadow(picked: bool) -> void:
+	if _current_panel_style == null:
+		return
+	if picked:
+		_current_panel_style.shadow_size = PICKUP_SHADOW_SIZE
+		_current_panel_style.shadow_offset = PICKUP_SHADOW_OFFSET
+		_current_panel_style.shadow_color = PICKUP_SHADOW_COLOR
+	else:
+		_current_panel_style.shadow_size = 6 if _highlighted else DEFAULT_SHADOW_SIZE
+		_current_panel_style.shadow_offset = DEFAULT_SHADOW_OFFSET
+		_current_panel_style.shadow_color = Color(0, 0, 0, 0.10)
+
+
+func _motion_enabled() -> bool:
+	if not has_node("/root/SettingsManager"):
+		return true
+	var manager: Node = get_node("/root/SettingsManager")
+	if manager.has_method("get_value"):
+		return not bool(manager.call("get_value", "reduce_motion"))
+	return true
+
+
+func _play_audio_cue(sfx_id: String) -> void:
+	if not has_node("/root/AudioManager"):
+		return
+	var audio: Node = get_node("/root/AudioManager")
+	if audio.has_method("play_sfx"):
+		audio.call("play_sfx", sfx_id)
+
+
+func is_picked_up() -> bool:
+	return _picked_up

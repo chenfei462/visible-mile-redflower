@@ -25,7 +25,7 @@ static func add_autonomy_points(state: Dictionary, amount: int, source: String) 
 	if amount <= 0:
 		return lines
 	state["autonomy_points"] = int(state.get("autonomy_points", 0)) + amount
-	lines.append("autonomy +%d %s" % [amount, source])
+	lines.append("自治 +%d（%s）" % [amount, _source_label(source)])
 	lines.append_array(_refresh_level(state, source))
 	return lines
 
@@ -45,7 +45,7 @@ static func resolve_after_sunrise_events(state: Dictionary, active_problems: Arr
 				continue
 			problem["assigned_manpower"] = int(problem.get("assigned_manpower", 0)) + 1
 			active_problems[index] = problem
-			lines.append("autonomy progressed: %s" % str(problem.get("title", problem.get("event_id", ""))))
+			lines.append("自治网络推进：%s" % str(problem.get("title", problem.get("event_id", ""))))
 			if int(problem.get("assigned_manpower", 0)) >= int(problem.get("required_manpower", 0)):
 				_resolve_problem_at_index(state, active_problems, index, resource_manager)
 				lines.append_array(add_autonomy_points(state, 4, "auto_problem:%s" % str(problem.get("event_id", ""))))
@@ -59,7 +59,7 @@ static func resolve_after_sunrise_events(state: Dictionary, active_problems: Arr
 		var problem: Dictionary = active_problems[index]
 		if str(problem.get("status", "active")) == "active" and int(problem.get("required_manpower", 0)) <= max_required:
 			var resolved_problem := _resolve_problem_at_index(state, active_problems, index, resource_manager)
-			lines.append("autonomy resolved: %s" % str(resolved_problem.get("title", resolved_problem.get("event_id", ""))))
+			lines.append("自治网络解决：%s" % str(resolved_problem.get("title", resolved_problem.get("event_id", ""))))
 			lines.append_array(add_autonomy_points(state, 4, "auto_problem:%s" % str(resolved_problem.get("event_id", ""))))
 			resolved += 1
 			continue
@@ -128,7 +128,7 @@ static func _refresh_level(state: Dictionary, source: String) -> PackedStringArr
 			"source": source
 		}
 		state.get("autonomy_history", []).append(entry)
-		lines.append("autonomy Lv%d" % level)
+		lines.append("自治提升到 %d 级" % level)
 	return lines
 
 
@@ -140,7 +140,7 @@ static func _record_autonomy_memory(resident_states: Array, problem: Dictionary)
 		var resident: Dictionary = resident_variant
 		if not target_ids.is_empty() and not target_ids.has(str(resident.get("resident_id", ""))):
 			continue
-		var text := "Autonomy network resolved %s." % str(problem.get("title", problem.get("event_id", "")))
+		var text := "自治网络已解决「%s」。" % str(problem.get("title", problem.get("event_id", "")))
 		var memory_log: Array = resident.get("memory_log", [])
 		memory_log.append({
 			"day": int(problem.get("day_count", 0)),
@@ -166,3 +166,19 @@ static func _remove_announcement_for_event(state: Dictionary, event_id: String) 
 		var announcement = queue[index]
 		if typeof(announcement) == TYPE_DICTIONARY and str(announcement.get("event_id", "")) == event_id:
 			queue.remove_at(index)
+
+
+static func _source_label(source: String) -> String:
+	if source.begins_with("auto_problem:"):
+		return "自动处理问题"
+	if source == "built_facilities":
+		return "新建设施"
+	if source.begins_with("resident:"):
+		return "居民状态"
+	if source.begins_with("wish:"):
+		return "居民愿望"
+	if source.begins_with("problem:"):
+		return "问题处理"
+	if source.is_empty():
+		return "系统"
+	return source

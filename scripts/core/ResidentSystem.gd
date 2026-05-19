@@ -18,6 +18,22 @@ const LOCATION_BY_TAG := {
 	"festival": "event",
 	"culture": "event"
 }
+const RESOURCE_LABELS := {
+	"flowers": "小红花",
+	"funds": "资金",
+	"manpower": "人力",
+	"trust": "信任",
+	"health": "健康",
+	"satisfaction_delta": "满意度"
+}
+const LOCATION_LABELS := {
+	"home": "家中",
+	"service": "服务点",
+	"market": "市集",
+	"green": "绿地",
+	"clinic": "健康点",
+	"event": "活动场地"
+}
 
 
 static func build_initial_states(residents: Array[Dictionary]) -> Array[Dictionary]:
@@ -129,6 +145,86 @@ static func calculate_daily_manpower(resident_states: Array) -> int:
 	return total
 
 
+static func spawn_daily_need_entities(state: Dictionary) -> Array[Dictionary]:
+	var resident_states: Array = state.get("resident_states", [])
+	ensure_runtime_fields(resident_states)
+	var entities: Array[Dictionary] = []
+	for resident_variant in resident_states:
+		if typeof(resident_variant) != TYPE_DICTIONARY:
+			continue
+		var resident: Dictionary = resident_variant
+		var need_tags := _unique_need_tags(Array(resident.get("need_tags", [])))
+		if need_tags.is_empty():
+			need_tags.append("service")
+		entities.append({
+			"need_id": _need_id_for_resident(resident, int(state.get("day_count", 1))),
+			"resident_id": str(resident.get("resident_id", "")),
+			"resident_name": str(resident.get("name", resident.get("resident_id", ""))),
+			"need_tags": need_tags,
+			"service_capacity": 2,
+			"fallback_flower_costs": [1, 2],
+			"status": "pending",
+			"day_created": int(state.get("day_count", 1))
+		})
+	state["resident_need_entities"] = entities.duplicate(true)
+	state["resident_need_queue"] = entities.duplicate(true)
+	state["daily_need_queue"] = entities.duplicate(true)
+	return entities
+
+
+static func settle_daily_need_entities(state: Dictionary, cards_by_id: Dictionary) -> Dictionary:
+	var resident_need_entities: Array = state.get("resident_need_entities", [])
+	if resident_need_entities.is_empty():
+		resident_need_entities = spawn_daily_need_entities(state)
+	var built_facilities: Array = state.get("built_facilities", [])
+	var facility_usage: Dictionary = {}
+	var fulfilled_count := 0
+	var fallback_count := 0
+	var unmet_count := 0
+	var streak_penalty := 0
+	var flowers_spent := 0
+	for entity_variant in resident_need_entities:
+		if typeof(entity_variant) != TYPE_DICTIONARY:
+			continue
+		var entity: Dictionary = entity_variant
+		var has_matching_facility := _has_matching_service_facility(entity, built_facilities, cards_by_id)
+		var matched_facility_index := _find_service_facility_for_need(entity, built_facilities, cards_by_id, facility_usage)
+		if matched_facility_index >= 0:
+			facility_usage[matched_facility_index] = int(facility_usage.get(matched_facility_index, 0)) + 1
+			fulfilled_count += 1
+			state["flowers"] = int(state.get("flowers", 0)) + 1
+			state["funds"] = int(state.get("funds", 0)) + 1
+			continue
+		var fallback_cost := _fallback_cost_for_need(fallback_count)
+		var flowers := int(state.get("flowers", 0))
+		if not has_matching_facility and flowers >= fallback_cost:
+			state["flowers"] = flowers - fallback_cost
+			flowers_spent += fallback_cost
+			fallback_count += 1
+			continue
+		unmet_count += 1
+	if unmet_count <= 0:
+		var moral_max := int(state.get("moral_max", 20))
+		state["moral"] = clampi(int(state.get("moral", 10)) + 1, 0, moral_max)
+		state["moral_failure_streak"] = 0
+	else:
+		var streak := int(state.get("moral_failure_streak", 0))
+		streak_penalty = streak
+		var moral_max := int(state.get("moral_max", 20))
+		state["moral"] = clampi(int(state.get("moral", 10)) - unmet_count - streak_penalty, 0, moral_max)
+		state["moral_failure_streak"] = streak + 1
+	state["resident_need_entities"] = []
+	state["resident_need_queue"] = []
+	state["daily_need_queue"] = []
+	return {
+		"fulfilled_count": fulfilled_count,
+		"fallback_count": fallback_count,
+		"unmet_count": unmet_count,
+		"flowers_spent": flowers_spent,
+		"streak_penalty": streak_penalty
+	}
+
+
 static func assign_daily_board_positions(state: Dictionary, board_cells: Array) -> void:
 	var resident_states: Array = state.get("resident_states", [])
 	ensure_runtime_fields(resident_states)
@@ -174,14 +270,14 @@ static func resolve_daily_residents(state: Dictionary, cards_by_id: Dictionary, 
 		if pending_health != 0:
 			resident["health"] = clampi(health_before + pending_health, 0, 100)
 			resident["pending_health_delta"] = 0
-			record_memory(resident, "health_changed", "daily_health", "%s health changed to %d." % [resident.get("name", ""), int(resident.get("health", 0))], int(state.get("day_count", 1)))
+			record_memory(resident, "health_changed", "daily_health", "%s 健康变为 %d。" % [resident.get("name", ""), int(resident.get("health", 0))], int(state.get("day_count", 1)))
 			message_added = true
 
 		if _has_health_facility_for_resident(resident, built_card_ids, cards_by_id) and int(resident.get("health", 0)) < 100:
 			resident["health"] = clampi(int(resident.get("health", 0)) + 2, 0, 100)
 			lines.append("%s 健康恢复到 %d" % [resident.get("name", ""), int(resident.get("health", 0))])
 			if health_before < 80 and int(resident.get("health", 0)) >= 80:
-				record_memory(resident, "health_recovered", "health_facility", "%s health recovered." % str(resident.get("name", "")), int(state.get("day_count", 1)))
+				record_memory(resident, "health_recovered", "health_facility", "%s 健康恢复。" % str(resident.get("name", "")), int(state.get("day_count", 1)))
 
 		var completed_wishes: PackedStringArray = _resolve_wishes_for_resident(resident, state, cards_by_id, wishes_by_id, resource_manager)
 		for wish_id: String in completed_wishes:
@@ -202,10 +298,10 @@ static func resolve_daily_residents(state: Dictionary, cards_by_id: Dictionary, 
 		lines.append("%s 满意度 %d 健康 %d" % [resident.get("name", ""), new_satisfaction, int(resident.get("health", 0))])
 		_update_location(resident, wishes_by_id)
 		if not message_added:
-			_add_message(resident, "%s at %s with satisfaction %d." % [resident.get("name", ""), str(resident.get("location_id", "home")), new_satisfaction])
+			_add_message(resident, "%s 在%s，满意度 %d。" % [resident.get("name", ""), _location_label(str(resident.get("location_id", "home"))), new_satisfaction])
 
 	state["trust"] = clampi(int(state.get("trust", 0)) + max(trust_gain, 1), 0, 100)
-	lines.append("trust %d" % int(state.get("trust", 0)))
+	lines.append("%s %d" % [_resource_label("trust"), int(state.get("trust", 0))])
 	return lines
 
 
@@ -303,6 +399,14 @@ static func _wish_branch_source(wish: Dictionary) -> String:
 	if int(wish.get("reward", {}).get("health", 0)) > 0:
 		return "health"
 	return "community"
+
+
+static func _resource_label(resource_key: String) -> String:
+	return str(RESOURCE_LABELS.get(resource_key, resource_key))
+
+
+static func _location_label(location_id: String) -> String:
+	return str(LOCATION_LABELS.get(location_id, location_id))
 
 
 static func _built_card_ids(state: Dictionary) -> PackedStringArray:
@@ -455,3 +559,62 @@ static func _refresh_resident_need_tags(resident: Dictionary, state: Dictionary,
 			if not tag.is_empty() and not need_tags.has(tag):
 				need_tags.append(tag)
 	resident["need_tags"] = Array(need_tags)
+
+
+static func _unique_need_tags(need_tags: Array) -> PackedStringArray:
+	var unique := PackedStringArray()
+	for tag_variant in need_tags:
+		var tag := str(tag_variant)
+		if not tag.is_empty() and not unique.has(tag):
+			unique.append(tag)
+	return unique
+
+
+static func _need_id_for_resident(resident: Dictionary, day_count: int) -> String:
+	return "need_%s_%d" % [str(resident.get("resident_id", "resident")), day_count]
+
+
+static func _fallback_cost_for_need(fallback_index: int) -> int:
+	return 1 if fallback_index == 0 else 2
+
+
+static func _find_service_facility_for_need(entity: Dictionary, built_facilities: Array, cards_by_id: Dictionary, facility_usage: Dictionary) -> int:
+	var need_tags: Array = entity.get("need_tags", [])
+	for index: int in range(built_facilities.size()):
+		var built_variant = built_facilities[index]
+		if typeof(built_variant) != TYPE_DICTIONARY:
+			continue
+		if int(facility_usage.get(index, 0)) >= 2:
+			continue
+		var facility_card_id := str(built_variant.get("card_id", built_variant.get("occupied_card_id", "")))
+		if facility_card_id.is_empty():
+			continue
+		var card_def: Dictionary = cards_by_id.get(facility_card_id, {})
+		if _facility_matches_need(card_def, need_tags):
+			return index
+	return -1
+
+
+static func _has_matching_service_facility(entity: Dictionary, built_facilities: Array, cards_by_id: Dictionary) -> bool:
+	var need_tags: Array = entity.get("need_tags", [])
+	for built_variant in built_facilities:
+		if typeof(built_variant) != TYPE_DICTIONARY:
+			continue
+		var facility_card_id := str(built_variant.get("card_id", built_variant.get("occupied_card_id", "")))
+		if facility_card_id.is_empty():
+			continue
+		if _facility_matches_need(cards_by_id.get(facility_card_id, {}), need_tags):
+			return true
+	return false
+
+
+static func _facility_matches_need(card_def: Dictionary, need_tags: Array) -> bool:
+	var facility_tags: Array = card_def.get("tags", [])
+	var synergy_group := str(card_def.get("synergy_group", ""))
+	for tag_variant in need_tags:
+		var tag := str(tag_variant)
+		if tag.is_empty():
+			continue
+		if facility_tags.has(tag) or synergy_group == tag:
+			return true
+	return facility_tags.has("service") or synergy_group == "service"

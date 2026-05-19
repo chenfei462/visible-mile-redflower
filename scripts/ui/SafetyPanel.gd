@@ -58,29 +58,29 @@ func set_debug_text(text: String) -> void:
 
 func set_safety_summary(summary: Dictionary) -> void:
 	var settings: Dictionary = summary.get("settings", {})
-	config_status_label.text = "当前: mode=%s | model=%s | base=%s" % [
-		str(settings.get("mode", "")),
+	config_status_label.text = "当前：模式 %s | 模型 %s | 接口 %s" % [
+		_display_mode_label(str(settings.get("mode", ""))),
 		str(settings.get("model", "")),
 		str(settings.get("base_url", ""))
 	]
-	fallback_stats_label.text = "请求 %d | 成功 %d | 回退 %d | 拦截 %d | 最近状态: %s | 最近失败: %s | 最近fallback事件: %s" % [
+	fallback_stats_label.text = "请求 %d | 成功 %d | 回退 %d | 拦截 %d | 最近状态：%s | 最近失败：%s | 最近回退事件：%s" % [
 		int(summary.get("request_count", 0)),
 		int(summary.get("success_count", 0)),
 		int(summary.get("fallback_count", 0)),
 		int(summary.get("blocked_count", 0)),
-		str(summary.get("last_request_status", "idle")),
-		str(summary.get("last_failure_reason", "none")),
-		str(summary.get("last_fallback_event_id", "none"))
+		_display_status_label(str(summary.get("last_request_status", "待命"))),
+		_display_reason_label(str(summary.get("last_failure_reason", "暂无"))),
+		str(summary.get("last_fallback_event_id", "暂无"))
 	]
 	var history_lines: PackedStringArray = []
 	for entry: Dictionary in summary.get("request_history", []):
-		history_lines.append("%s | %s | %s | fallback=%s | fallback_event=%s | reason=%s" % [
+		history_lines.append("%s | %s | %s | 回退=%s | 回退事件=%s | 原因=%s" % [
 			str(entry.get("event_id", "test")),
-			str(entry.get("provider", "")),
-			str(entry.get("result", "")),
-			str(entry.get("fallback", false)),
+			_display_provider_label(str(entry.get("provider", ""))),
+			_display_result_label(str(entry.get("result", ""))),
+			_display_bool_label(bool(entry.get("fallback", false))),
 			str(entry.get("fallback_event_id", "")),
-			str(entry.get("reason", ""))
+			_display_reason_label(str(entry.get("reason", "")))
 		])
 	if history_lines.is_empty():
 		safety_history_text.text = "暂无请求记录。"
@@ -102,7 +102,7 @@ func _build_ui() -> void:
 	margin.add_child(layout)
 
 	var title := Label.new()
-	title.text = "F9 调试 + 安全"
+	title.text = "F9 调试与安全"
 	layout.add_child(title)
 
 	var debug_section := _make_section(layout, "调试状态")
@@ -112,7 +112,7 @@ func _build_ui() -> void:
 	debug_text.scroll_active = true
 	debug_section.add_child(debug_text)
 
-	var config_section := _make_section(layout, "AI 配置")
+	var config_section := _make_section(layout, "智能配置")
 	config_status_label = Label.new()
 	config_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	config_status_label.modulate = Color(0.84, 0.90, 0.97)
@@ -122,25 +122,25 @@ func _build_ui() -> void:
 	mode_row.add_theme_constant_override("separation", 8)
 	config_section.add_child(mode_row)
 	var mode_label := Label.new()
-	mode_label.text = "AI 模式"
+	mode_label.text = "模式"
 	mode_row.add_child(mode_label)
 	safety_mode_option = OptionButton.new()
-	safety_mode_option.add_item("local")
-	safety_mode_option.add_item("live")
-	safety_mode_option.add_item("hybrid")
+	safety_mode_option.add_item("本地")
+	safety_mode_option.add_item("实时")
+	safety_mode_option.add_item("混合")
 	mode_row.add_child(safety_mode_option)
 
 	safety_base_url_edit = LineEdit.new()
-	safety_base_url_edit.placeholder_text = "https://api.deepseek.com"
+	safety_base_url_edit.placeholder_text = "接口地址，例如 https://api.deepseek.com"
 	config_section.add_child(safety_base_url_edit)
 
 	safety_api_key_edit = LineEdit.new()
-	safety_api_key_edit.placeholder_text = "DeepSeek API Key"
+	safety_api_key_edit.placeholder_text = "请输入 API 密钥"
 	safety_api_key_edit.secret = true
 	config_section.add_child(safety_api_key_edit)
 
 	safety_model_edit = LineEdit.new()
-	safety_model_edit.placeholder_text = "deepseek-v4-flash"
+	safety_model_edit.placeholder_text = "模型名，例如 deepseek-v4-flash"
 	config_section.add_child(safety_model_edit)
 
 	var timeout_row := HBoxContainer.new()
@@ -156,7 +156,7 @@ func _build_ui() -> void:
 	timeout_row.add_child(safety_timeout_spin)
 
 	safety_force_local_checkbox = CheckBox.new()
-	safety_force_local_checkbox.text = "强制本地回退"
+	safety_force_local_checkbox.text = "强制本地模式"
 	config_section.add_child(safety_force_local_checkbox)
 
 	var button_row := HBoxContainer.new()
@@ -214,6 +214,100 @@ func _selected_mode_name() -> String:
 			return "live"
 		_:
 			return "hybrid"
+
+
+func _display_mode_label(mode: String) -> String:
+	match mode:
+		"local":
+			return "本地"
+		"live":
+			return "实时"
+		"hybrid":
+			return "混合"
+		_:
+			return mode
+
+
+func _display_status_label(status: String) -> String:
+	match status:
+		"fallback_used":
+			return "已回退"
+		"requesting":
+			return "请求中"
+		"success":
+			return "成功"
+		"blocked":
+			return "被拦截"
+		_:
+			return status
+
+
+func _display_reason_label(reason: String) -> String:
+	match reason:
+		"no_api_key":
+			return "未配置密钥"
+		"missing_api_key":
+			return "缺少密钥"
+		"invalid_base_url":
+			return "接口地址无效"
+		"timeout":
+			return "请求超时"
+		"invalid_response":
+			return "返回格式无效"
+		"blocked_content":
+			return "内容被拦截"
+		"network_error":
+			return "网络错误"
+		"fallback_used":
+			return "已使用本地回退"
+		"sync_request_not_supported":
+			return "当前路径不支持同步请求"
+		"http_host_unavailable":
+			return "接口主机不可达"
+		"invalid_http_result":
+			return "HTTP 结果无效"
+		"empty_response_body":
+			return "响应为空"
+		"response_not_json":
+			return "响应不是 JSON"
+		"missing_choice":
+			return "缺少候选结果"
+		"content_filter":
+			return "内容被过滤"
+		"empty_message_content":
+			return "内容为空"
+		"candidate_not_json":
+			return "候选结果不是 JSON"
+		"schema_validation_failed":
+			return "结果结构不符合要求"
+		_:
+			return reason
+
+
+func _display_provider_label(provider: String) -> String:
+	match provider:
+		"local_fallback":
+			return "本地回退"
+		"remote":
+			return "远程"
+		_:
+			return provider
+
+
+func _display_result_label(result: String) -> String:
+	match result:
+		"fallback":
+			return "回退"
+		"success":
+			return "成功"
+		"blocked":
+			return "拦截"
+		_:
+			return result
+
+
+func _display_bool_label(value: bool) -> String:
+	return "是" if value else "否"
 
 
 func _panel_style(background: Color, border: Color, radius: int = 20, border_width: int = 2) -> StyleBoxFlat:

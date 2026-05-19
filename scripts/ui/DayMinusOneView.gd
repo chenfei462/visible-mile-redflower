@@ -68,7 +68,7 @@ func _build_ui() -> void:
 
 
 func _refresh() -> void:
-	title_label.text = str(DataRepository.tutorial.get("day_minus_one", {}).get("title", "Day -1 教程"))
+	title_label.text = str(DataRepository.tutorial.get("day_minus_one", {}).get("title", "新手教程"))
 	var lines: PackedStringArray = []
 	lines.append(str(DataRepository.tutorial.get("day_minus_one", {}).get("subtitle", "")))
 	for step in TutorialManager.get_day_minus_one_steps():

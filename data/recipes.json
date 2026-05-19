@@ -458,5 +458,54 @@
     "result_card_id": "care_station",
     "result_type": "facility",
     "unlock_trust": 10
+  },
+  {
+    "recipe_id": "stack_two_ramp_kit",
+    "ingredient_card_ids": ["ramp_blueprint", "tool_parts"],
+    "result_card_id": "community_ramp",
+    "result_type": "facility",
+    "unlock_trust": 0,
+    "discovery_hint": "建筑许可 + 工具，搭个临时坡道试试。",
+    "first_discovery_reward": {"flowers": 1}
+  },
+  {
+    "recipe_id": "stack_three_herb_corner",
+    "ingredient_card_ids": ["herb_corner_plan", "seedling_tray", "paint_bucket"],
+    "result_card_id": "herb_corner",
+    "result_type": "facility",
+    "unlock_trust": 0,
+    "time_cost_sec": 6,
+    "discovery_hint": "建筑许可 + 苗盘 + 油漆，把香草角落弄漂亮。",
+    "first_discovery_reward": {"flowers": 2, "trust": 1}
+  },
+  {
+    "recipe_id": "stack_four_community_garden",
+    "ingredient_card_ids": ["garden_plan", "seed_pack", "seedling_tray", "volunteer_poster"],
+    "result_card_id": "flower_bed",
+    "result_type": "facility",
+    "unlock_trust": 0,
+    "time_cost_sec": 10,
+    "discovery_hint": "花坛旁边放个长椅，再种点苗，有人照看就好了...",
+    "first_discovery_reward": {"flowers": 3, "trust": 2}
+  },
+  {
+    "recipe_id": "hidden_premium_ramp",
+    "ingredient_card_ids": ["ramp_blueprint", "tool_parts", "paint_bucket"],
+    "result_card_id": "guide_handrail",
+    "result_type": "facility",
+    "unlock_trust": 0,
+    "hidden": true,
+    "discovery_hint": "王奶奶说扶着墙走还是不太稳...",
+    "first_discovery_reward": {"flowers": 3, "trust": 2}
+  },
+  {
+    "recipe_id": "hidden_safety_beacon",
+    "ingredient_card_ids": ["safety_map_blueprint", "sticker_pack", "printer_ink", "phone_tree"],
+    "result_card_id": "wayfinding_kiosk",
+    "result_type": "facility",
+    "unlock_trust": 0,
+    "hidden": true,
+    "discovery_hint": "下雨天迷路的居民越来越多...",
+    "first_discovery_reward": {"flowers": 4, "trust": 3}
   }
 ]

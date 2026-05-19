@@ -84,11 +84,11 @@ func _run_day_one_core_loop() -> void:
 	state["current_problem_tokens"] = 10
 	bulletin_cards = ["ramp_blueprint", "lumber_pack", "volunteer_poster", "", ""]
 	var pick_limit: int = int(data_repository.day_sequence.get("player_card_choices_per_day", 3))
-	_assert_true(PROTOTYPE_RULES.pick_bulletin_card(bulletin_cards, hand_cards, state, 0, pick_limit).get("success", false), "day 1 should pick ramp blueprint")
+	_assert_true(PROTOTYPE_RULES.pick_bulletin_card(bulletin_cards, hand_cards, state, 0, pick_limit).get("success", false), "day 1 should pick ramp building permit")
 	_assert_true(PROTOTYPE_RULES.pick_bulletin_card(bulletin_cards, hand_cards, state, 1, pick_limit).get("success", false), "day 1 should pick lumber pack")
 	_assert_true(PROTOTYPE_RULES.pick_bulletin_card(bulletin_cards, hand_cards, state, 2, pick_limit).get("success", false), "day 1 should pick volunteer poster")
 
-	_assert_true(PROTOTYPE_RULES.move_hand_card_to_craft(hand_cards, craft_slots, hand_cards.find("ramp_blueprint"), data_repository.recipes, int(state.get("trust", 0))).get("success", false), "day 1 should move blueprint to craft")
+	_assert_true(PROTOTYPE_RULES.move_hand_card_to_craft(hand_cards, craft_slots, hand_cards.find("ramp_blueprint"), data_repository.recipes, int(state.get("trust", 0))).get("success", false), "day 1 should move building permit to craft")
 	var craft_result: Dictionary = PROTOTYPE_RULES.move_hand_card_to_craft(hand_cards, craft_slots, hand_cards.find("lumber_pack"), data_repository.recipes, int(state.get("trust", 0)))
 	_assert_true(bool(craft_result.get("success", false)) and bool(craft_result.get("crafted", false)), "day 1 should craft a facility")
 	selected_recipe_ids.append(str(craft_result.get("recipe_id", "")))
@@ -127,7 +127,7 @@ func _run_remaining_days() -> void:
 		_assert_true(save_manager.autosave(_ui_state()).get("success", false), "autosave should succeed during dusk")
 		var night_summary: Dictionary = day_cycle.resolve_night()
 		if not night_summary.is_empty():
-			_assert_true(str(night_summary.get("rating", "")).length() > 0, "night summary should include rating")
+			_assert_equal(str(night_summary.get("ended_by", "")), "moral", "non-empty night summaries should only come from moral depletion")
 			break
 
 
@@ -142,8 +142,9 @@ func _resolve_all_problems() -> void:
 
 func _verify_end_state() -> void:
 	var state: Dictionary = game_state.get_state()
-	_assert_equal(int(state.get("day_count", 0)), 10, "full smoke should finish on day 10")
-	_assert_true(["A", "B", "C", "D", "S"].has(str(state.get("rating", ""))), "final rating should be populated")
+	_assert_true(int(state.get("day_count", 0)) > 10, "full smoke should continue past day 10 in infinite mode")
+	_assert_true(state.get("completed_run_summary", {}).is_empty(), "infinite mode should not create a completed-run summary")
+	_assert_true(int(state.get("moral", 0)) > 0, "full smoke should not end while moral remains above zero")
 	_assert_true(int(state.get("built_facilities", []).size()) >= 1, "full smoke should preserve built facility")
 	_assert_true(steam_bridge.unlock_achievement("full_smoke_finished"), "steam mock achievement should unlock at finish")
 	save_manager.delete_slot(2)
@@ -151,7 +152,8 @@ func _verify_end_state() -> void:
 
 func _make_resident_states() -> Array[Dictionary]:
 	var resident_states: Array[Dictionary] = []
-	for resident: Dictionary in data_repository.residents:
+	for resident_index: int in range(mini(2, data_repository.residents.size())):
+		var resident: Dictionary = data_repository.residents[resident_index]
 		resident_states.append({
 			"resident_id": resident.get("resident_id", ""),
 			"name": resident.get("name", ""),

@@ -217,7 +217,8 @@ static func move_hand_card_to_craft(
 
 	var result_card_id: String = str(recipe.get("result_card_id", ""))
 	RECIPE_RULES.spend_recipe_material_costs(BOARD_RULES.ensure_inventory(_game_state()), recipe)
-	RECIPE_RULES.record_recipe_discovery(_game_state(), recipe)
+	var discovery_info: Dictionary = RECIPE_RULES.record_recipe_discovery(_game_state(), recipe)
+	_apply_first_discovery_reward(discovery_info)
 	craft_slots.clear()
 	if track_metadata:
 		craft_slot_sources.clear()
@@ -231,6 +232,9 @@ static func move_hand_card_to_craft(
 		"crafted": true,
 		"recipe_id": str(recipe.get("recipe_id", "")),
 		"result_card_id": result_card_id,
+		"first_discovery": bool(discovery_info.get("first_discovery", false)),
+		"first_discovery_reward": discovery_info.get("reward", {}),
+		"hidden": bool(discovery_info.get("hidden", false)),
 		"message": "合成成功。"
 	}
 
@@ -566,6 +570,17 @@ static func _cards_by_id_from_autoload() -> Dictionary:
 	return repository.cards_by_id
 
 
+static func _material_label(material_id: String, cards_by_id: Dictionary) -> String:
+	if cards_by_id.has(material_id):
+		var card_def: Dictionary = cards_by_id.get(material_id, {})
+		var card_name := str(card_def.get("name", ""))
+		if not card_name.is_empty():
+			return card_name
+	return {
+		"scrap_parts": "废料"
+	}.get(material_id, material_id)
+
+
 static func _is_recipe_result_card(card_id: String, recipes: Array[Dictionary]) -> bool:
 	if card_id.is_empty():
 		return false
@@ -585,15 +600,15 @@ static func _craft_failure_hint(card_ids: Array[String], cards_by_id: Dictionary
 	for card_id: String in card_ids:
 		var card_def: Dictionary = cards_by_id.get(card_id, {})
 		type_labels.append(str(card_def.get("type", "")))
-	if type_labels.has("blueprint") and not type_labels.has("material") and not type_labels.has("support"):
-		return "这两张卡都是图纸；图纸主要提供线索，试试两份通用材料，或一张图纸加一份材料。"
-	if type_labels.has("material") and not type_labels.has("blueprint") and not type_labels.has("facility"):
+	if type_labels.has("building_permit") and not type_labels.has("material") and not type_labels.has("support"):
+		return "这两张卡都是建筑许可；建筑许可主要提供线索，试试两份通用材料，或一张建筑许可加一份材料。"
+	if type_labels.has("material") and not type_labels.has("building_permit") and not type_labels.has("facility"):
 		return "这两张卡都是材料；换成更匹配的通用材料组合，比如建材 + 工具、桌面套件 + 通讯信息。"
 	if type_labels.has("facility"):
 		return "设施已经是成品，不能直接作为这次合成素材；请把设施放到棋盘，或使用通用材料继续合成。"
-	if type_labels.has("support") and not type_labels.has("blueprint"):
+	if type_labels.has("support") and not type_labels.has("building_permit"):
 		return "支援卡主要用于处理问题，不适合作为这次合成素材。"
-	return "这两张卡没有匹配到配方；优先试试两份通用材料，图纸只作为线索和备用路线。"
+	return "这两张卡没有匹配到配方；优先试试两份通用材料，建筑许可只作为线索和备用路线。"
 
 
 static func _locked_recipe_hint(card_ids: Array[String], recipes: Array[Dictionary], trust: int) -> String:
@@ -631,3 +646,180 @@ static func _set_array_value(values: Array, index: int, value, fill_value = 0) -
 	while values.size() <= index:
 		values.append(fill_value)
 	values[index] = value
+
+
+static func _apply_first_discovery_reward(discovery_info: Dictionary) -> void:
+	if not bool(discovery_info.get("first_discovery", false)):
+		return
+	var reward: Dictionary = discovery_info.get("reward", {})
+	if reward.is_empty():
+		return
+	var tree: Variant = Engine.get_main_loop()
+	if tree == null or not (tree is SceneTree):
+		return
+	var resource_manager: Node = (tree as SceneTree).root.get_node_or_null("ResourceManager")
+	if resource_manager == null or not resource_manager.has_method("apply_resource_delta"):
+		return
+	var state := _game_state()
+	if state.is_empty():
+		return
+	resource_manager.apply_resource_delta(state, reward, "first_discovery:%s" % str(discovery_info.get("recipe_id", "")))
+
+
+static func upgrade_facility_at_board(
+	state: Dictionary,
+	board_index: int,
+	cards_by_id: Dictionary,
+	resource_manager: Node
+) -> Dictionary:
+	var board_cells: Array[Dictionary] = state.get("board_cells", [])
+	if board_index < 0 or board_index >= board_cells.size():
+		return {"success": false, "message": "棋盘位置无效。"}
+	var cell: Dictionary = board_cells[board_index]
+	var root_index := int(cell.get("root_index", board_index))
+	if root_index < 0 or root_index >= board_cells.size():
+		return {"success": false, "message": "无法定位设施根格。"}
+	var root_cell: Dictionary = board_cells[root_index]
+	var current_card_id := str(root_cell.get("occupied_card_id", ""))
+	if current_card_id.is_empty():
+		return {"success": false, "message": "该格子上没有设施可升级。"}
+	var current_def: Dictionary = cards_by_id.get(current_card_id, {})
+	var upgrade_to_id := str(current_def.get("upgrade_to", ""))
+	if upgrade_to_id.is_empty():
+		return {"success": false, "message": "%s 没有可用的升级目标。" % str(current_def.get("name", current_card_id))}
+	if not cards_by_id.has(upgrade_to_id):
+		return {"success": false, "message": "找不到升级目标卡牌。"}
+	var upgrade_cost: Dictionary = current_def.get("upgrade_cost", {})
+	var fund_cost := int(upgrade_cost.get("funds", 0))
+	var manpower_cost := int(upgrade_cost.get("manpower", 0))
+	var trust_cost := int(upgrade_cost.get("trust", 0))
+	if int(state.get("funds", 0)) < fund_cost:
+		return {"success": false, "message": "资金不足，需 %d。" % fund_cost}
+	if int(state.get("manpower", 0)) < manpower_cost:
+		return {"success": false, "message": "人力不足，需 %d。" % manpower_cost}
+	if int(state.get("trust", 0)) < trust_cost:
+		return {"success": false, "message": "信任不足，需 %d。" % trust_cost}
+	if resource_manager == null:
+		return {"success": false, "message": "资源管理器不可用。"}
+	var delta := {}
+	if fund_cost > 0:
+		delta["funds"] = -fund_cost
+	if manpower_cost > 0:
+		delta["manpower"] = -manpower_cost
+	if trust_cost > 0:
+		delta["trust"] = -trust_cost
+	if not delta.is_empty():
+		resource_manager.apply_resource_delta(state, delta, "upgrade:%s->%s" % [current_card_id, upgrade_to_id])
+	var instance_id := str(root_cell.get("building_instance_id", ""))
+	for cell_index: int in range(board_cells.size()):
+		var inner: Dictionary = board_cells[cell_index]
+		if str(inner.get("building_instance_id", "")) == instance_id and not instance_id.is_empty():
+			inner["occupied_card_id"] = upgrade_to_id
+			board_cells[cell_index] = inner
+	for built_variant in state.get("built_facilities", []):
+		if typeof(built_variant) != TYPE_DICTIONARY:
+			continue
+		var built: Dictionary = built_variant
+		if str(built.get("instance_id", "")) == instance_id and not instance_id.is_empty():
+			built["card_id"] = upgrade_to_id
+	BOARD_RULES.build_board_combo_cache(state, cards_by_id)
+	return {
+		"success": true,
+		"upgraded_from": current_card_id,
+		"upgraded_to": upgrade_to_id,
+		"board_index": root_index,
+		"cost": delta,
+		"message": "%s 升级为 %s。" % [str(current_def.get("name", current_card_id)), str(cards_by_id.get(upgrade_to_id, {}).get("name", upgrade_to_id))]
+	}
+
+
+static func quick_craft_recipe(
+	recipe_id: String,
+	hand_cards: Array[String],
+	recipes: Array[Dictionary],
+	trust: int,
+	cards_by_id: Dictionary,
+	hand_card_sources: Array = [],
+	hand_card_prices: Array = []
+) -> Dictionary:
+	if recipe_id.is_empty():
+		return {"success": false, "message": "未选择配方。"}
+	var recipe: Dictionary = {}
+	for candidate in recipes:
+		if str(candidate.get("recipe_id", "")) == recipe_id:
+			recipe = candidate
+			break
+	if recipe.is_empty():
+		return {"success": false, "message": "找不到该配方。"}
+	if trust < int(recipe.get("unlock_trust", 0)):
+		return {"success": false, "message": "信任不足，配方尚未解锁。"}
+	var state := _game_state()
+	var inventory := BOARD_RULES.ensure_inventory(state)
+	var ingredient_ids: Array = recipe.get("ingredient_card_ids", [])
+	if ingredient_ids.is_empty():
+		return {"success": false, "message": "该配方需要标签输入，无法直接快速合成。"}
+	var need: Dictionary = {}
+	for ing_variant in ingredient_ids:
+		var ing_id := str(ing_variant)
+		need[ing_id] = int(need.get(ing_id, 0)) + 1
+	var have: Dictionary = {}
+	for card_id_variant in hand_cards:
+		var card_id := str(card_id_variant)
+		have[card_id] = int(have.get(card_id, 0)) + 1
+	var missing_cards: PackedStringArray = PackedStringArray()
+	for need_key in need.keys():
+		var required := int(need[need_key])
+		var owned := int(have.get(need_key, 0))
+		if owned < required:
+			for _i in range(required - owned):
+				missing_cards.append(str(need_key))
+	if not missing_cards.is_empty():
+		var labels: Array = []
+		for missing_id in missing_cards:
+			labels.append(str(cards_by_id.get(str(missing_id), {}).get("name", missing_id)))
+		return {
+			"success": false,
+			"message": "缺少材料：%s" % ", ".join(labels),
+			"missing_card_ids": missing_cards
+		}
+	var material_costs: Dictionary = recipe.get("material_costs", {})
+	for material_id_variant in material_costs.keys():
+		var material_id := str(material_id_variant)
+		var amount := int(material_costs.get(material_id_variant, 0))
+		if int(inventory.get("materials", {}).get(material_id, 0)) < amount:
+			return {
+				"success": false,
+				"message": "材料库存不足：%s 需 %d。" % [_material_label(material_id, cards_by_id), amount],
+				"missing_material_id": material_id
+			}
+	for need_key in need.keys():
+		var required := int(need[need_key])
+		for _i in range(required):
+			var idx := -1
+			for i in range(hand_cards.size()):
+				if str(hand_cards[i]) == str(need_key):
+					idx = i
+					break
+			if idx >= 0:
+				hand_cards.remove_at(idx)
+				if idx < hand_card_sources.size():
+					hand_card_sources.remove_at(idx)
+				if idx < hand_card_prices.size():
+					hand_card_prices.remove_at(idx)
+	RECIPE_RULES.spend_recipe_material_costs(inventory, recipe)
+	var discovery_info: Dictionary = RECIPE_RULES.record_recipe_discovery(state, recipe)
+	_apply_first_discovery_reward(discovery_info)
+	var result_card_id := str(recipe.get("result_card_id", ""))
+	hand_cards.append(result_card_id)
+	hand_card_sources.append("crafted")
+	hand_card_prices.append(0)
+	return {
+		"success": true,
+		"crafted": true,
+		"recipe_id": recipe_id,
+		"result_card_id": result_card_id,
+		"first_discovery": bool(discovery_info.get("first_discovery", false)),
+		"first_discovery_reward": discovery_info.get("reward", {}),
+		"hidden": bool(discovery_info.get("hidden", false)),
+		"message": "快速合成完成。"
+	}

@@ -4,13 +4,13 @@
       "kind": "card",
       "path": "",
       "placeholder_path": "res://icon.svg",
-      "fallback_label": "坡道图纸"
+      "fallback_label": "坡道建筑许可"
     },
     "icon_ramp_blueprint": {
       "kind": "icon",
       "path": "",
       "placeholder_path": "res://icon.svg",
-      "fallback_label": "坡道图纸"
+      "fallback_label": "坡道建筑许可"
     },
     "card_lumber_pack": {
       "kind": "card",
@@ -316,13 +316,13 @@
       "kind": "card",
       "path": "",
       "placeholder_path": "res://icon.svg",
-      "fallback_label": "导视地图蓝图"
+      "fallback_label": "导视地图建筑许可"
     },
     "icon_safety_map_blueprint": {
       "kind": "icon",
       "path": "",
       "placeholder_path": "res://icon.svg",
-      "fallback_label": "导视地图蓝图"
+      "fallback_label": "导视地图建筑许可"
     },
     "card_sticker_pack": {
       "kind": "card",

@@ -9,10 +9,71 @@
     "flowers": "小红花",
     "funds": "资金",
     "manpower": "人力",
-    "trust": "信任"
+    "trust": "信任",
+    "health": "健康",
+    "satisfaction_delta": "满意度",
+    "satisfaction_bonus": "满意度",
+    "problem_manpower": "问题人力",
+    "scrap_parts": "废料"
+  },
+  "card_types": {
+    "facility": "设施",
+    "building_permit": "建筑许可",
+    "material": "材料",
+    "problem": "问题",
+    "support": "支援"
+  },
+  "rarities": {
+    "common": "普通",
+    "uncommon": "进阶",
+    "rare": "稀有",
+    "epic": "史诗"
+  },
+  "tags": {
+    "accessibility": "无障碍",
+    "construction": "建设",
+    "material": "材料",
+    "generic": "通用",
+    "communication": "沟通",
+    "repair": "维修",
+    "care": "照护",
+    "health": "健康",
+    "service": "服务",
+    "housing": "住宅",
+    "community": "邻里",
+    "organization": "组织",
+    "commerce": "商业",
+    "volunteer": "志愿",
+    "market": "市集",
+    "delivery": "配送",
+    "comfort": "舒适",
+    "green": "绿化",
+    "garden": "花园",
+    "festival": "节庆",
+    "culture": "文化",
+    "meal": "餐食",
+    "family": "家庭",
+    "wayfinding": "导视",
+    "notice": "公告",
+    "rain": "雨天",
+    "access": "通行",
+    "night": "夜间"
+  },
+  "locations": {
+    "home": "家中",
+    "community": "社区",
+    "board": "社区地图",
+    "market": "市集",
+    "clinic": "健康点",
+    "garden": "花园",
+    "festival": "活动场地"
+  },
+  "general": {
+    "none": "暂无"
   },
   "ai_modes": {
     "local": "本地模拟",
+    "ai": "实时接口",
     "live": "实时接口",
     "hybrid": "混合回退"
   }

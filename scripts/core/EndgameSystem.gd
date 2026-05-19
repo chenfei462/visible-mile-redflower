@@ -7,14 +7,14 @@ static func build_celebration_summary(state: Dictionary, rating_summary: Diction
 	var unlocked := rating == "S" and autonomy_level >= 4
 	var summary := {
 		"is_celebration_unlocked": unlocked,
-		"title": "S 级庆祝 Demo" if unlocked else "庆祝未解锁",
+		"title": "S 级庆典预览" if unlocked else "庆祝未解锁",
 		"community_highlights": _community_highlights(state, rating_summary),
 		"resident_thanks": [],
 		"unlock_lines": [],
 		"next_actions": []
 	}
 	if not unlocked:
-		summary["next_actions"] = ["达到 S 评级并把自治提升到 Lv4 后，可开启庆祝 Demo。"]
+		summary["next_actions"] = ["达到 S 评级并把自治提升到 4 级后，可开启庆典预览。"]
 		return summary
 
 	summary["resident_thanks"] = _resident_thanks(state.get("resident_states", []))
@@ -35,7 +35,7 @@ static func format_celebration_lines(summary: Dictionary) -> PackedStringArray:
 		for action: String in summary.get("next_actions", []):
 			lines.append(action)
 		return lines
-	lines.append(str(summary.get("title", "S 级庆祝 Demo")))
+	lines.append(str(summary.get("title", "S 级庆典预览")))
 	for highlight: String in summary.get("community_highlights", []):
 		lines.append(highlight)
 	for thanks: String in summary.get("resident_thanks", []):
@@ -47,7 +47,7 @@ static func format_celebration_lines(summary: Dictionary) -> PackedStringArray:
 
 static func _community_highlights(state: Dictionary, rating_summary: Dictionary) -> Array[String]:
 	var highlights: Array[String] = []
-	highlights.append("最终得分 %.1f，信任 %d，自治 Lv%d。" % [
+	highlights.append("最终得分 %.1f，信任 %d，自治 %d 级。" % [
 		float(rating_summary.get("score", 0.0)),
 		int(state.get("trust", 0)),
 		int(state.get("autonomy", 0))

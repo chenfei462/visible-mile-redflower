@@ -1,14 +1,14 @@
 [
   {
     "card_id": "ramp_blueprint",
-    "name": "坡道图纸",
-    "type": "blueprint",
+    "name": "坡道建筑许可",
+    "type": "building_permit",
     "rarity": "common",
     "tags": [
       "accessibility",
       "construction"
     ],
-    "description": "无障碍坡道的设计图纸。",
+    "description": "无障碍坡道的建筑许可说明。",
     "art": "",
     "board_placeable": false,
     "fund_cost": 0,
@@ -163,6 +163,9 @@
     "flower_cost": 0,
     "unlock_flower_cost": 0,
     "unlock_category": "starter_facility",
+    "level": 1,
+    "upgrade_to": "guide_handrail",
+    "upgrade_cost": {"funds": 2, "manpower": 1, "trust": 0},
     "shape_cells": [
       [
         0,
@@ -216,6 +219,9 @@
     "synergy_group": "accessibility",
     "adjacency_bonus": 1,
     "unlock_trust": 0,
+    "level": 2,
+    "upgrade_to": "senior_gym",
+    "upgrade_cost": {"funds": 3, "manpower": 2, "trust": 5},
     "art_key": "card_guide_handrail",
     "icon_key": "icon_guide_handrail",
     "resident_links": [],
@@ -240,7 +246,7 @@
   {
     "card_id": "volunteer_poster",
     "name": "志愿者招募海报",
-    "type": "blueprint",
+    "type": "building_permit",
     "rarity": "common",
     "tags": [
       "community",
@@ -294,7 +300,7 @@
   {
     "card_id": "welcome_table_plan",
     "name": "欢迎桌方案",
-    "type": "blueprint",
+    "type": "building_permit",
     "rarity": "common",
     "tags": [
       "community",
@@ -401,7 +407,7 @@
     "card_id": "volunteer_station",
     "name": "志愿者驿站",
     "type": "facility",
-    "rarity": "common",
+    "rarity": "rare",
     "tags": [
       "community",
       "service"
@@ -458,7 +464,7 @@
   {
     "card_id": "market_stall_plan",
     "name": "便民摊位方案",
-    "type": "blueprint",
+    "type": "building_permit",
     "rarity": "common",
     "tags": [
       "commerce",
@@ -550,7 +556,7 @@
   {
     "card_id": "bench_plan",
     "name": "休息座椅方案",
-    "type": "blueprint",
+    "type": "building_permit",
     "rarity": "common",
     "tags": [
       "care",
@@ -656,7 +662,7 @@
   {
     "card_id": "notice_design",
     "name": "公告排版方案",
-    "type": "blueprint",
+    "type": "building_permit",
     "rarity": "common",
     "tags": [
       "communication",
@@ -753,7 +759,7 @@
   {
     "card_id": "garden_plan",
     "name": "花坛整理计划",
-    "type": "blueprint",
+    "type": "building_permit",
     "rarity": "common",
     "tags": [
       "green",
@@ -824,6 +830,9 @@
     "preferred_zone_bonus": 1,
     "synergy_group": "green",
     "adjacency_bonus": 1,
+    "level": 1,
+    "upgrade_to": "herb_corner",
+    "upgrade_cost": {"funds": 2, "manpower": 1, "trust": 2},
     "production_outputs": {
       "seedling_tray": 1
     },
@@ -915,8 +924,8 @@
   },
   {
     "card_id": "safety_map_blueprint",
-    "name": "导视地图蓝图",
-    "type": "blueprint",
+    "name": "导视地图建筑许可",
+    "type": "building_permit",
     "rarity": "common",
     "tags": [
       "wayfinding",
@@ -973,7 +982,7 @@
     "card_id": "wayfinding_kiosk",
     "name": "导视服务亭",
     "type": "facility",
-    "rarity": "common",
+    "rarity": "rare",
     "tags": [
       "wayfinding",
       "service"
@@ -1008,7 +1017,7 @@
   {
     "card_id": "shade_sail_plan",
     "name": "遮阳棚方案",
-    "type": "blueprint",
+    "type": "building_permit",
     "rarity": "common",
     "tags": [
       "comfort",
@@ -1112,7 +1121,7 @@
   {
     "card_id": "refill_station_plan",
     "name": "补水点方案",
-    "type": "blueprint",
+    "type": "building_permit",
     "rarity": "common",
     "tags": [
       "health",
@@ -1204,7 +1213,7 @@
   {
     "card_id": "herb_corner_plan",
     "name": "香草角方案",
-    "type": "blueprint",
+    "type": "building_permit",
     "rarity": "common",
     "tags": [
       "garden",
@@ -1278,6 +1287,9 @@
     "synergy_group": "garden",
     "adjacency_bonus": 1,
     "unlock_trust": 10,
+    "level": 2,
+    "upgrade_to": "community_kitchen",
+    "upgrade_cost": {"funds": 3, "manpower": 2, "trust": 8},
     "art_key": "card_herb_corner",
     "icon_key": "icon_herb_corner",
     "resident_links": [
@@ -1304,7 +1316,7 @@
   {
     "card_id": "repair_booth_plan",
     "name": "修补摊位方案",
-    "type": "blueprint",
+    "type": "building_permit",
     "rarity": "common",
     "tags": [
       "repair",
@@ -1403,7 +1415,7 @@
   {
     "card_id": "story_wall_plan",
     "name": "故事墙方案",
-    "type": "blueprint",
+    "type": "building_permit",
     "rarity": "common",
     "tags": [
       "culture",
@@ -1503,7 +1515,7 @@
   {
     "card_id": "community_kitchen_plan",
     "name": "共享厨房方案",
-    "type": "blueprint",
+    "type": "building_permit",
     "rarity": "uncommon",
     "tags": [
       "care",
@@ -1560,7 +1572,7 @@
     "card_id": "community_kitchen",
     "name": "共享厨房",
     "type": "facility",
-    "rarity": "uncommon",
+    "rarity": "rare",
     "tags": [
       "care",
       "commerce"
@@ -1611,7 +1623,7 @@
   {
     "card_id": "shared_laundry_plan",
     "name": "共享洗衣房方案",
-    "type": "blueprint",
+    "type": "building_permit",
     "rarity": "uncommon",
     "tags": [
       "care",
@@ -1715,7 +1727,7 @@
   {
     "card_id": "child_corner_plan",
     "name": "儿童角方案",
-    "type": "blueprint",
+    "type": "building_permit",
     "rarity": "uncommon",
     "tags": [
       "family",
@@ -1819,7 +1831,7 @@
   {
     "card_id": "senior_gym_plan",
     "name": "长者健身角方案",
-    "type": "blueprint",
+    "type": "building_permit",
     "rarity": "uncommon",
     "tags": [
       "health",
@@ -1930,7 +1942,7 @@
   {
     "card_id": "bike_parking_plan",
     "name": "自行车停放方案",
-    "type": "blueprint",
+    "type": "building_permit",
     "rarity": "common",
     "tags": [
       "mobility",
@@ -2034,7 +2046,7 @@
   {
     "card_id": "clinic_desk_plan",
     "name": "健康咨询台方案",
-    "type": "blueprint",
+    "type": "building_permit",
     "rarity": "uncommon",
     "tags": [
       "health",
@@ -2104,7 +2116,7 @@
     "card_id": "clinic_desk",
     "name": "健康咨询台",
     "type": "facility",
-    "rarity": "uncommon",
+    "rarity": "rare",
     "tags": [
       "health",
       "service"
@@ -2469,7 +2481,7 @@
     "card_id": "support_health_check",
     "name": "健康筛查单",
     "type": "support",
-    "rarity": "uncommon",
+    "rarity": "rare",
     "tags": [
       "event",
       "support",
@@ -2944,3 +2956,4 @@
     }
   }
 ]
+

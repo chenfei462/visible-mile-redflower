@@ -6,13 +6,18 @@ const WARNING_BACKGROUND := Color(0.9176470588235294, 0.6627450980392157, 0.4313
 const WARNING_BORDER := Color(0.20, 0.13, 0.08)
 const WARNING_TEXT := Color(0.12, 0.09, 0.06)
 const WARNING_ICON := Color(0.18, 0.11, 0.05)
+const RESOURCE_DELTA_RISE := 48.0
+const RESOURCE_DELTA_DURATION := 0.95
 
 var fade_offset := Vector2.ZERO
 var _message_label: Label
 var _icon_label: Label
 var _dismiss_tween: Tween
+var _resource_tween: Tween
 var _dismissing := false
 var _timer_token := 0
+var _mode: String = "warning"
+var _resource_start_position := Vector2.ZERO
 
 
 func _ready() -> void:
@@ -24,26 +29,64 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	if _mode != "warning":
+		return
 	if get_viewport() == null:
 		return
 	global_position = get_global_mouse_position() + FOLLOW_OFFSET + fade_offset
 
 
 func _input(event: InputEvent) -> void:
+	if _mode != "warning":
+		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
 		dismiss()
 
 
 func show_error(text: String, duration: float = 1.6) -> void:
 	_ensure_ui()
+	_mode = "warning"
 	_timer_token += 1
 	_dismissing = false
 	fade_offset = Vector2.ZERO
 	modulate = Color.WHITE
+	add_theme_stylebox_override("panel", _make_panel_style())
+	_icon_label.text = "⚠"
+	_icon_label.add_theme_color_override("font_color", WARNING_ICON)
+	_message_label.add_theme_color_override("font_color", WARNING_TEXT)
+	_message_label.add_theme_font_size_override("font_size", 15)
 	_message_label.text = text
 	_process(0.0)
 	if is_inside_tree() and duration > 0.0:
 		_auto_dismiss_after(duration, _timer_token)
+
+
+func show_resource_delta(icon_text: String, message_text: String, accent_color: Color, start_global_position: Vector2, duration: float = RESOURCE_DELTA_DURATION) -> void:
+	_ensure_ui()
+	_mode = "resource_delta"
+	_dismissing = false
+	fade_offset = Vector2.ZERO
+	modulate = Color.WHITE
+	custom_minimum_size = Vector2(0, 0)
+	size = Vector2.ZERO
+	add_theme_stylebox_override("panel", _make_resource_delta_style(accent_color))
+	_icon_label.text = icon_text
+	_icon_label.add_theme_color_override("font_color", accent_color)
+	_icon_label.add_theme_font_size_override("font_size", 16)
+	_message_label.text = message_text
+	_message_label.add_theme_color_override("font_color", accent_color)
+	_message_label.add_theme_font_size_override("font_size", 17)
+	_resource_start_position = start_global_position
+	global_position = start_global_position
+	if _resource_tween != null and _resource_tween.is_valid():
+		_resource_tween.kill()
+	_resource_tween = create_tween()
+	_resource_tween.set_parallel(true)
+	_resource_tween.tween_property(self, "global_position", start_global_position + Vector2(0, -RESOURCE_DELTA_RISE), duration) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_resource_tween.tween_property(self, "modulate", Color(1, 1, 1, 0), duration) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	_resource_tween.chain().tween_callback(Callable(self, "queue_free"))
 
 
 func dismiss() -> void:
@@ -67,6 +110,10 @@ func get_follow_offset() -> Vector2:
 
 func get_background_color() -> Color:
 	return WARNING_BACKGROUND
+
+
+func get_mode() -> String:
+	return _mode
 
 
 func get_is_dismissing() -> bool:
@@ -120,6 +167,21 @@ func _make_panel_style() -> StyleBoxFlat:
 	style.shadow_color = Color(0, 0, 0, 0.24)
 	style.shadow_size = 5
 	style.shadow_offset = Vector2(2, 3)
+	return style
+
+
+func _make_resource_delta_style(accent: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(1, 1, 1, 0.0)
+	style.border_color = Color(accent.r, accent.g, accent.b, 0.0)
+	style.set_border_width_all(0)
+	style.set_corner_radius_all(6)
+	style.shadow_color = Color(0, 0, 0, 0.0)
+	style.shadow_size = 0
+	style.content_margin_left = 6
+	style.content_margin_right = 6
+	style.content_margin_top = 2
+	style.content_margin_bottom = 2
 	return style
 
 

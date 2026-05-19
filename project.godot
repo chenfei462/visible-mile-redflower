@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="看得见的一公里 Demo"
+config/name="看得见的一公里 演示版"
 config/version="0.3.0"
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.6")
@@ -30,6 +30,7 @@ EventManager="*res://scripts/autoload/EventManager.gd"
 SaveManager="*res://scripts/autoload/SaveManager.gd"
 SteamBridge="*res://scripts/autoload/SteamBridge.gd"
 McpBridgeGame="*res://mcp_bridge_game.gd"
+PlaytestServer="*uid://cwsas53mqheh7"
 
 [display]
 

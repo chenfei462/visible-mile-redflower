@@ -1,4 +1,4 @@
-extends RefCounted
+﻿extends RefCounted
 
 
 static func get_opening_day_plan(state: Dictionary, opening_plan: Dictionary = {}) -> Dictionary:
@@ -14,8 +14,9 @@ static func get_opening_day_plan(state: Dictionary, opening_plan: Dictionary = {
 
 static func get_bulletin_cards_for_day(state: Dictionary, unlocked_cards: Array[Dictionary], offset: int, count: int, opening_plan: Dictionary = {}) -> Array[String]:
 	var day_count := int(state.get("day_count", 1))
+	var bulletin_cards := unlocked_cards.duplicate(true)
 	var unlocked_ids := {}
-	for card: Dictionary in unlocked_cards:
+	for card: Dictionary in _filter_bulletin_cards(unlocked_cards):
 		unlocked_ids[str(card.get("card_id", ""))] = true
 	var planned: Array[String] = []
 	for day_plan_variant in opening_plan.get("days", []):
@@ -28,18 +29,16 @@ static func get_bulletin_cards_for_day(state: Dictionary, unlocked_cards: Array[
 		planned.append_array(_usable_ids(day_plan.get("fallback_card_ids", []), unlocked_ids, planned))
 		break
 	if planned.is_empty():
-		return _rotating_unlocked_ids(unlocked_cards, offset, count)
-	return _fill_to_count(planned, unlocked_cards, offset, count)
+		return _rotating_unlocked_ids(_filter_bulletin_cards(unlocked_cards), offset, count)
+	return _fill_to_count(planned, _filter_bulletin_cards(unlocked_cards), offset, count)
 
 
-static func build_today_goals(state: Dictionary, hand_cards: Array, _craft_slots: Array, selected_recipe_ids: Array = [], wishes_by_id: Dictionary = {}, opening_plan: Dictionary = {}, recipes: Array[Dictionary] = [], cards_by_id: Dictionary = {}) -> Array[Dictionary]:
+static func build_today_goals(state: Dictionary, hand_cards: Array, _craft_slots: Array, selected_recipe_ids: Array = [], _wishes_by_id: Dictionary = {}, opening_plan: Dictionary = {}, recipes: Array[Dictionary] = [], cards_by_id: Dictionary = {}) -> Array[Dictionary]:
 	var built_facilities: Array = state.get("built_facilities", [])
-	var active_problems: Array = state.get("active_problems", [])
-	var resolved_problem_history: Array = state.get("resolved_problem_history", [])
 	var day_plan := get_opening_day_plan(state, opening_plan)
 	var craft_completed := selected_recipe_ids.size() > 0 or _hand_contains_facility(hand_cards)
 	var build_completed := built_facilities.size() > 0
-	var problem_completed := _has_problem_progress(active_problems) or _has_resolved_problem(resolved_problem_history)
+	var moral_completed := int(state.get("moral", 0)) > 0
 	return [
 		{
 			"id": "craft",
@@ -49,15 +48,15 @@ static func build_today_goals(state: Dictionary, hand_cards: Array, _craft_slots
 		},
 		{
 			"id": "build",
-			"title": _build_goal_title(state, wishes_by_id, day_plan),
-			"detail": _build_goal_detail(day_plan, wishes_by_id),
+			"title": _build_goal_title(day_plan),
+			"detail": _build_goal_detail(day_plan),
 			"completed": build_completed
 		},
 		{
-			"id": "problem",
-			"title": "处理今天的问题",
-			"detail": _problem_goal_detail(active_problems, day_plan),
-			"completed": problem_completed
+			"id": "moral",
+			"title": "保持民心",
+			"detail": "满足居民需求，让民心保持在 0 以上。",
+			"completed": moral_completed
 		}
 	]
 
@@ -76,7 +75,7 @@ static func get_recipe_hints(card_id: String, visible_card_ids: Array, recipes: 
 		if not visible_card_ids.has(partner_id):
 			continue
 		var result_id := str(recipe.get("result_card_id", ""))
-		hints.append("可与 %s 合成 %s" % [_card_label(partner_id, cards_by_id), _card_label(result_id, cards_by_id)])
+		hints.append("鍙笌 %s 鍚堟垚 %s" % [_card_label(partner_id, cards_by_id), _card_label(result_id, cards_by_id)])
 	return hints
 
 
@@ -88,6 +87,15 @@ static func _usable_ids(source_ids: Array, unlocked_ids: Dictionary, existing_id
 			continue
 		result.append(card_id)
 	return result
+
+
+static func _filter_bulletin_cards(cards: Array[Dictionary]) -> Array[Dictionary]:
+	var filtered: Array[Dictionary] = []
+	for card: Dictionary in cards:
+		var card_type := str(card.get("type", ""))
+		if card_type == "material" or card_type == "building_permit":
+			filtered.append(card)
+	return filtered
 
 
 static func _fill_to_count(card_ids: Array[String], unlocked_cards: Array[Dictionary], offset: int, count: int) -> Array[String]:
@@ -144,58 +152,27 @@ static func _has_resolved_problem(problem_history: Array) -> bool:
 static func _craft_goal_title(day_plan: Dictionary, recipes: Array[Dictionary], cards_by_id: Dictionary) -> String:
 	var recipe_label := _first_recommended_recipe_label(day_plan, recipes, cards_by_id)
 	if not recipe_label.is_empty():
-		return "合成推荐设施：%s" % recipe_label
-	return "合成第一张设施"
+		return "合成推荐建筑: %s" % recipe_label
+	return "合成第一座建筑"
 
 
 static func _craft_goal_detail(day_plan: Dictionary, recipes: Array[Dictionary], cards_by_id: Dictionary) -> String:
 	var recipe_label := _first_recommended_recipe_label(day_plan, recipes, cards_by_id)
 	if not recipe_label.is_empty():
-		return "优先找高亮配对；这条路线会打开今天的居民反馈。"
-	return "把两张有提示的卡拖进合成区。"
+		return "优先使用今天给出的许可和材料。"
+	return "把两张匹配的卡放进合成区。"
 
 
-static func _build_goal_title(state: Dictionary, wishes_by_id: Dictionary, day_plan: Dictionary = {}) -> String:
-	for wish_id_variant in day_plan.get("recommended_wish_ids", []):
-		var wish_id := str(wish_id_variant)
-		var wish: Dictionary = wishes_by_id.get(wish_id, {})
-		if not wish.is_empty():
-			return "推进居民愿望：%s" % str(wish.get("title", wish_id))
-	for resident_variant in state.get("resident_states", []):
-		if typeof(resident_variant) != TYPE_DICTIONARY:
-			continue
-		var resident: Dictionary = resident_variant
-		var active_wishes: Array = resident.get("active_wish_ids", [])
-		if active_wishes.is_empty():
-			continue
-		var wish_id := str(active_wishes[0])
-		var wish: Dictionary = wishes_by_id.get(wish_id, {})
-		if not wish.is_empty():
-			return "帮 %s 完成愿望：%s" % [str(resident.get("name", "")), str(wish.get("title", wish_id))]
-	return "建设一个居民愿望设施"
+static func _build_goal_title(day_plan: Dictionary) -> String:
+	if not day_plan.get("recommended_recipe_ids", []).is_empty():
+		return "建造推荐建筑"
+	return "建造第一座建筑"
 
 
-static func _build_goal_detail(day_plan: Dictionary, wishes_by_id: Dictionary) -> String:
-	for wish_id_variant in day_plan.get("recommended_wish_ids", []):
-		var wish_id := str(wish_id_variant)
-		var wish: Dictionary = wishes_by_id.get(wish_id, {})
-		if not wish.is_empty():
-			return "推荐但不强制；完成后会触发居民留言和奖励。"
-	return "把设施放到推荐区域，居民愿望会推进。"
-
-
-static func _problem_goal_detail(active_problems: Array, day_plan: Dictionary = {}) -> String:
-	if active_problems.is_empty():
-		var pressure_ids: Array = day_plan.get("pressure_event_ids", [])
-		if not pressure_ids.is_empty():
-			return "今日会出现轻量压力事件；留出人力，黄昏前处理。"
-		return "第 2 天起会出现问题卡，留出人力处理。"
-	var problem: Dictionary = active_problems[0]
-	var penalty: Dictionary = problem.get("penalty", {})
-	return "黄昏前处理；否则信任 -%d，满意度 -%d。" % [
-		int(penalty.get("trust", 0)),
-		int(penalty.get("satisfaction_delta", 0))
-	]
+static func _build_goal_detail(day_plan: Dictionary) -> String:
+	if not day_plan.get("recommended_recipe_ids", []).is_empty():
+		return "使用公告栏里的建筑许可和材料完成一座建筑。"
+	return "把建筑卡放到桌面或棋盘上，形成可服务居民的实体。"
 
 
 static func _first_recommended_recipe_label(day_plan: Dictionary, recipes: Array[Dictionary], cards_by_id: Dictionary) -> String:

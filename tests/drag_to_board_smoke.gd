@@ -181,9 +181,9 @@ func _test_invalid_board_drops_show_clear_hints() -> void:
 	_set_drag("ramp_blueprint", "hand", 0)
 	var blueprint_dropped: bool = main_view.call("_drop_from_hand", {"type": "board", "index": service_index})
 	main_view.call("_cancel_drag")
-	_assert_true(blueprint_dropped, "blueprint board drops should be handled with a hint instead of falling through")
-	_assert_equal(Array(main_view.get("hand_cards")), ["ramp_blueprint"], "blueprint cards should stay in hand when dropped on the board")
-	_assert_equal(int(main_view.call("get_active_floating_notifier_count")), 1, "blueprint board drops should show a clear floating hint")
+	_assert_true(blueprint_dropped, "building permit board drops should be handled with a hint instead of falling through")
+	_assert_equal(Array(main_view.get("hand_cards")), ["ramp_blueprint"], "building permit cards should stay in hand when dropped on the board")
+	_assert_equal(int(main_view.call("get_active_floating_notifier_count")), 1, "building permit board drops should show a clear floating hint")
 
 	main_view.set("bulletin_cards", _string_array(["lumber_pack"]))
 	_set_drag("lumber_pack", "bulletin", 0)

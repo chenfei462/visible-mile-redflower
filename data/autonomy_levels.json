@@ -2,7 +2,7 @@
   {
     "level": 0,
     "threshold": 0,
-    "name": "Lv0 手动协助",
+    "name": "0级 手动协助",
     "description": "社区仍主要依赖玩家处理问题。",
     "auto_progress": 0,
     "auto_resolve_count": 0,
@@ -12,7 +12,7 @@
   {
     "level": 1,
     "threshold": 10,
-    "name": "Lv1 志愿响应",
+    "name": "1级 志愿响应",
     "description": "志愿网络每天能推进一个简单问题。",
     "auto_progress": 1,
     "auto_resolve_count": 0,
@@ -22,7 +22,7 @@
   {
     "level": 2,
     "threshold": 25,
-    "name": "Lv2 小事自理",
+    "name": "2级 小事自理",
     "description": "社区每天能自动解决一个 1 人力问题。",
     "auto_progress": 0,
     "auto_resolve_count": 1,
@@ -32,7 +32,7 @@
   {
     "level": 3,
     "threshold": 45,
-    "name": "Lv3 稳定协作",
+    "name": "3级 稳定协作",
     "description": "社区每天能自动解决一个 2 人力以内问题。",
     "auto_progress": 0,
     "auto_resolve_count": 1,
@@ -42,7 +42,7 @@
   {
     "level": 4,
     "threshold": 70,
-    "name": "Lv4 自治毕业",
+    "name": "4级 自治毕业",
     "description": "社区每天能自动解决两个 2 人力以内问题。",
     "auto_progress": 0,
     "auto_resolve_count": 2,

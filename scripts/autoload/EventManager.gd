@@ -15,12 +15,28 @@ func reset_runtime() -> void:
 	spawned_event_ids.clear()
 
 
+func _clear_legacy_event_state() -> void:
+	var state: Dictionary = GameState.get_state()
+	if typeof(state.get("active_problems", [])) == TYPE_ARRAY:
+		state["active_problems"] = []
+	if typeof(state.get("announcement_queue", [])) == TYPE_ARRAY:
+		state["announcement_queue"] = []
+	if typeof(state.get("pending_problem_escalations", [])) == TYPE_ARRAY:
+		state["pending_problem_escalations"] = []
+	if typeof(state.get("resolved_problem_history", [])) == TYPE_ARRAY:
+		state["resolved_problem_history"] = []
+	if typeof(state.get("event_history", [])) == TYPE_ARRAY:
+		state["event_history"] = []
+
+
 func resolve_sunrise_events() -> PackedStringArray:
-	return _resolve_sunrise_events_sync()
+	_clear_legacy_event_state()
+	return PackedStringArray()
 
 
 func resolve_sunrise_events_async() -> PackedStringArray:
-	return await _resolve_sunrise_events_async()
+	_clear_legacy_event_state()
+	return PackedStringArray()
 
 
 func _resolve_sunrise_events_sync() -> PackedStringArray:
@@ -30,6 +46,8 @@ func _resolve_sunrise_events_sync() -> PackedStringArray:
 	lines.append_array(_flush_pending_escalations(state))
 	var event_defs: Array[Dictionary] = DataRepository.get_event_defs_for_day(day_count)
 	for event_def: Dictionary in event_defs:
+		if not is_event_chain_eligible(event_def, state):
+			continue
 		var result: Dictionary = _materialize_event_sync(state, event_def)
 		if result.is_empty():
 			continue
@@ -57,6 +75,8 @@ func _resolve_sunrise_events_async() -> PackedStringArray:
 	lines.append_array(_flush_pending_escalations(state))
 	var event_defs: Array[Dictionary] = DataRepository.get_event_defs_for_day(day_count)
 	for event_def: Dictionary in event_defs:
+		if not is_event_chain_eligible(event_def, state):
+			continue
 		var result: Dictionary = await _materialize_event_async(state, event_def)
 		if result.is_empty():
 			continue
@@ -78,6 +98,8 @@ func _resolve_sunrise_events_async() -> PackedStringArray:
 
 
 func assign_manpower_to_problem(problem_index: int, amount: int = 1) -> Dictionary:
+	_clear_legacy_event_state()
+	return {"success": false, "message": "legacy_events_disabled"}
 	var state: Dictionary = GameState.get_state()
 	var active_problems: Array = state.get("active_problems", [])
 	if problem_index < 0 or problem_index >= active_problems.size():
@@ -106,6 +128,8 @@ func assign_manpower_to_problem(problem_index: int, amount: int = 1) -> Dictiona
 
 
 func apply_support_to_problem(problem_index: int, support_card_id: String, cards_by_id: Dictionary) -> Dictionary:
+	_clear_legacy_event_state()
+	return {"success": false, "message": "legacy_events_disabled"}
 	var state: Dictionary = GameState.get_state()
 	var active_problems: Array = state.get("active_problems", [])
 	if problem_index < 0 or problem_index >= active_problems.size():
@@ -278,6 +302,7 @@ func _resolve_problem(problem_index: int) -> Dictionary:
 	ResourceManager.apply_resource_delta(state, problem_state.get("reward", {}), "problem_resolved:%s" % str(problem_state.get("event_id", "")))
 	AUTONOMY_SYSTEM.add_autonomy_points(state, 4, "problem:%s" % str(problem_state.get("event_id", "")))
 	_record_player_problem_memory(state.get("resident_states", []), problem_state)
+	_record_event_flag(state, problem_state, "resolved")
 	state.get("resolved_problem_history", []).append(problem_state)
 	active_problems.remove_at(problem_index)
 	TutorialManager.mark_action("problem")
@@ -288,6 +313,38 @@ func _resolve_problem(problem_index: int) -> Dictionary:
 		"message": "problem_resolved",
 		"problem_state": problem_state
 	}
+
+
+func _record_event_flag(state: Dictionary, problem_state: Dictionary, outcome: String) -> void:
+	if typeof(state.get("event_flags", {})) != TYPE_DICTIONARY:
+		state["event_flags"] = {}
+	var flags: Dictionary = state["event_flags"]
+	var event_id := str(problem_state.get("event_id", ""))
+	var chain_id := str(problem_state.get("chain_id", ""))
+	if not event_id.is_empty():
+		flags["%s:%s" % [outcome, event_id]] = int(state.get("day_count", 1))
+	if not chain_id.is_empty():
+		flags["chain:%s:%s" % [chain_id, outcome]] = int(state.get("day_count", 1))
+	state["event_flags"] = flags
+
+
+func has_event_flag(flag_key: String) -> bool:
+	var state := GameState.get_state()
+	return bool(state.get("event_flags", {}).has(flag_key))
+
+
+func is_event_chain_eligible(event_def: Dictionary, state: Dictionary) -> bool:
+	var prerequisites: Array = event_def.get("prerequisites", [])
+	var flags: Dictionary = state.get("event_flags", {})
+	for prereq_variant in prerequisites:
+		var prereq := str(prereq_variant)
+		if not flags.has(prereq):
+			return false
+	var blocked_by: Array = event_def.get("blocked_by", [])
+	for blocker_variant in blocked_by:
+		if flags.has(str(blocker_variant)):
+			return false
+	return true
 
 
 func _record_player_problem_memory(resident_states: Array, problem_state: Dictionary) -> void:

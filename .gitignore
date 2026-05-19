@@ -14,3 +14,10 @@ Thumbs.db
 # Local secrets or machine-specific config
 *.env
 *.local
+mcp_ports.cfg
+
+# Test/runtime scratch files
+tmp_*.json
+
+# Local agent execution plans
+docs/superpowers/plans/

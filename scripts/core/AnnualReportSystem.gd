@@ -43,7 +43,7 @@ static func format_report_lines(report: Dictionary) -> PackedStringArray:
 		if not summary_text.is_empty():
 			lines.append("剧情链：%s" % summary_text)
 	var autonomy: Dictionary = report.get("autonomy", {})
-	lines.append("自治进度：Lv%d，%d 点" % [int(autonomy.get("level", 0)), int(autonomy.get("points", 0))])
+	lines.append("自治进度：%d 级，%d 点" % [int(autonomy.get("level", 0)), int(autonomy.get("points", 0))])
 	for resident_variant in report.get("resident_summaries", []):
 		var resident: Dictionary = resident_variant
 		lines.append("%s：满意度 %d，健康 %d。%s" % [
@@ -83,8 +83,8 @@ static func _demo_note_for_rating(rating: String, unlocked_modes: Dictionary) ->
 	if bool(unlocked_modes.get("new_game_plus", false)):
 		unlocked.append("新游戏+")
 	if unlocked.is_empty():
-		return "Demo年度报告已生成；S级庆典与完整后日谈保留为正式版内容。"
-	return "已解锁：%s（Demo中显示入口状态，正式版开放完整玩法）。" % "、".join(unlocked)
+		return "演示版年度报告已生成；S级庆典与完整后日谈保留为正式版内容。"
+	return "已解锁：%s（演示版显示入口状态，正式版开放完整玩法）。" % "、".join(unlocked)
 
 
 static func _key_facilities(built_facilities: Array, cards_by_id: Dictionary) -> Array[String]:

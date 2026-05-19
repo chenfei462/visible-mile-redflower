@@ -1,5 +1,14 @@
 extends Node
 
+const RESOURCE_LABELS := {
+	"flowers": "小红花",
+	"funds": "资金",
+	"manpower": "人力",
+	"trust": "信任",
+	"health": "健康",
+	"satisfaction_delta": "满意度"
+}
+
 var recent_log_lines: PackedStringArray = []
 
 
@@ -41,11 +50,15 @@ func apply_event_penalty(state: Dictionary, penalty: Dictionary) -> PackedString
 		var key: String = str(key_variant)
 		var amount: int = int(penalty.get(key_variant, 0))
 		if key == "satisfaction_delta":
-			lines.append("resident satisfaction -%d" % amount)
+			lines.append("居民满意度 -%d" % amount)
 			continue
 		if amount <= 0:
 			continue
 		state[key] = maxi(int(state.get(key, 0)) - amount, 0)
-		lines.append("%s -%d" % [key, amount])
+		lines.append("%s -%d" % [_resource_label(key), amount])
 		recent_log_lines.append("event_penalty %s -%d" % [key, amount])
 	return lines
+
+
+func _resource_label(resource_key: String) -> String:
+	return str(RESOURCE_LABELS.get(resource_key, resource_key))
