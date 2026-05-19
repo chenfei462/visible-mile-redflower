@@ -28,4 +28,6 @@ class EditorSession:
         self.client.close()
 
     def command(self, name: str, **payload: Any) -> dict[str, Any]:
+        if "cmd" in payload:
+            raise ValueError("payload contains reserved field: cmd")
         return self.client.send({"cmd": name, **payload})
