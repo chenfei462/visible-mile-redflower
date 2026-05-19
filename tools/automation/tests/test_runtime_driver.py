@@ -106,6 +106,8 @@ def test_runtime_driver_wraps_phase_one_methods_as_action_results() -> None:
     assert capture.payload == {"capturing": True}
     assert errors.payload == {"count": 0, "errors": []}
     assert performance.payload == {"success": True, "fps": 60.0}
+    assert performance.ok is True
+    assert performance.confidence is ConfidenceLevel.HIGH
     assert session.calls == [
         ("ping", {}),
         ("get_state", {}),
@@ -114,3 +116,22 @@ def test_runtime_driver_wraps_phase_one_methods_as_action_results() -> None:
         ("get_captured_errors", {}),
         ("assert_performance", {"min_fps": 30, "max_frame_ms": 20.0}),
     ]
+
+
+def test_runtime_driver_marks_success_false_payloads_as_failures() -> None:
+    driver = RuntimeDriver(
+        FakeSession(
+            replies={
+                "assert_performance": {
+                    "success": False,
+                    "failures": ["fps 24.0 below minimum 30"],
+                }
+            }
+        )
+    )
+
+    result = driver.assert_performance(min_fps=30)
+
+    assert result.ok is False
+    assert result.confidence is ConfidenceLevel.LOW
+    assert result.error == "fps 24.0 below minimum 30"

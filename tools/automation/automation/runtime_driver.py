@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from .models import ActionResult, ConfidenceLevel
 from .runtime_session import RuntimeSession
 
@@ -8,13 +10,15 @@ class RuntimeDriver:
     def __init__(self, session: RuntimeSession) -> None:
         self.session = session
 
-    def _result(self, command: str, payload: dict) -> ActionResult:
+    def _result(self, command: str, payload: dict[str, Any]) -> ActionResult:
+        ok = bool(payload.get("success", True))
         return ActionResult(
-            ok=True,
+            ok=ok,
             source="runtime",
             command=command,
             payload=payload,
-            confidence=ConfidenceLevel.HIGH,
+            error="" if ok else self._failure_message(payload),
+            confidence=ConfidenceLevel.HIGH if ok else ConfidenceLevel.LOW,
         )
 
     def ping(self) -> ActionResult:
@@ -37,3 +41,14 @@ class RuntimeDriver:
         if max_frame_ms is not None:
             params["max_frame_ms"] = max_frame_ms
         return self._result("assert_performance", self.session.call("assert_performance", params))
+
+    @staticmethod
+    def _failure_message(payload: dict[str, Any]) -> str:
+        if isinstance(payload.get("error"), str) and payload["error"]:
+            return payload["error"]
+        if isinstance(payload.get("message"), str) and payload["message"]:
+            return payload["message"]
+        failures = payload.get("failures")
+        if isinstance(failures, list) and failures:
+            return "; ".join(str(item) for item in failures)
+        return "runtime command returned success=false"
