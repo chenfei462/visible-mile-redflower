@@ -11,13 +11,13 @@ class EditorSession:
         self,
         host: str = "127.0.0.1",
         port: int = 9600,
-        timeout_seconds: float = 5.0,
+        timeout: float = 5.0,
         socket_factory: Callable[..., socket.socket] | None = None,
     ) -> None:
         self.client = JsonLineClient(
             host=host,
             port=port,
-            timeout_seconds=timeout_seconds,
+            timeout=timeout,
             socket_factory=socket_factory,
         )
 

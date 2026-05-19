@@ -46,7 +46,7 @@ def test_json_line_client_connects_via_socket_factory_and_sends_one_json_object_
         calls.append((address, timeout))
         return sock
 
-    client = JsonLineClient("127.0.0.1", 9600, 1.5, socket_factory=socket_factory)
+    client = JsonLineClient("127.0.0.1", 9600, timeout=1.5, socket_factory=socket_factory)
     client.connect()
 
     reply = client.send({"cmd": "get_editor_state"})
@@ -156,6 +156,21 @@ def test_editor_session_wraps_bridge_commands() -> None:
         "cmd": "open_scene",
         "path": "res://scenes/Main.tscn",
     }
+
+
+def test_editor_session_accepts_timeout_keyword_and_passes_it_to_transport() -> None:
+    calls: list[tuple[tuple[str, int], float]] = []
+    sock = FakeSocket(responses=[{"ok": True}])
+
+    def socket_factory(address: tuple[str, int], timeout: float) -> FakeSocket:
+        calls.append((address, timeout))
+        return sock
+
+    session = EditorSession(host="127.0.0.1", port=9600, timeout=2.5, socket_factory=socket_factory)
+
+    session.connect()
+
+    assert calls == [(("127.0.0.1", 9600), 2.5)]
 
 
 def test_editor_session_command_rejects_reserved_cmd_payload_field() -> None:

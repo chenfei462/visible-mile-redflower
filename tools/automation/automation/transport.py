@@ -14,12 +14,12 @@ class JsonLineClient:
         self,
         host: str,
         port: int,
-        timeout_seconds: float = 5.0,
+        timeout: float = 5.0,
         socket_factory: Callable[..., socket.socket] | None = None,
     ) -> None:
         self.host = host
         self.port = port
-        self.timeout_seconds = timeout_seconds
+        self.timeout = timeout
         self.socket_factory = socket_factory or socket.create_connection
         self._socket: socket.socket | None = None
         self._buffer = b""
@@ -27,7 +27,7 @@ class JsonLineClient:
     def connect(self) -> None:
         if self._socket is None:
             try:
-                self._socket = self.socket_factory((self.host, self.port), self.timeout_seconds)
+                self._socket = self.socket_factory((self.host, self.port), self.timeout)
                 self._buffer = b""
             except OSError as error:
                 raise TransportError(f"connect failed: {error}") from error
