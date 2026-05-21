@@ -1,6 +1,5 @@
 extends Node
 
-const AUTONOMY_SYSTEM := preload("res://scripts/core/AutonomySystem.gd")
 const RESIDENT_SYSTEM := preload("res://scripts/core/ResidentSystem.gd")
 const BOARD_RULES := preload("res://scripts/core/BoardRules.gd")
 
@@ -64,7 +63,6 @@ func _resolve_sunrise_events_sync() -> PackedStringArray:
 		lines.append("event: %s" % str(announcement.get("title", event_def.get("title", ""))))
 		emit_signal("announcement_ready", announcement)
 		emit_signal("problem_spawned", problem_state)
-	lines.append_array(AUTONOMY_SYSTEM.resolve_after_sunrise_events(state, state.get("active_problems", []), ResourceManager))
 	return lines
 
 
@@ -93,7 +91,6 @@ func _resolve_sunrise_events_async() -> PackedStringArray:
 		lines.append("event: %s" % str(announcement.get("title", event_def.get("title", ""))))
 		emit_signal("announcement_ready", announcement)
 		emit_signal("problem_spawned", problem_state)
-	lines.append_array(AUTONOMY_SYSTEM.resolve_after_sunrise_events(state, state.get("active_problems", []), ResourceManager))
 	return lines
 
 
@@ -300,7 +297,6 @@ func _resolve_problem(problem_index: int) -> Dictionary:
 	problem_state["status"] = "resolved"
 	active_problems[problem_index] = problem_state
 	ResourceManager.apply_resource_delta(state, problem_state.get("reward", {}), "problem_resolved:%s" % str(problem_state.get("event_id", "")))
-	AUTONOMY_SYSTEM.add_autonomy_points(state, 4, "problem:%s" % str(problem_state.get("event_id", "")))
 	_record_player_problem_memory(state.get("resident_states", []), problem_state)
 	_record_event_flag(state, problem_state, "resolved")
 	state.get("resolved_problem_history", []).append(problem_state)

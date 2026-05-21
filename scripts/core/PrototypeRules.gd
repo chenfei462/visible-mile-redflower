@@ -2,6 +2,7 @@ extends RefCounted
 
 const RECIPE_RULES := preload("res://scripts/core/RecipeRules.gd")
 const BOARD_RULES := preload("res://scripts/core/BoardRules.gd")
+const DATA_REPOSITORY := preload("res://scripts/autoload/DataRepository.gd")
 
 
 static func generate_daily_bulletin(unlocked_cards: Array[Dictionary], offset: int, count: int) -> Array[String]:
@@ -23,6 +24,19 @@ static func pick_bulletin_card(bulletin_cards: Array[String], hand_cards: Array[
 	return claim_bulletin_card(bulletin_cards, hand_cards, state, index, max_choices)
 
 
+static func bulletin_purchase_cost_for_card(card_id: String, state: Dictionary, cards_by_id: Dictionary = {}, recipes: Array[Dictionary] = []) -> Dictionary:
+	var line := _permit_purchase_line_for_card(card_id, cards_by_id, recipes)
+	var counts: Dictionary = state.get("permit_purchase_counts", {})
+	var purchased_count := int(counts.get(line, 0))
+	match line:
+		"housing":
+			return {"line": line, "resource": "funds", "amount": 2 + purchased_count * 2}
+		"volunteer":
+			return {"line": line, "resource": "flowers", "amount": 2 + purchased_count * 2}
+		_:
+			return {"line": line, "resource": "flowers", "amount": 0}
+
+
 static func claim_bulletin_card(
 	bulletin_cards: Array[String],
 	hand_cards: Array[String],
@@ -32,7 +46,9 @@ static func claim_bulletin_card(
 	hand_card_sources: Array = [],
 	hand_card_prices: Array = [],
 	bulletin_prices: Array = [],
-	allow_paid_after_free_limit: bool = false
+	allow_paid_after_free_limit: bool = false,
+	cards_by_id: Dictionary = {},
+	recipes: Array[Dictionary] = []
 ) -> Dictionary:
 	if index < 0 or index >= bulletin_cards.size():
 		return {"success": false, "message": "无效的公告栏位置。"}
@@ -43,15 +59,24 @@ static func claim_bulletin_card(
 	var used_free_picks := int(state.get("selected_cards_today", 0))
 	var has_free_pick := used_free_picks < free_pick_limit
 	var price := int(_array_value_or_default(bulletin_prices, index, 0))
+	var purchase_cost := bulletin_purchase_cost_for_card(card_id, state, cards_by_id, recipes)
+	var purchase_line := str(purchase_cost.get("line", "default"))
+	var purchase_resource := str(purchase_cost.get("resource", "flowers"))
+	if purchase_line != "default":
+		price = int(purchase_cost.get("amount", price))
 	var is_paid_purchase := false
 	if not has_free_pick:
 		if not allow_paid_after_free_limit:
 			return {"success": false, "message": "今天已经拿满了免费公告牌。"}
 		if price <= 0:
 			return {"success": false, "message": "这张公告牌今天不能购买。"}
-		if int(state.get("flowers", 0)) < price:
-			return {"success": false, "message": "小红花不足，无法购买这张公告牌。"}
-		state["flowers"] = int(state.get("flowers", 0)) - price
+		if int(state.get(purchase_resource, 0)) < price:
+			return {"success": false, "message": "%s不足，无法购买这张公告牌。" % _resource_label(purchase_resource)}
+		state[purchase_resource] = int(state.get(purchase_resource, 0)) - price
+		if purchase_line != "default":
+			var counts: Dictionary = state.get("permit_purchase_counts", {})
+			counts[purchase_line] = int(counts.get(purchase_line, 0)) + 1
+			state["permit_purchase_counts"] = counts
 		is_paid_purchase = true
 
 	hand_cards.append(card_id)
@@ -71,7 +96,9 @@ static func claim_bulletin_card(
 		"is_free_pick": not is_paid_purchase,
 		"is_paid_purchase": is_paid_purchase,
 		"source": source,
-		"message": "花费 %d 小红花购入卡牌。" % price if is_paid_purchase else "获得公告栏卡牌。"
+		"cost_resource": purchase_resource,
+		"purchase_line": purchase_line,
+		"message": "花费 %d %s购入卡牌。" % [price, _resource_label(purchase_resource)] if is_paid_purchase else "获得公告栏卡牌。"
 	}
 
 
@@ -288,21 +315,11 @@ static func unlock_board_land_with_flowers(state: Dictionary, board_index: int) 
 		return {"success": false, "message": "需要先扩建到上一圈，才能解锁更外层地块。"}
 
 	var next_stage := current_stage + 1
-	var trust_requirement := BOARD_RULES.land_unlock_trust_requirement(next_stage)
 	var flower_cost := BOARD_RULES.land_unlock_flower_cost(next_stage)
-	if int(state.get("trust", 0)) < trust_requirement:
-		return {
-			"success": false,
-			"message": "信任不足，需要达到 %d。" % trust_requirement,
-			"required_trust": trust_requirement,
-			"flower_cost": flower_cost,
-			"target_stage": next_stage
-		}
 	if int(state.get("flowers", 0)) < flower_cost:
 		return {
 			"success": false,
 			"message": "小红花不足，需要 %d。" % flower_cost,
-			"required_trust": trust_requirement,
 			"flower_cost": flower_cost,
 			"target_stage": next_stage
 		}
@@ -316,7 +333,6 @@ static func unlock_board_land_with_flowers(state: Dictionary, board_index: int) 
 		"previous_stage": current_stage,
 		"land_unlock_stage": next_stage,
 		"target_side": BOARD_RULES.board_side_for_land_unlock_stage(next_stage),
-		"required_trust": trust_requirement,
 		"flower_cost": flower_cost,
 		"message": "社区已扩建。"
 	}
@@ -590,6 +606,39 @@ static func _is_recipe_result_card(card_id: String, recipes: Array[Dictionary]) 
 	return false
 
 
+static func _permit_purchase_line_for_card(card_id: String, cards_by_id: Dictionary, recipes: Array[Dictionary]) -> String:
+	if card_id.is_empty() or str(cards_by_id.get(card_id, {}).get("type", "")) != "building_permit":
+		return "default"
+	var has_housing_result := false
+	for recipe: Dictionary in recipes:
+		var ingredients: Array = recipe.get("ingredient_card_ids", [])
+		if not ingredients.has(card_id):
+			continue
+		var result_id := str(recipe.get("result_card_id", ""))
+		var result_card: Dictionary = cards_by_id.get(result_id, {})
+		if _is_housing_facility(result_card):
+			has_housing_result = true
+		if result_id == "volunteer_station":
+			return "volunteer"
+	if has_housing_result:
+		return "housing"
+	return "default"
+
+
+static func _is_housing_facility(card_def: Dictionary) -> bool:
+	var tags: Array = card_def.get("tags", [])
+	return str(card_def.get("type", "")) == "facility" and (tags.has("housing") or str(card_def.get("preferred_zone", "")) == "住宅")
+
+
+static func _resource_label(resource_key: String) -> String:
+	return {
+		"flowers": "小红花",
+		"funds": "资金",
+		"manpower": "人力",
+		"moral": "民心"
+	}.get(resource_key, resource_key)
+
+
 static func _craft_failure_hint(card_ids: Array[String], cards_by_id: Dictionary, recipes: Array[Dictionary] = [], trust: int = 0) -> String:
 	if card_ids.size() != 2:
 		return "合成需要放入两张卡。"
@@ -619,8 +668,9 @@ static func _locked_recipe_hint(card_ids: Array[String], recipes: Array[Dictiona
 		var left := str(ingredients[0])
 		var right := str(ingredients[1])
 		var matches := (left == card_ids[0] and right == card_ids[1]) or (left == card_ids[1] and right == card_ids[0])
-		if matches and trust < int(recipe.get("unlock_trust", 0)):
-			return "这组配方还没开放；需要信任达到 %d 后才能合成。" % int(recipe.get("unlock_trust", 0))
+		var unlock_day := int(recipe.get("unlock_day", DATA_REPOSITORY.unlock_day_for_requirement(int(recipe.get("unlock_trust", 0)))))
+		if matches and trust < DATA_REPOSITORY.unlock_progress_for_day(unlock_day):
+			return "这组配方还没开放；需要等到 %s 后才能合成。" % DATA_REPOSITORY.unlock_day_label_for_requirement(unlock_day)
 	return ""
 
 
@@ -751,8 +801,9 @@ static func quick_craft_recipe(
 			break
 	if recipe.is_empty():
 		return {"success": false, "message": "找不到该配方。"}
-	if trust < int(recipe.get("unlock_trust", 0)):
-		return {"success": false, "message": "信任不足，配方尚未解锁。"}
+	var unlock_day := int(recipe.get("unlock_day", DATA_REPOSITORY.unlock_day_for_requirement(int(recipe.get("unlock_trust", 0)))))
+	if trust < DATA_REPOSITORY.unlock_progress_for_day(unlock_day):
+		return {"success": false, "message": "配方尚未解锁。"}
 	var state := _game_state()
 	var inventory := BOARD_RULES.ensure_inventory(state)
 	var ingredient_ids: Array = recipe.get("ingredient_card_ids", [])

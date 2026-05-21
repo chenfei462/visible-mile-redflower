@@ -266,32 +266,91 @@ static func placement_message_for_code(reason_code: String) -> String:
 			return reason_code
 
 
+static func stationed_output_preview(card_def: Dictionary, zone_type: String = "") -> Dictionary:
+	var preferred_zone := _normalized_zone_type(str(card_def.get("preferred_zone", "")))
+	if preferred_zone.is_empty():
+		var fallback_resource := _normalized_bonus_resource(str(card_def.get("primary_resource", "")))
+		if fallback_resource == "flowers" or fallback_resource == "funds":
+			return {"resource": fallback_resource, "amount": 1, "reason": "默认驻扎"}
+	var preview_zone := _normalized_zone_type(zone_type if not zone_type.is_empty() else preferred_zone)
+	match preview_zone:
+		"绿地":
+			return {"resource": "flowers", "amount": 1, "reason": "绿地驻扎"}
+		"商业":
+			return {"resource": "funds", "amount": 1, "reason": "商业驻扎"}
+		_:
+			return {"resource": "", "amount": 0, "reason": _no_stationed_output_reason(card_def, preview_zone)}
+
+
+static func _normalized_zone_type(zone_type: String) -> String:
+	var normalized := zone_type.strip_edges()
+	match normalized.to_lower():
+		"service":
+			return "服务"
+		"commerce", "commercial":
+			return "商业"
+		"green", "park":
+			return "绿地"
+		"residential", "housing":
+			return "住宅"
+		_:
+			return normalized
+
+
+static func _no_stationed_output_reason(card_def: Dictionary, zone_type: String) -> String:
+	var normalized_zone := _normalized_zone_type(zone_type)
+	if normalized_zone == "服务" or _is_service_like_facility(card_def):
+		return "服务建筑：容量 2，用于满足居民需求"
+	if normalized_zone == "住宅":
+		return "住宅建筑：当前不提供驻扎收益"
+	if normalized_zone.is_empty():
+		return "当前不提供驻扎收益"
+	return "%s 区域当前不提供驻扎收益" % normalized_zone
+
+
+static func _is_service_like_facility(card_def: Dictionary) -> bool:
+	var tags: Array = card_def.get("tags", [])
+	var preferred_zone := _normalized_zone_type(str(card_def.get("preferred_zone", "")))
+	if preferred_zone == "服务":
+		return true
+	for tag_variant in ["service", "community", "communication", "accessibility", "care", "health", "volunteer"]:
+		if tags.has(tag_variant):
+			return true
+	return false
+
+
+static func _has_stationed_resident(cell: Dictionary) -> bool:
+	var resident_ids: Array = cell.get("resident_ids", [])
+	return not resident_ids.is_empty()
+
+
+static func _normalized_bonus_resource(resource_key: String) -> String:
+	if resource_key == "trust":
+		return "flowers"
+	return resource_key
+
+
 static func calculate_facility_output(index: int, cell: Dictionary, all_cells: Array[Dictionary], cards_by_id: Dictionary, resident_states: Array = []) -> Dictionary:
 	var card_id := str(cell.get("occupied_card_id", ""))
 	if card_id.is_empty() or not cards_by_id.has(card_id):
 		return {"resource": "", "amount": 0, "reason": "empty"}
 
 	var card_def: Dictionary = cards_by_id[card_id]
-	var amount := int(card_def.get("base_output", 0))
+	var is_service_facility := _is_service_like_facility(card_def)
+	var stationed_output := stationed_output_preview(card_def, str(cell.get("zone_type", "")))
+	var amount := 0 if not _has_stationed_resident(cell) or is_service_facility else int(stationed_output.get("amount", 0))
+	var output_resource := "" if amount <= 0 else str(stationed_output.get("resource", ""))
 	var synergy_details: Array[String] = []
 	var bonus_resources: Dictionary = {}
 	var resident_effects: Dictionary = {}
 	var reason_parts := PackedStringArray()
-	if amount > 0:
-		reason_parts.append("基础 +%d" % amount)
-	if str(cell.get("zone_type", "")) == str(card_def.get("preferred_zone", "")):
-		var zone_bonus := int(card_def.get("preferred_zone_bonus", 0))
-		amount += zone_bonus
-		if zone_bonus > 0:
-			reason_parts.append("区域 +%d" % zone_bonus)
-
+	var stationed_reason := str(stationed_output.get("reason", ""))
+	if not stationed_reason.is_empty():
+		reason_parts.append(stationed_reason)
 	var same_group_neighbors: Array[String] = _orthogonal_neighbor_ids_with_group(index, all_cells, cards_by_id, str(card_def.get("synergy_group", "")))
-	var adjacency_bonus := int(card_def.get("adjacency_bonus", 0)) * same_group_neighbors.size()
-	amount += adjacency_bonus
-	if adjacency_bonus > 0:
-		synergy_details.append("同组相邻 %s +%d" % ["/".join(same_group_neighbors), adjacency_bonus])
-		reason_parts.append("相邻 +%d" % adjacency_bonus)
-
+	if int(card_def.get("adjacency_bonus", 0)) > 0 and not same_group_neighbors.is_empty():
+		synergy_details.append("同组联动：%s" % "/".join(same_group_neighbors))
+		reason_parts.append("同组联动")
 	for rule_variant in card_def.get("synergy_rules", []):
 		if typeof(rule_variant) != TYPE_DICTIONARY:
 			continue
@@ -300,7 +359,7 @@ static func calculate_facility_output(index: int, cell: Dictionary, all_cells: A
 		if matching_neighbors.is_empty():
 			continue
 		var label := str(rule.get("label", rule.get("with_group", "")))
-		var bonus_resource := str(rule.get("bonus_resource", ""))
+		var bonus_resource := _normalized_bonus_resource(str(rule.get("bonus_resource", "")))
 		var bonus_amount := int(rule.get("bonus_amount", 0)) * matching_neighbors.size()
 		if not bonus_resource.is_empty() and bonus_amount > 0:
 			bonus_resources[bonus_resource] = int(bonus_resources.get(bonus_resource, 0)) + bonus_amount
@@ -327,15 +386,18 @@ static func calculate_facility_output(index: int, cell: Dictionary, all_cells: A
 	for reason_variant in resident_result.get("reason_parts", []):
 		reason_parts.append(str(reason_variant))
 
+	if is_service_facility:
+		bonus_resources.clear()
+
 	return {
-		"resource": str(card_def.get("primary_resource", "")),
+		"resource": output_resource,
 		"amount": amount,
 		"card_id": card_id,
 		"synergy_details": synergy_details,
 		"bonus_resources": bonus_resources,
 		"resident_effects": resident_effects,
 		"problem_counter_tags": effective_problem_counter_tags(card_def),
-		"material_outputs": _material_outputs(card_def),
+		"material_outputs": {},
 		"reason": "；".join(reason_parts)
 	}
 
@@ -400,11 +462,11 @@ static func effective_resident_adjacency_effects(card_def: Dictionary) -> Array:
 	var tags: Array = card_def.get("tags", [])
 	var defaults: Array = []
 	if tags.has("health") or tags.has("care"):
-		defaults.append({"need_tags": ["care", "health"], "bonus_resource": "trust", "bonus_amount": 1, "satisfaction_bonus": 2, "label": "健康响应"})
+		defaults.append({"need_tags": ["care", "health"], "bonus_resource": "flowers", "bonus_amount": 1, "satisfaction_bonus": 2, "label": "健康响应"})
 	if tags.has("garden") or tags.has("green") or tags.has("leisure"):
 		defaults.append({"need_tags": ["rest", "child", "senior"], "bonus_resource": "flowers", "bonus_amount": 1, "satisfaction_bonus": 2, "label": "休息响应"})
 	if tags.has("service") or tags.has("community"):
-		defaults.append({"need_tags": ["service", "community", "queue"], "bonus_resource": "trust", "bonus_amount": 1, "satisfaction_bonus": 1, "label": "服务响应"})
+		defaults.append({"need_tags": ["service", "community", "queue"], "bonus_resource": "flowers", "bonus_amount": 1, "satisfaction_bonus": 1, "label": "服务响应"})
 	return defaults
 
 
@@ -447,7 +509,7 @@ static func _apply_combo_rules(index: int, all_cells: Array[Dictionary], cards_b
 		if matching_neighbors.is_empty():
 			continue
 		var label := str(rule.get("label", "组合联动"))
-		var bonus_resource := str(rule.get("bonus_resource", ""))
+		var bonus_resource := _normalized_bonus_resource(str(rule.get("bonus_resource", "")))
 		var bonus_amount := int(rule.get("bonus_amount", 0)) * matching_neighbors.size()
 		if not bonus_resource.is_empty() and bonus_amount > 0:
 			bonus_resources[bonus_resource] = int(bonus_resources.get(bonus_resource, 0)) + bonus_amount
@@ -491,7 +553,7 @@ static func _apply_resident_adjacency_effects(cell: Dictionary, card_def: Dictio
 		if matched_names.is_empty():
 			continue
 		var label := str(effect.get("label", "居民联动"))
-		var bonus_resource := str(effect.get("bonus_resource", ""))
+		var bonus_resource := _normalized_bonus_resource(str(effect.get("bonus_resource", "")))
 		var bonus_amount := int(effect.get("bonus_amount", 0)) * matched_names.size()
 		if not bonus_resource.is_empty() and bonus_amount > 0:
 			bonus_resources[bonus_resource] = int(bonus_resources.get(bonus_resource, 0)) + bonus_amount
@@ -589,7 +651,7 @@ static func _default_combo_rules(card_def: Dictionary) -> Array:
 	if tags.has("market") or group == "commerce":
 		defaults.append({"with_groups": ["volunteer", "communication", "service"], "bonus_resource": "funds", "bonus_amount": 1, "label": "商圈联动"})
 	if tags.has("accessibility") or group == "accessibility":
-		defaults.append({"with_groups": ["communication", "service"], "bonus_resource": "trust", "bonus_amount": 1, "label": "导引联动"})
+		defaults.append({"with_groups": ["communication", "service"], "bonus_resource": "flowers", "bonus_amount": 1, "label": "导引联动"})
 	if tags.has("community") or tags.has("volunteer"):
 		defaults.append({"with_tags": ["support", "service"], "problem_manpower_bonus": 1, "label": "互助联动"})
 	return defaults

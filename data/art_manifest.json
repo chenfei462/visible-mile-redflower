@@ -1169,6 +1169,18 @@
       "path": "",
       "placeholder_path": "res://icon.svg",
       "fallback_label": "义诊登记超量"
+    },
+    "card_care_station_permit": {
+      "placeholder_path": "res://icon.svg"
+    },
+    "icon_care_station_permit": {
+      "placeholder_path": "res://icon.svg"
+    },
+    "card_care_kit_pack": {
+      "placeholder_path": "res://icon.svg"
+    },
+    "icon_care_kit_pack": {
+      "placeholder_path": "res://icon.svg"
     }
   }
 }

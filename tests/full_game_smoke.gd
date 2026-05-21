@@ -2,6 +2,7 @@ extends SceneTree
 
 const PROTOTYPE_RULES := preload("res://scripts/core/PrototypeRules.gd")
 const BOARD_RULES := preload("res://scripts/core/BoardRules.gd")
+const RESIDENT_SYSTEM := preload("res://scripts/core/ResidentSystem.gd")
 
 var failures: PackedStringArray = []
 var bulletin_cards: Array[String] = []
@@ -30,6 +31,7 @@ func _run() -> void:
 	_setup_runtime()
 	_run_day_one_core_loop()
 	_run_remaining_days()
+	_verify_demand_rules_isolated()
 	_verify_end_state()
 
 	if failures.is_empty():
@@ -108,6 +110,7 @@ func _run_day_one_core_loop() -> void:
 
 func _run_remaining_days() -> void:
 	var guard := 0
+	var resident_count: int = game_state.get_state().get("resident_states", []).size()
 	while int(game_state.get_state().get("day_count", 1)) <= int(data_repository.day_sequence.get("max_days", 10)):
 		guard += 1
 		if guard > 12:
@@ -118,12 +121,17 @@ func _run_remaining_days() -> void:
 		bulletin_cards = PROTOTYPE_RULES.generate_daily_bulletin(unlocked_cards, current_bulletin_offset, int(data_repository.day_sequence.get("bulletin_cards_per_day", 5)))
 		current_bulletin_offset += bulletin_cards.size()
 		day_cycle.resolve_sunrise()
+		_assert_equal(Array(state.get("resident_need_entities", [])).size(), resident_count, "every sunrise should spawn one resident need entity per resident")
+		for entity_variant in state.get("resident_need_entities", []):
+			var entity: Dictionary = entity_variant
+			_assert_equal(int(entity.get("service_capacity", -1)), 2, "service capacity must remain 2 across the infinite day loop")
 		event_manager.resolve_sunrise_events()
 		state["manpower"] = max(10, int(state.get("manpower", 0)))
 		state["current_problem_tokens"] = max(10, int(state.get("current_problem_tokens", 0)))
 		_resolve_all_problems()
 		var dusk_lines: PackedStringArray = day_cycle.resolve_dusk()
 		_assert_true(not dusk_lines.is_empty(), "dusk should produce settlement lines")
+		_assert_equal(Array(state.get("resident_need_entities", [])).size(), 0, "dusk should clear resident_need_entities after settlement")
 		_assert_true(save_manager.autosave(_ui_state()).get("success", false), "autosave should succeed during dusk")
 		var night_summary: Dictionary = day_cycle.resolve_night()
 		if not night_summary.is_empty():
@@ -138,6 +146,53 @@ func _resolve_all_problems() -> void:
 		var result: Dictionary = event_manager.assign_manpower_to_problem(0, required)
 		_assert_true(bool(result.get("success", false)), "active problem should resolve with enough manpower")
 		active_problems = game_state.get_state().get("active_problems", [])
+
+
+func _verify_demand_rules_isolated() -> void:
+	var cards_by_id := {
+		"care_station": {
+			"card_id": "care_station",
+			"type": "facility",
+			"tags": ["care", "service"],
+			"synergy_group": "care"
+		}
+	}
+	var residents := [
+		{"resident_id": "demand_r1", "name": "需求1", "need_tags": ["care"]},
+		{"resident_id": "demand_r2", "name": "需求2", "need_tags": ["care"]},
+		{"resident_id": "demand_r3", "name": "需求3", "need_tags": ["care"]}
+	]
+	var capped_state := {
+		"day_count": 1,
+		"moral": 10,
+		"moral_max": 20,
+		"flowers": 10,
+		"funds": 0,
+		"resident_states": residents.duplicate(true),
+		"built_facilities": [{"card_id": "care_station"}],
+		"resident_need_entities": []
+	}
+	RESIDENT_SYSTEM.spawn_daily_need_entities(capped_state)
+	var capped_result: Dictionary = RESIDENT_SYSTEM.settle_daily_need_entities(capped_state, cards_by_id)
+	_assert_equal(int(capped_result.get("fulfilled_count", -1)), 2, "smoke: matching facility should satisfy exactly two needs")
+	_assert_equal(int(capped_result.get("fallback_count", -1)), 0, "smoke: capacity overflow must not allow flower fallback")
+	_assert_equal(int(capped_result.get("unmet_count", -1)), 1, "smoke: third need overflowing capacity must stay unmet")
+
+	var no_building_state := {
+		"day_count": 1,
+		"moral": 10,
+		"moral_max": 20,
+		"flowers": 10,
+		"funds": 0,
+		"resident_states": residents.duplicate(true),
+		"built_facilities": [],
+		"resident_need_entities": []
+	}
+	RESIDENT_SYSTEM.spawn_daily_need_entities(no_building_state)
+	var no_building_result: Dictionary = RESIDENT_SYSTEM.settle_daily_need_entities(no_building_state, cards_by_id)
+	_assert_equal(int(no_building_result.get("fallback_count", -1)), 2, "smoke: no-building day allows at most two flower fallbacks")
+	_assert_equal(int(no_building_result.get("flowers_spent", -1)), 3, "smoke: flower fallback should cost 1 + 2 flowers per day")
+	_assert_equal(int(no_building_result.get("unmet_count", -1)), 1, "smoke: third need without facility stays unmet, fallback is not reused")
 
 
 func _verify_end_state() -> void:

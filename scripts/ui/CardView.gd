@@ -13,6 +13,7 @@ const COMPACT_ART_HEIGHT := 22
 const LARGE_TEXT_SCALE := 1.3
 const FOOTPRINT_GRID_SIZE := 3
 const FOOTPRINT_CELL_SIZE := 10
+const BOARD_RULES := preload("res://scripts/core/BoardRules.gd")
 
 
 class FootprintPreviewCell:
@@ -80,6 +81,8 @@ var _stack_badge_label: Label
 var _flip_button: Button
 var _action_button: Button
 var _art_frame: PanelContainer
+var _title_bar: PanelContainer
+var _title_bar_style: StyleBoxFlat
 var _footprint_grid: GridContainer
 var _footprint_cells: Array[FootprintPreviewCell] = []
 var _highlighted: bool = false
@@ -218,6 +221,21 @@ func _ensure_ui() -> void:
 	layout.add_theme_constant_override("separation", 2)
 	margin.add_child(layout)
 
+	_title_bar = PanelContainer.new()
+	_title_bar.name = "TitleBar"
+	_title_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_title_bar.custom_minimum_size = Vector2(0, 20)
+	_title_bar_style = _make_title_bar_style(_title_bar_color_for_type(""))
+	_title_bar.add_theme_stylebox_override("panel", _title_bar_style)
+	layout.add_child(_title_bar)
+	var title_margin := MarginContainer.new()
+	title_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_margin.add_theme_constant_override("margin_left", 4)
+	title_margin.add_theme_constant_override("margin_right", 4)
+	title_margin.add_theme_constant_override("margin_top", 1)
+	title_margin.add_theme_constant_override("margin_bottom", 1)
+	_title_bar.add_child(title_margin)
+
 	var art_frame := PanelContainer.new()
 	_art_frame = art_frame
 	art_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -269,7 +287,10 @@ func _ensure_ui() -> void:
 	_title_label = Label.new()
 	_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	layout.add_child(_title_label)
+	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_title_label.add_theme_color_override("font_color", LIGHT_TEXT_COLOR)
+	_title_label.add_theme_font_size_override("font_size", 10)
+	title_margin.add_child(_title_label)
 
 	_meta_label = Label.new()
 	_meta_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -320,6 +341,25 @@ func _ensure_ui() -> void:
 	_stack_badge_label.add_theme_stylebox_override("normal", badge_style)
 	add_child(_stack_badge_label)
 	_apply_label_scaling()
+
+
+func set_peek_only(peek: bool) -> void:
+	# In Stacklands-style stacks, lower cards reveal only their title bar.
+	if _art_frame != null:
+		_art_frame.visible = not peek
+	if _meta_label != null:
+		_meta_label.visible = not peek
+	if _body_label != null:
+		_body_label.visible = not peek
+	if _flip_button != null:
+		_flip_button.visible = not peek
+	if _action_button != null:
+		_action_button.visible = (not peek) and _primary_action_visible
+	if peek:
+		custom_minimum_size = Vector2(custom_minimum_size.x, 22)
+		size = Vector2(size.x, 22)
+	else:
+		_apply_compact_size()
 
 
 func _apply_compact_size() -> void:
@@ -433,11 +473,20 @@ func _front_face_text() -> String:
 		var shape_summary := _shape_summary_text()
 		if not shape_summary.is_empty():
 			lines.append(shape_summary)
-		lines.append("%s +%d" % [
-			_display_resource_name(str(_card_def.get("primary_resource", ""))),
-			int(_card_def.get("base_output", 0)) + int(_card_def.get("preferred_zone_bonus", 0))
-		])
+		var stationed_preview: Dictionary = BOARD_RULES.stationed_output_preview(_card_def)
+		var stationed_amount := int(stationed_preview.get("amount", 0))
+		var stationed_resource := str(stationed_preview.get("resource", ""))
+		var stationed_reason := str(stationed_preview.get("reason", ""))
+		if stationed_amount > 0 and not stationed_resource.is_empty():
+			lines.append("驻扎 | %s +%d" % [_display_resource_name(stationed_resource), stationed_amount])
+		elif stationed_reason.contains("容量 2"):
+			lines.append("服务 | 容量 2")
+		elif not stationed_reason.is_empty():
+			lines.append(stationed_reason)
 		lines.append("%d金/%d人" % [int(_card_def.get("fund_cost", 0)), int(_card_def.get("manpower_cost", 0))])
+	elif card_type == "demand":
+		lines.append("需求 | %s" % _short_tag_line(_card_def.get("tags", []), 2))
+		lines.append("容量 %d | 兜底 1/2 朵" % int(_card_def.get("service_capacity", 2)))
 	elif card_type == "problem":
 		var payload: Dictionary = _card_def.get("problem_payload", {})
 		lines.append("问题 | %s" % _display_tag_name(str(payload.get("category", "risk"))))
@@ -506,6 +555,8 @@ func _display_resource_name(resource_key: String) -> String:
 func _display_card_type(card_type: String) -> String:
 	if card_type.is_empty():
 		return ""
+	if card_type == "demand":
+		return "需求"
 	return DataRepository.display_card_type(card_type)
 
 
@@ -557,6 +608,48 @@ func _apply_style(card_type: String) -> void:
 	_apply_readable_label_colors(background)
 	if _icon_fallback_label != null:
 		_icon_fallback_label.modulate = border.darkened(0.18)
+	_apply_title_bar_color(card_type)
+
+
+func _apply_title_bar_color(card_type: String) -> void:
+	if _title_bar_style == null:
+		return
+	_title_bar_style.bg_color = _title_bar_color_for_type(card_type)
+	_title_bar_style.border_color = _title_bar_style.bg_color.darkened(0.30)
+	if _title_label != null:
+		_title_label.add_theme_color_override("font_color", LIGHT_TEXT_COLOR)
+
+
+func _title_bar_color_for_type(card_type: String) -> Color:
+	match card_type:
+		"building_permit":
+			return Color8(0x47, 0x2E, 0x18)
+		"material":
+			return Color8(0xC9, 0x7A, 0x3F)
+		"facility":
+			return Color8(0xC0, 0x5C, 0x54)
+		"demand":
+			return Color8(0xE8, 0x9C, 0x56)
+		"resident":
+			return Color8(0xC2, 0x96, 0x4A)
+		"support":
+			return Color8(0x6B, 0x4A, 0x88)
+		"problem":
+			return Color8(0xA8, 0x3A, 0x32)
+		_:
+			return Color8(0x6B, 0x4A, 0x2C)
+
+
+func _make_title_bar_style(color: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = color
+	style.border_color = color.darkened(0.30)
+	style.set_border_width_all(0)
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 0
+	style.corner_radius_bottom_right = 0
+	return style
 
 
 func _on_settings_changed(settings: Dictionary) -> void:
@@ -652,6 +745,8 @@ func _background_color_for_card_type(card_type: String) -> Color:
 			return Color.html("#3A6B88")
 		"material":
 			return Color.html("#E6D5B8")
+		"demand":
+			return Color.html("#F3E2B8")
 		"problem":
 			return Color.html("#C05C54")
 		"facility":
@@ -668,6 +763,8 @@ func _border_color_for_background(background: Color, card_type: String) -> Color
 			return background.darkened(0.28)
 		"material":
 			return Color(0.68, 0.50, 0.28)
+		"demand":
+			return Color(0.70, 0.52, 0.18)
 		"problem":
 			return background.darkened(0.20)
 		"facility":

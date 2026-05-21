@@ -4,8 +4,6 @@ signal saved(slot_id: int)
 signal loaded(slot_id: int)
 
 const RESIDENT_SYSTEM := preload("res://scripts/core/ResidentSystem.gd")
-const AUTONOMY_SYSTEM := preload("res://scripts/core/AutonomySystem.gd")
-const POST_GAME_SYSTEM := preload("res://scripts/core/PostGameSystem.gd")
 const BOARD_RULES := preload("res://scripts/core/BoardRules.gd")
 const SAVE_VERSION := 2
 const SAVE_DIR := "user://saves"
@@ -106,8 +104,6 @@ func _restore_community_state(saved_state: Dictionary) -> Dictionary:
 		"resident_need_entities"
 	]:
 		restored[key] = _dictionary_array(saved_state.get(key, []))
-	AUTONOMY_SYSTEM.ensure_runtime_fields(restored)
-	POST_GAME_SYSTEM.ensure_runtime_fields(restored)
 	RESIDENT_SYSTEM.ensure_runtime_fields(restored.get("resident_states", []))
 	if int(restored.get("board_version", 0)) < 2:
 		restored["board_version"] = 2
@@ -171,9 +167,40 @@ func _restore_community_state(saved_state: Dictionary) -> Dictionary:
 		restored["resident_interactions"] = []
 	if not restored.has("land_unlock_stage"):
 		restored["land_unlock_stage"] = BOARD_RULES.land_unlock_stage_from_cells(restored.get("board_cells", []))
+	_clear_legacy_runtime_state(restored)
 	if DataRepository != null and not DataRepository.cards_by_id.is_empty():
 		BOARD_RULES.build_board_combo_cache(restored, DataRepository.cards_by_id)
 	return restored
+
+
+func _clear_legacy_runtime_state(state: Dictionary) -> void:
+	state["trust"] = 0
+	state["autonomy"] = 0
+	state["autonomy_points"] = 0
+	state["autonomy_history"] = []
+	state["autonomy_counted_facility_count"] = 0
+	state["current_problem_tokens"] = 0
+	for key: String in [
+		"active_problems",
+		"resolved_problem_history",
+		"event_history",
+		"announcement_queue",
+		"pending_problem_escalations"
+	]:
+		state[key] = []
+	var resident_states: Array = state.get("resident_states", [])
+	for resident_variant in resident_states:
+		if typeof(resident_variant) != TYPE_DICTIONARY:
+			continue
+		var resident: Dictionary = resident_variant
+		resident.erase("starting_satisfaction")
+		resident.erase("satisfaction")
+		resident.erase("health")
+		resident["active_wish_ids"] = []
+		resident["wish_progress"] = {}
+		resident["autonomy_contribution"] = 0
+		resident["pending_satisfaction_penalty"] = 0
+		resident["pending_health_delta"] = 0
 
 
 func _dictionary_array(source: Variant) -> Array[Dictionary]:
@@ -204,6 +231,10 @@ func _normalize_ui_state(ui_state_variant: Variant) -> Dictionary:
 		ui_state[key] = _string_array(ui_state.get(key, []))
 	for key: String in ["bulletin_card_prices", "hand_card_prices", "craft_slot_prices"]:
 		ui_state[key] = _int_array(ui_state.get(key, []))
+	ui_state["tabletop_card_ids"] = _string_dictionary(ui_state.get("tabletop_card_ids", {}))
+	ui_state["tabletop_card_positions"] = _vector2_json_dictionary(ui_state.get("tabletop_card_positions", {}))
+	ui_state["tabletop_card_z"] = _int_dictionary(ui_state.get("tabletop_card_z", {}))
+	ui_state["tabletop_next_z"] = int(ui_state.get("tabletop_next_z", 1))
 	return ui_state
 
 
@@ -223,3 +254,57 @@ func _int_array(source: Variant) -> Array[int]:
 	for item in source:
 		result.append(int(item))
 	return result
+
+
+func _string_dictionary(source: Variant) -> Dictionary:
+	var result := {}
+	if typeof(source) != TYPE_DICTIONARY:
+		return result
+	var source_dict: Dictionary = source as Dictionary
+	for key_variant in source_dict.keys():
+		result[str(key_variant)] = str(source_dict[key_variant])
+	return result
+
+
+func _int_dictionary(source: Variant) -> Dictionary:
+	var result := {}
+	if typeof(source) != TYPE_DICTIONARY:
+		return result
+	var source_dict: Dictionary = source as Dictionary
+	for key_variant in source_dict.keys():
+		result[str(key_variant)] = int(source_dict[key_variant])
+	return result
+
+
+func _vector2_json_dictionary(source: Variant) -> Dictionary:
+	var result := {}
+	if typeof(source) != TYPE_DICTIONARY:
+		return result
+	var source_dict: Dictionary = source as Dictionary
+	for key_variant in source_dict.keys():
+		var position := _vector2_from_variant(source_dict[key_variant])
+		result[str(key_variant)] = {"x": position.x, "y": position.y}
+	return result
+
+
+func _vector2_from_variant(value: Variant) -> Vector2:
+	match typeof(value):
+		TYPE_VECTOR2:
+			return value
+		TYPE_VECTOR2I:
+			return Vector2(value)
+		TYPE_ARRAY:
+			var array_value: Array = value
+			if array_value.size() >= 2:
+				return Vector2(float(array_value[0]), float(array_value[1]))
+		TYPE_DICTIONARY:
+			var dict_value: Dictionary = value
+			return Vector2(float(dict_value.get("x", 0.0)), float(dict_value.get("y", 0.0)))
+		TYPE_STRING:
+			var string_value := str(value).strip_edges()
+			if string_value.begins_with("(") and string_value.ends_with(")"):
+				string_value = string_value.substr(1, string_value.length() - 2)
+			var parts := string_value.split(",", false)
+			if parts.size() >= 2:
+				return Vector2(float(str(parts[0]).strip_edges()), float(str(parts[1]).strip_edges()))
+	return Vector2.ZERO

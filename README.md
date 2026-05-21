@@ -38,7 +38,6 @@ godot_console --headless --path "D:\Desktop\小红花社区" --script res://test
 godot_console --headless --path "D:\Desktop\小红花社区" --script res://tests/run_tests.gd --quit
 godot_console --headless --path "D:\Desktop\小红花社区" --script res://tests/full_game_smoke.gd --quit
 godot_console --headless --path "D:\Desktop\小红花社区" --script res://tests/animation_smoke.gd --quit
-godot_console --headless --path "D:\Desktop\小红花社区" --script res://tests/demo_balance_smoke.gd --quit
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\release_scripts_smoke.ps1
 ```
 

@@ -38,6 +38,10 @@ func load_progress() -> void:
 
 
 func should_show_day_minus_one() -> bool:
+	if OS.get_environment("RFT_SKIP_TUTORIAL") == "1":
+		return false
+	if FileAccess.file_exists("user://automation_skip_tutorial.flag"):
+		return false
 	var progress: Dictionary = GameState.get_tutorial_progress()
 	return bool(DataRepository.day_sequence.get("tutorial_scene_enabled", true)) and not bool(progress.get("completed_day_minus_one", false))
 

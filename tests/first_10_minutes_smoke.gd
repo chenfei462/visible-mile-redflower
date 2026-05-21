@@ -32,6 +32,12 @@ func _run() -> void:
 
 	var state: Dictionary = game_state.get_state()
 	day_cycle.resolve_sunrise()
+	_assert_equal(Array(state.get("resident_need_entities", [])).size(), 2, "day 1 sunrise should spawn one resident need entity per resident")
+	_assert_true(state.get("active_problems", []).is_empty(), "day 1 sunrise should not rely on legacy problems for the demand loop")
+	for entity_variant in state.get("resident_need_entities", []):
+		var entity: Dictionary = entity_variant
+		_assert_equal(int(entity.get("service_capacity", -1)), 2, "service capacity should be 2 on every spawned need entity")
+		_assert_equal(Array(entity.get("fallback_flower_costs", [])), [1, 2], "fallback ladder should be 1/2 on every spawned need entity")
 	_start_day_bulletin(state, data_repository, 0)
 	_assert_true(bulletin_cards.has("ramp_blueprint") and bulletin_cards.has("lumber_pack"), "day 1 should expose a clear ramp recipe")
 	_pick_card("ramp_blueprint")
@@ -43,8 +49,14 @@ func _run() -> void:
 	_prepare_shape_cells_for_card(state, "community_ramp", service_cell, 0)
 	var placement: Dictionary = PROTOTYPE_RULES.place_hand_card_on_board(hand_cards, hand_cards.find("community_ramp"), state, service_cell, data_repository.cards_by_id, resource_manager)
 	_assert_true(bool(placement.get("success", false)), "new player should place the crafted ramp")
+	var flowers_before_dusk := int(state.get("flowers", 0))
+	var funds_before_dusk := int(state.get("funds", 0))
 	var dusk_lines: PackedStringArray = day_cycle.resolve_dusk()
 	_assert_true(not _lines_contain(dusk_lines, "wish"), "dusk should not use legacy wish feedback")
+	_assert_true(_lines_contain(dusk_lines, "需求结算"), "dusk should print the resident need settlement banner")
+	_assert_true(int(state.get("flowers", 0)) >= flowers_before_dusk + 1, "a placed service facility should award at least +1 flower at dusk")
+	_assert_true(int(state.get("funds", 0)) >= funds_before_dusk + 1, "a placed service facility should award at least +1 fund at dusk")
+	_assert_equal(Array(state.get("resident_need_entities", [])).size(), 0, "dusk should clear resident need entities after settlement")
 	_assert_true(int(state.get("moral", 0)) > 0, "day 1 service settlement should leave moral above zero")
 	var goals_after_day_one: Array[Dictionary] = PLAYABILITY_DIRECTOR.build_today_goals(state, hand_cards, craft_slots, Array(selected_recipe_ids), data_repository.wishes_by_id)
 	_assert_equal(goals_after_day_one.size(), 3, "today goal panel data should stay stable after day 1 actions")
@@ -52,6 +64,7 @@ func _run() -> void:
 
 	day_cycle.resolve_night()
 	day_cycle.resolve_sunrise()
+	_assert_equal(Array(state.get("resident_need_entities", [])).size(), 2, "day 2 sunrise should regenerate resident need entities for every resident")
 	event_manager.resolve_sunrise_events()
 	_start_day_bulletin(state, data_repository, 5)
 	_assert_true(bulletin_cards.has("bench_plan") and bulletin_cards.has("paint_bucket"), "day 2 should expose a second clear recipe")

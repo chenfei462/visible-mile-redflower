@@ -48,6 +48,9 @@ func _run() -> void:
 	var map_local: Vector2 = iso_grid.call("tile_to_screen", Vector2i(4, 4))
 	var map_click := iso_grid.get_global_transform_with_canvas() * map_local
 	_write_target(map_click, Vector2.ZERO, target_index)
+	var direct_selected := int(main_view.call("select_iso_board_at_local_position", map_local))
+	main_view.set("selected_board_index", -1)
+	main_view.call("_sync_iso_board_selection")
 	if OS.get_environment("RFT_AUTO_PUSH_CLICK") == "1":
 		await _push_viewport_click(map_click)
 
@@ -58,7 +61,17 @@ func _run() -> void:
 			break
 
 	if int(main_view.get("selected_board_index")) != target_index:
-		_write_result(false, "selection timeout selected=%s expected=%s" % [str(main_view.get("selected_board_index")), str(target_index)])
+		var hovered := root.gui_get_hovered_control()
+		_write_result(false, "selection timeout selected=%s expected=%s direct=%s iso_rect=%s iso_size=%s map_local=%s map_click=%s hovered=%s" % [
+			str(main_view.get("selected_board_index")),
+			str(target_index),
+			str(direct_selected),
+			str(iso_grid.get_global_rect()),
+			str(iso_grid.size),
+			str(map_local),
+			str(map_click),
+			hovered.name if hovered != null else "<none>"
+		])
 		quit(1)
 		return
 

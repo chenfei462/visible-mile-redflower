@@ -126,7 +126,6 @@ function Run-RegressionTests {
     Invoke-Checked "Core tests" @("godot_console", "--headless", "--path", $RepoRoot, "--script", "res://tests/run_tests.gd", "--quit")
     Invoke-Checked "Full game smoke" @("godot_console", "--headless", "--path", $RepoRoot, "--script", "res://tests/full_game_smoke.gd", "--quit")
     Invoke-Checked "Animation smoke" @("godot_console", "--headless", "--path", $RepoRoot, "--script", "res://tests/animation_smoke.gd", "--quit")
-    Invoke-Checked "Demo balance smoke" @("godot_console", "--headless", "--path", $RepoRoot, "--script", "res://tests/demo_balance_smoke.gd", "--quit")
     Invoke-Checked "Main scene headless boot" @("godot_console", "--headless", "--path", $RepoRoot, "--scene", "res://scenes/Main.tscn", "--quit-after", "5")
 }
 

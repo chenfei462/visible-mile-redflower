@@ -6,18 +6,8 @@
       "lumber_pack"
     ],
     "result_card_id": "community_ramp",
-    "unlock_trust": 0
-  },
-  {
-    "recipe_id": "material_ramp_kit",
-    "ingredient_card_ids": [],
-    "ingredient_tags": [
-      ["construction", "material"],
-      ["care", "material"]
-    ],
-    "result_card_id": "community_ramp",
     "result_type": "facility",
-    "unlock_trust": 0
+    "unlock_day": 1
   },
   {
     "recipe_id": "build_handrail",
@@ -26,7 +16,8 @@
       "paint_bucket"
     ],
     "result_card_id": "guide_handrail",
-    "unlock_trust": 0
+    "result_type": "facility",
+    "unlock_day": 1
   },
   {
     "recipe_id": "open_volunteer_station",
@@ -35,7 +26,8 @@
       "phone_tree"
     ],
     "result_card_id": "volunteer_station",
-    "unlock_trust": 0
+    "result_type": "facility",
+    "unlock_day": 1
   },
   {
     "recipe_id": "build_welcome_table",
@@ -44,45 +36,8 @@
       "folding_table_kit"
     ],
     "result_card_id": "welcome_table",
-    "unlock_trust": 0
-  },
-  {
-    "recipe_id": "material_welcome_table",
-    "ingredient_card_ids": [],
-    "ingredient_tags": [
-      ["community", "material"],
-      ["communication"]
-    ],
-    "result_card_id": "welcome_table",
     "result_type": "facility",
-    "unlock_trust": 0
-  },
-  {
-    "recipe_id": "welcome_station_shortcut",
-    "ingredient_card_ids": [
-      "welcome_table_plan",
-      "phone_tree"
-    ],
-    "result_card_id": "volunteer_station",
-    "unlock_trust": 0
-  },
-  {
-    "recipe_id": "market_stall_from_table",
-    "ingredient_card_ids": [
-      "folding_table_kit",
-      "fresh_goods_box"
-    ],
-    "result_card_id": "market_stall",
-    "unlock_trust": 0
-  },
-  {
-    "recipe_id": "notice_board_from_welcome",
-    "ingredient_card_ids": [
-      "welcome_table_plan",
-      "printer_ink"
-    ],
-    "result_card_id": "clear_notice_board",
-    "unlock_trust": 0
+    "unlock_day": 1
   },
   {
     "recipe_id": "open_market_stall",
@@ -91,7 +46,8 @@
       "fresh_goods_box"
     ],
     "result_card_id": "market_stall",
-    "unlock_trust": 0
+    "result_type": "facility",
+    "unlock_day": 1
   },
   {
     "recipe_id": "build_bench",
@@ -100,16 +56,18 @@
       "paint_bucket"
     ],
     "result_card_id": "rest_bench",
-    "unlock_trust": 0
+    "result_type": "facility",
+    "unlock_day": 1
   },
   {
-    "recipe_id": "upgrade_notice_board",
+    "recipe_id": "build_clear_notice_board",
     "ingredient_card_ids": [
       "notice_design",
       "printer_ink"
     ],
     "result_card_id": "clear_notice_board",
-    "unlock_trust": 0
+    "result_type": "facility",
+    "unlock_day": 1
   },
   {
     "recipe_id": "restore_flower_bed",
@@ -118,34 +76,8 @@
       "seed_pack"
     ],
     "result_card_id": "flower_bed",
-    "unlock_trust": 10
-  },
-  {
-    "recipe_id": "care_station_upgrade",
-    "ingredient_card_ids": [
-      "volunteer_station",
-      "guide_handrail"
-    ],
-    "result_card_id": "care_station",
-    "unlock_trust": 25
-  },
-  {
-    "recipe_id": "care_plus_beauty",
-    "ingredient_card_ids": [
-      "care_station",
-      "flower_bed"
-    ],
-    "result_card_id": "care_station",
-    "unlock_trust": 25
-  },
-  {
-    "recipe_id": "service_network",
-    "ingredient_card_ids": [
-      "clear_notice_board",
-      "volunteer_station"
-    ],
-    "result_card_id": "care_station",
-    "unlock_trust": 25
+    "result_type": "facility",
+    "unlock_day": 6
   },
   {
     "recipe_id": "build_wayfinding_kiosk",
@@ -154,7 +86,8 @@
       "sticker_pack"
     ],
     "result_card_id": "wayfinding_kiosk",
-    "unlock_trust": 0
+    "result_type": "facility",
+    "unlock_day": 1
   },
   {
     "recipe_id": "build_shade_canopy",
@@ -163,7 +96,8 @@
       "fabric_roll"
     ],
     "result_card_id": "shade_canopy",
-    "unlock_trust": 0
+    "result_type": "facility",
+    "unlock_day": 1
   },
   {
     "recipe_id": "build_refill_station",
@@ -172,7 +106,8 @@
       "steel_pipe_bundle"
     ],
     "result_card_id": "refill_station",
-    "unlock_trust": 10
+    "result_type": "facility",
+    "unlock_day": 6
   },
   {
     "recipe_id": "build_herb_corner",
@@ -181,7 +116,8 @@
       "seedling_tray"
     ],
     "result_card_id": "herb_corner",
-    "unlock_trust": 10
+    "result_type": "facility",
+    "unlock_day": 6
   },
   {
     "recipe_id": "build_repair_booth",
@@ -190,7 +126,8 @@
       "tool_cart"
     ],
     "result_card_id": "repair_booth",
-    "unlock_trust": 10
+    "result_type": "facility",
+    "unlock_day": 6
   },
   {
     "recipe_id": "build_story_wall",
@@ -199,7 +136,8 @@
       "print_banner"
     ],
     "result_card_id": "story_wall",
-    "unlock_trust": 10
+    "result_type": "facility",
+    "unlock_day": 6
   },
   {
     "recipe_id": "build_community_kitchen",
@@ -208,7 +146,8 @@
       "cookware_crate"
     ],
     "result_card_id": "community_kitchen",
-    "unlock_trust": 25
+    "result_type": "facility",
+    "unlock_day": 11
   },
   {
     "recipe_id": "build_shared_laundry",
@@ -217,7 +156,8 @@
       "detergent_box"
     ],
     "result_card_id": "shared_laundry",
-    "unlock_trust": 25
+    "result_type": "facility",
+    "unlock_day": 11
   },
   {
     "recipe_id": "build_child_corner",
@@ -226,7 +166,8 @@
       "foam_mat_set"
     ],
     "result_card_id": "child_corner",
-    "unlock_trust": 25
+    "result_type": "facility",
+    "unlock_day": 11
   },
   {
     "recipe_id": "build_senior_gym",
@@ -235,7 +176,8 @@
       "elastic_band_pack"
     ],
     "result_card_id": "senior_gym",
-    "unlock_trust": 25
+    "result_type": "facility",
+    "unlock_day": 11
   },
   {
     "recipe_id": "build_bike_parking",
@@ -244,7 +186,8 @@
       "chain_lock_pack"
     ],
     "result_card_id": "bike_parking",
-    "unlock_trust": 10
+    "result_type": "facility",
+    "unlock_day": 6
   },
   {
     "recipe_id": "build_clinic_desk",
@@ -253,259 +196,17 @@
       "medicine_kit"
     ],
     "result_card_id": "clinic_desk",
-    "unlock_trust": 25
+    "result_type": "facility",
+    "unlock_day": 11
   },
   {
-    "recipe_id": "assemble_umbrella_team",
+    "recipe_id": "build_care_station",
     "ingredient_card_ids": [
-      "volunteer_poster",
-      "fabric_roll"
-    ],
-    "result_card_id": "support_umbrella_team",
-    "unlock_trust": 0
-  },
-  {
-    "recipe_id": "assemble_queue_signs",
-    "ingredient_card_ids": [
-      "notice_design",
-      "print_banner"
-    ],
-    "result_card_id": "support_queue_signs",
-    "unlock_trust": 0
-  },
-  {
-    "recipe_id": "assemble_cooling_pack",
-    "ingredient_card_ids": [
-      "seed_pack",
-      "medicine_kit"
-    ],
-    "result_card_id": "support_cooling_pack",
-    "unlock_trust": 10
-  },
-  {
-    "recipe_id": "assemble_flashlight_kit",
-    "ingredient_card_ids": [
-      "phone_tree",
-      "steel_pipe_bundle"
-    ],
-    "result_card_id": "support_flashlight_kit",
-    "unlock_trust": 10
-  },
-  {
-    "recipe_id": "assemble_errand_route",
-    "ingredient_card_ids": [
-      "clear_notice_board",
-      "fresh_goods_box"
-    ],
-    "result_card_id": "support_errand_route",
-    "unlock_trust": 10
-  },
-  {
-    "recipe_id": "assemble_night_watch",
-    "ingredient_card_ids": [
-      "volunteer_station",
-      "paint_bucket"
-    ],
-    "result_card_id": "support_night_watch",
-    "unlock_trust": 10
-  },
-  {
-    "recipe_id": "assemble_garden_repair",
-    "ingredient_card_ids": [
-      "garden_plan",
-      "tool_cart"
-    ],
-    "result_card_id": "support_garden_repair",
-    "unlock_trust": 10
-  },
-  {
-    "recipe_id": "assemble_delivery_board",
-    "ingredient_card_ids": [
-      "market_stall_plan",
-      "print_banner"
-    ],
-    "result_card_id": "support_delivery_board",
-    "unlock_trust": 10
-  },
-  {
-    "recipe_id": "upgrade_market_shade",
-    "ingredient_card_ids": [
-      "market_stall",
-      "shade_canopy"
-    ],
-    "result_card_id": "market_stall",
-    "unlock_trust": 10
-  },
-  {
-    "recipe_id": "upgrade_notice_queue",
-    "ingredient_card_ids": [
-      "clear_notice_board",
-      "support_queue_signs"
-    ],
-    "result_card_id": "clear_notice_board",
-    "unlock_trust": 10
-  },
-  {
-    "recipe_id": "upgrade_garden_story",
-    "ingredient_card_ids": [
-      "flower_bed",
-      "story_wall"
-    ],
-    "result_card_id": "flower_bed",
-    "unlock_trust": 10
-  },
-  {
-    "recipe_id": "upgrade_care_route",
-    "ingredient_card_ids": [
-      "care_station",
-      "support_errand_route"
+      "care_station_permit",
+      "care_kit_pack"
     ],
     "result_card_id": "care_station",
-    "unlock_trust": 25
-  },
-  {
-    "recipe_id": "upgrade_refill_umbrella",
-    "ingredient_card_ids": [
-      "refill_station",
-      "support_umbrella_team"
-    ],
-    "result_card_id": "refill_station",
-    "unlock_trust": 10
-  },
-  {
-    "recipe_id": "upgrade_repair_delivery",
-    "ingredient_card_ids": [
-      "repair_booth",
-      "support_delivery_board"
-    ],
-    "result_card_id": "repair_booth",
-    "unlock_trust": 10
-  },
-  {
-    "recipe_id": "upgrade_laundry_cooling",
-    "ingredient_card_ids": [
-      "shared_laundry",
-      "support_cooling_pack"
-    ],
-    "result_card_id": "shared_laundry",
-    "unlock_trust": 25
-  },
-  {
-    "recipe_id": "upgrade_child_listening",
-    "ingredient_card_ids": [
-      "child_corner",
-      "support_listening_table"
-    ],
-    "result_card_id": "child_corner",
-    "unlock_trust": 25
-  },
-  {
-    "recipe_id": "upgrade_clinic_health",
-    "ingredient_card_ids": [
-      "clinic_desk",
-      "support_health_check"
-    ],
-    "result_card_id": "clinic_desk",
-    "unlock_trust": 25
-  },
-  {
-    "recipe_id": "upgrade_bike_night",
-    "ingredient_card_ids": [
-      "bike_parking",
-      "support_night_watch"
-    ],
-    "result_card_id": "bike_parking",
-    "unlock_trust": 10
-  },
-  {
-    "recipe_id": "generic_queue_support",
-    "ingredient_card_ids": [],
-    "ingredient_tags": [
-      ["community"],
-      ["material", "communication"]
-    ],
-    "material_costs": {
-      "info_notes": 1
-    },
-    "result_card_id": "support_queue_signs",
-    "result_type": "support",
-    "unlock_trust": 0
-  },
-  {
-    "recipe_id": "generic_notice_board",
-    "ingredient_card_ids": [],
-    "ingredient_tags": [
-      ["communication"],
-      ["construction", "material"]
-    ],
-    "material_costs": {
-      "info_notes": 1
-    },
-    "result_card_id": "clear_notice_board",
     "result_type": "facility",
-    "unlock_trust": 0
-  },
-  {
-    "recipe_id": "generic_care_refresh",
-    "ingredient_card_ids": [],
-    "ingredient_tags": [
-      ["service", "community"],
-      ["support"]
-    ],
-    "material_costs": {
-      "scrap_parts": 1
-    },
-    "result_card_id": "care_station",
-    "result_type": "facility",
-    "unlock_trust": 10
-  },
-  {
-    "recipe_id": "stack_two_ramp_kit",
-    "ingredient_card_ids": ["ramp_blueprint", "tool_parts"],
-    "result_card_id": "community_ramp",
-    "result_type": "facility",
-    "unlock_trust": 0,
-    "discovery_hint": "建筑许可 + 工具，搭个临时坡道试试。",
-    "first_discovery_reward": {"flowers": 1}
-  },
-  {
-    "recipe_id": "stack_three_herb_corner",
-    "ingredient_card_ids": ["herb_corner_plan", "seedling_tray", "paint_bucket"],
-    "result_card_id": "herb_corner",
-    "result_type": "facility",
-    "unlock_trust": 0,
-    "time_cost_sec": 6,
-    "discovery_hint": "建筑许可 + 苗盘 + 油漆，把香草角落弄漂亮。",
-    "first_discovery_reward": {"flowers": 2, "trust": 1}
-  },
-  {
-    "recipe_id": "stack_four_community_garden",
-    "ingredient_card_ids": ["garden_plan", "seed_pack", "seedling_tray", "volunteer_poster"],
-    "result_card_id": "flower_bed",
-    "result_type": "facility",
-    "unlock_trust": 0,
-    "time_cost_sec": 10,
-    "discovery_hint": "花坛旁边放个长椅，再种点苗，有人照看就好了...",
-    "first_discovery_reward": {"flowers": 3, "trust": 2}
-  },
-  {
-    "recipe_id": "hidden_premium_ramp",
-    "ingredient_card_ids": ["ramp_blueprint", "tool_parts", "paint_bucket"],
-    "result_card_id": "guide_handrail",
-    "result_type": "facility",
-    "unlock_trust": 0,
-    "hidden": true,
-    "discovery_hint": "王奶奶说扶着墙走还是不太稳...",
-    "first_discovery_reward": {"flowers": 3, "trust": 2}
-  },
-  {
-    "recipe_id": "hidden_safety_beacon",
-    "ingredient_card_ids": ["safety_map_blueprint", "sticker_pack", "printer_ink", "phone_tree"],
-    "result_card_id": "wayfinding_kiosk",
-    "result_type": "facility",
-    "unlock_trust": 0,
-    "hidden": true,
-    "discovery_hint": "下雨天迷路的居民越来越多...",
-    "first_discovery_reward": {"flowers": 4, "trust": 3}
+    "unlock_day": 6
   }
 ]

@@ -1,5 +1,8 @@
 ﻿extends RefCounted
 
+const DATA_REPOSITORY := preload("res://scripts/autoload/DataRepository.gd")
+const BUILDING_PERMIT_QUOTA := 2
+
 
 static func get_opening_day_plan(state: Dictionary, opening_plan: Dictionary = {}) -> Dictionary:
 	var day_count := int(state.get("day_count", 1))
@@ -14,7 +17,6 @@ static func get_opening_day_plan(state: Dictionary, opening_plan: Dictionary = {
 
 static func get_bulletin_cards_for_day(state: Dictionary, unlocked_cards: Array[Dictionary], offset: int, count: int, opening_plan: Dictionary = {}) -> Array[String]:
 	var day_count := int(state.get("day_count", 1))
-	var bulletin_cards := unlocked_cards.duplicate(true)
 	var unlocked_ids := {}
 	for card: Dictionary in _filter_bulletin_cards(unlocked_cards):
 		unlocked_ids[str(card.get("card_id", ""))] = true
@@ -29,8 +31,8 @@ static func get_bulletin_cards_for_day(state: Dictionary, unlocked_cards: Array[
 		planned.append_array(_usable_ids(day_plan.get("fallback_card_ids", []), unlocked_ids, planned))
 		break
 	if planned.is_empty():
-		return _rotating_unlocked_ids(_filter_bulletin_cards(unlocked_cards), offset, count)
-	return _fill_to_count(planned, _filter_bulletin_cards(unlocked_cards), offset, count)
+		return _fill_with_type_quotas([], _filter_bulletin_cards(unlocked_cards), offset, count)
+	return _fill_with_type_quotas(planned, _filter_bulletin_cards(unlocked_cards), offset, count)
 
 
 static func build_today_goals(state: Dictionary, hand_cards: Array, _craft_slots: Array, selected_recipe_ids: Array = [], _wishes_by_id: Dictionary = {}, opening_plan: Dictionary = {}, recipes: Array[Dictionary] = [], cards_by_id: Dictionary = {}) -> Array[Dictionary]:
@@ -66,7 +68,8 @@ static func get_recipe_hints(card_id: String, visible_card_ids: Array, recipes: 
 	if card_id.is_empty():
 		return hints
 	for recipe: Dictionary in recipes:
-		if int(recipe.get("unlock_trust", 0)) > trust:
+		var unlock_day := int(recipe.get("unlock_day", DATA_REPOSITORY.unlock_day_for_requirement(int(recipe.get("unlock_trust", 0)))))
+		if DATA_REPOSITORY.unlock_progress_for_day(unlock_day) > trust:
 			continue
 		var ingredients: Array = recipe.get("ingredient_card_ids", [])
 		if ingredients.size() != 2 or not ingredients.has(card_id):
@@ -75,7 +78,7 @@ static func get_recipe_hints(card_id: String, visible_card_ids: Array, recipes: 
 		if not visible_card_ids.has(partner_id):
 			continue
 		var result_id := str(recipe.get("result_card_id", ""))
-		hints.append("鍙笌 %s 鍚堟垚 %s" % [_card_label(partner_id, cards_by_id), _card_label(result_id, cards_by_id)])
+		hints.append("可与 %s 合成 %s" % [_card_label(partner_id, cards_by_id), _card_label(result_id, cards_by_id)])
 	return hints
 
 
@@ -110,6 +113,58 @@ static func _fill_to_count(card_ids: Array[String], unlocked_cards: Array[Dictio
 			result.append(card_id)
 		guard += 1
 	return result.slice(0, count)
+
+
+static func _fill_with_type_quotas(card_ids: Array[String], unlocked_cards: Array[Dictionary], offset: int, count: int) -> Array[String]:
+	var permit_quota := mini(BUILDING_PERMIT_QUOTA, count)
+	var material_quota := maxi(count - permit_quota, 0)
+	var by_id := {}
+	for card: Dictionary in unlocked_cards:
+		by_id[str(card.get("card_id", ""))] = card
+	var result: Array[String] = []
+	_append_planned_cards_for_type(result, card_ids, by_id, "building_permit", permit_quota)
+	_append_planned_cards_for_type(result, card_ids, by_id, "material", material_quota)
+	_append_rotating_cards_for_type(result, unlocked_cards, offset, "building_permit", permit_quota)
+	_append_rotating_cards_for_type(result, unlocked_cards, offset, "material", material_quota)
+	return result.slice(0, count)
+
+
+static func _append_planned_cards_for_type(result: Array[String], card_ids: Array[String], cards_by_id: Dictionary, card_type: String, quota: int) -> void:
+	for card_id: String in card_ids:
+		if result.size() >= quota and _count_type(result, cards_by_id, card_type) >= quota:
+			return
+		if result.has(card_id):
+			continue
+		var card: Dictionary = cards_by_id.get(card_id, {})
+		if str(card.get("type", "")) != card_type:
+			continue
+		if _count_type(result, cards_by_id, card_type) >= quota:
+			continue
+		result.append(card_id)
+
+
+static func _append_rotating_cards_for_type(result: Array[String], unlocked_cards: Array[Dictionary], offset: int, card_type: String, quota: int) -> void:
+	if unlocked_cards.is_empty():
+		return
+	var by_id := {}
+	for card: Dictionary in unlocked_cards:
+		by_id[str(card.get("card_id", ""))] = card
+	var guard := 0
+	while _count_type(result, by_id, card_type) < quota and guard < unlocked_cards.size() * 2:
+		var card: Dictionary = unlocked_cards[(offset + guard) % unlocked_cards.size()]
+		var card_id := str(card.get("card_id", ""))
+		if str(card.get("type", "")) == card_type and not result.has(card_id):
+			result.append(card_id)
+		guard += 1
+
+
+static func _count_type(card_ids: Array[String], cards_by_id: Dictionary, card_type: String) -> int:
+	var count := 0
+	for card_id: String in card_ids:
+		var card: Dictionary = cards_by_id.get(card_id, {})
+		if str(card.get("type", "")) == card_type:
+			count += 1
+	return count
 
 
 static func _rotating_unlocked_ids(unlocked_cards: Array[Dictionary], offset: int, count: int) -> Array[String]:

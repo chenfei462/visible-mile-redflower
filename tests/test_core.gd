@@ -3,13 +3,7 @@
 const BOARD_RULES := preload("res://scripts/core/BoardRules.gd")
 const PROTOTYPE_RULES := preload("res://scripts/core/PrototypeRules.gd")
 const RECIPE_RULES := preload("res://scripts/core/RecipeRules.gd")
-const RATING_RULES := preload("res://scripts/core/RatingRules.gd")
 const RESIDENT_SYSTEM := preload("res://scripts/core/ResidentSystem.gd")
-const AUTONOMY_SYSTEM := preload("res://scripts/core/AutonomySystem.gd")
-const ANNUAL_REPORT_SYSTEM := preload("res://scripts/core/AnnualReportSystem.gd")
-const BALANCE_PROFILE := preload("res://scripts/core/BalanceProfile.gd")
-const ENDGAME_SYSTEM := preload("res://scripts/core/EndgameSystem.gd")
-const POST_GAME_SYSTEM := preload("res://scripts/core/PostGameSystem.gd")
 const PLAYABILITY_DIRECTOR := preload("res://scripts/core/PlayabilityDirector.gd")
 const SAFETY_PANEL := preload("res://scripts/ui/SafetyPanel.gd")
 
@@ -38,16 +32,21 @@ func run(context: Dictionary) -> PackedStringArray:
 	_failures.clear()
 	_context = context
 	_test_json_loading_and_validation()
+	_test_live_data_schema_drops_legacy_fields()
 	_test_building_permit_type_and_bulletin_filters()
 	_test_legacy_systems_are_inert()
+	_test_runtime_sources_drop_legacy_dependencies()
+	_test_day_wave_unlock_progress_replaces_trust_gating()
 	_test_continuous_day_timer_and_moral_end()
 	_test_resident_need_entities_and_moral_settlement()
 	_test_unordered_recipe_match()
 	_test_resource_insufficient_board_placement()
 	_test_resident_runtime_fields_and_health_manpower()
-	_test_sunrise_output_formula()
+	_test_stationed_output_formula()
 	_test_land_unlock_stage_logic()
 	_test_board_land_unlock_purchase_flow()
+	_test_housing_and_volunteer_permit_price_lines()
+	_test_five_day_housing_move_in_refills_residents()
 	_test_v05_board_16x16_center_unlock_and_zone_change()
 	_test_v05_zone_change_spends_resources()
 	_test_v05_multicell_zone_placement_and_demolition_scrap()
@@ -55,11 +54,11 @@ func run(context: Dictionary) -> PackedStringArray:
 	_test_tetris_rotation_and_placement_failure_reasons()
 	_test_tetris_placement_writes_rotation_and_avoids_self_adjacency()
 	_test_v05_inventory_stacks_and_consumes_items()
-	_test_v05_buildings_produce_crafting_materials()
+	_test_v05_buildings_stop_producing_crafting_materials()
 	_test_v05_residents_move_on_board_without_blocking_buildings()
 	_test_v06_combo_rules_and_resident_adjacency()
 	_test_named_board_adjacency_cache_and_daycycle_effects()
-	_test_v06_recipe_codex_and_tag_recipe_matching()
+	_test_v06_recipe_codex_and_direct_build_matching()
 	_test_pick_craft_place_flow()
 	_test_new_day_bulletin_refresh()
 	_test_tutorial_progress()
@@ -70,8 +69,8 @@ func run(context: Dictionary) -> PackedStringArray:
 	_test_v04_facility_output_describes_synergy_sources()
 	_test_settings_manager_persists_accessibility_options()
 	_test_save_manager_round_trips_runtime_state()
+	_test_save_manager_migrates_legacy_runtime_fields_out_of_loaded_state()
 	_test_save_manager_rejects_legacy_save_versions()
-	_test_save_manager_backfills_legacy_resident_state()
 	_test_steam_bridge_mock_is_safe_without_sdk()
 	_test_audio_manager_accepts_missing_assets()
 	_test_audio_manager_registers_feedback_ids()
@@ -82,14 +81,27 @@ func run(context: Dictionary) -> PackedStringArray:
 	_test_card_view_color_footprint_and_large_text_rendering()
 	_test_card_view_stack_badge_api()
 	_test_main_view_exposes_tabletop_layout_state()
+	_test_main_view_free_tabletop_contract()
+	_test_main_view_tabletop_drop_replaces_primary_grid_target()
+	_test_main_view_tabletop_state_round_trips_through_save_state()
+	_test_main_view_paper_table_palette_replaces_iso_board()
+	_test_main_view_stacklands_five_region_layout()
+	_test_card_view_stacklands_title_bar_palette()
+	_test_main_view_tabletop_stack_renders_title_bar_peeks()
+	_test_main_view_dropping_permit_on_material_triggers_build()
+	_test_main_view_tasks_panel_lists_recipes_and_goals()
+	_test_main_view_toolbar_strip_has_four_round_buttons()
 	_test_main_view_defaults_to_live_ui_instead_of_reference_overlay()
 	_test_main_view_wraps_primary_layout_in_a_page_scroll_container()
 	_test_main_view_bottom_strip_keeps_panel_border_inside_viewport()
 	_test_window_configuration_is_resizable_and_large_enough()
 	_test_main_view_tetris_rotation_helpers()
 	_test_main_view_v04_chinese_status_helpers()
+	_test_main_view_continuous_timer_pause_and_auto_rollover_contract()
+	_test_main_view_displays_moral_resource_chip()
 	_test_main_view_localizes_resident_summary_keys()
 	_test_main_view_readability_feedback_helpers()
+	_test_main_view_source_drops_legacy_problem_wish_and_upgrade_helpers()
 	_test_main_view_dusk_phase_clarity_contract()
 	_test_placed_facility_map_preview_contract()
 	_test_main_view_selected_building_demolish_action_contract()
@@ -127,7 +139,6 @@ func _test_json_loading_and_validation() -> void:
 	_assert_equal(repository.wishes.size(), 0, "legacy wishes should no longer be loaded as gameplay data")
 	_assert_equal(repository.autonomy_levels.size(), 0, "legacy autonomy levels should no longer be loaded as gameplay data")
 	_assert_equal(repository.events.size(), 0, "legacy events should no longer be loaded as gameplay data")
-	_assert_true(repository.demo_balance_targets.is_empty(), "legacy 10-day balance targets should no longer be loaded")
 	_assert_equal(repository.opening_playability_plan.get("days", []).size(), 3, "opening playability plan should cover the first three days")
 	_assert_equal(repository.validation_errors.size(), 0, "data should validate cleanly")
 	for legacy_type: String in ["problem", "support"]:
@@ -141,6 +152,59 @@ func _test_json_loading_and_validation() -> void:
 			_assert_true(repository.cards_by_id.has(material_id), "produced material %s from %s should be defined as a card" % [material_id, str(card.get("card_id", ""))])
 
 
+func _test_live_data_schema_drops_legacy_fields() -> void:
+	var repository: Node = _context.get("data_repository")
+	var live_ids := {}
+	for card: Dictionary in repository.card_list:
+		live_ids[str(card.get("card_id", ""))] = true
+		for legacy_key: String in ["primary_resource", "unlock_trust", "event_tags", "problem_payload", "production_outputs", "upgrade_cost", "upgrade_options"]:
+			_assert_true(not card.has(legacy_key), "loaded live card %s should drop legacy field %s" % [str(card.get("card_id", "")), legacy_key])
+		_assert_true(card.has("unlock_day"), "loaded live card %s should expose unlock_day instead of unlock_trust" % str(card.get("card_id", "")))
+		_assert_true([1, 6, 11].has(int(card.get("unlock_day", 0))), "loaded live card %s should use 1/6/11 day-wave unlock values" % str(card.get("card_id", "")))
+		for rule_variant in card.get("synergy_rules", []):
+			if typeof(rule_variant) != TYPE_DICTIONARY:
+				continue
+			_assert_true(str((rule_variant as Dictionary).get("bonus_resource", "")) != "trust", "loaded live card %s should remap trust synergy bonuses into current resources" % str(card.get("card_id", "")))
+
+	var raw_cards_variant: Variant = JSON.parse_string(_read_text_file("res://data/cards.json"))
+	_assert_true(typeof(raw_cards_variant) == TYPE_ARRAY, "cards.json should stay parseable while the live schema is cleaned")
+	for card_variant in raw_cards_variant:
+		if typeof(card_variant) != TYPE_DICTIONARY:
+			continue
+		var raw_card: Dictionary = card_variant
+		var card_type := str(raw_card.get("type", ""))
+		if not ["facility", "building_permit", "material"].has(card_type):
+			continue
+		for legacy_key: String in ["primary_resource", "unlock_trust", "event_tags", "problem_payload", "production_outputs", "upgrade_cost", "upgrade_options"]:
+			_assert_true(not raw_card.has(legacy_key), "cards.json live card %s should not keep legacy field %s" % [str(raw_card.get("card_id", "")), legacy_key])
+		_assert_true(raw_card.has("unlock_day"), "cards.json live card %s should store unlock_day" % str(raw_card.get("card_id", "")))
+		for rule_variant in raw_card.get("synergy_rules", []):
+			if typeof(rule_variant) != TYPE_DICTIONARY:
+				continue
+			_assert_true(str((rule_variant as Dictionary).get("bonus_resource", "")) != "trust", "cards.json live card %s should stop storing trust synergy bonuses" % str(raw_card.get("card_id", "")))
+
+	for recipe: Dictionary in repository.recipes:
+		_assert_true(not recipe.has("unlock_trust"), "loaded live recipe %s should drop unlock_trust" % str(recipe.get("recipe_id", "")))
+		_assert_true(recipe.has("unlock_day"), "loaded live recipe %s should expose unlock_day" % str(recipe.get("recipe_id", "")))
+		_assert_true([1, 6, 11].has(int(recipe.get("unlock_day", 0))), "loaded live recipe %s should use 1/6/11 day-wave unlock values" % str(recipe.get("recipe_id", "")))
+		var reward: Dictionary = recipe.get("first_discovery_reward", {})
+		_assert_true(not reward.has("trust"), "loaded live recipe %s should remap first-discovery trust rewards" % str(recipe.get("recipe_id", "")))
+
+	var raw_recipes_variant: Variant = JSON.parse_string(_read_text_file("res://data/recipes.json"))
+	_assert_true(typeof(raw_recipes_variant) == TYPE_ARRAY, "recipes.json should stay parseable while the live schema is cleaned")
+	for recipe_variant in raw_recipes_variant:
+		if typeof(recipe_variant) != TYPE_DICTIONARY:
+			continue
+		var raw_recipe: Dictionary = recipe_variant
+		var result_card_id := str(raw_recipe.get("result_card_id", ""))
+		if not live_ids.has(result_card_id):
+			continue
+		_assert_true(not raw_recipe.has("unlock_trust"), "recipes.json live recipe %s should not keep unlock_trust" % str(raw_recipe.get("recipe_id", "")))
+		_assert_true(raw_recipe.has("unlock_day"), "recipes.json live recipe %s should store unlock_day" % str(raw_recipe.get("recipe_id", "")))
+		var raw_reward: Dictionary = raw_recipe.get("first_discovery_reward", {})
+		_assert_true(not raw_reward.has("trust"), "recipes.json live recipe %s should not keep trust rewards" % str(raw_recipe.get("recipe_id", "")))
+
+
 func _test_building_permit_type_and_bulletin_filters() -> void:
 	var repository: Node = _context.get("data_repository")
 	_assert_true(not DataRepository.CARD_TYPES.has("blueprint"), "card types should no longer expose blueprint")
@@ -149,10 +213,36 @@ func _test_building_permit_type_and_bulletin_filters() -> void:
 	_assert_equal(str(repository.get_card("ramp_blueprint").get("type", "")), "building_permit", "starter permit cards should use the building_permit type")
 	_assert_equal(str(repository.get_card("community_ramp").get("type", "")), "facility", "completed buildings should stay facility cards")
 	var unlocked_cards: Array[Dictionary] = repository.get_cards_unlocked_for_trust(999)
-	var bulletin_cards: Array[String] = PLAYABILITY_DIRECTOR.get_bulletin_cards_for_day({"day_count": 99}, unlocked_cards, 0, 25, {})
-	for card_id: String in bulletin_cards:
-		var card_type := str(repository.get_card(card_id).get("type", ""))
-		_assert_true(card_type == "material" or card_type == "building_permit", "daily bulletin should only surface materials or building permits, got %s for %s" % [card_type, card_id])
+	var bulletin_count := int(repository.day_sequence.get("bulletin_cards_per_day", 0))
+	_assert_equal(bulletin_count, 5, "daily bulletin should expose exactly five cards")
+	for offset: int in range(0, 8):
+		var bulletin_cards: Array[String] = PLAYABILITY_DIRECTOR.get_bulletin_cards_for_day({"day_count": 99}, unlocked_cards, offset, bulletin_count, {})
+		_assert_equal(bulletin_cards.size(), 5, "daily bulletin should always show five cards")
+		var type_counts := {"building_permit": 0, "material": 0}
+		for card_id: String in bulletin_cards:
+			var card_type := str(repository.get_card(card_id).get("type", ""))
+			_assert_true(card_type == "material" or card_type == "building_permit", "daily bulletin should only surface materials or building permits, got %s for %s" % [card_type, card_id])
+			type_counts[card_type] = int(type_counts.get(card_type, 0)) + 1
+		_assert_equal(int(type_counts.get("building_permit", 0)), 2, "daily bulletin should include exactly two building permits")
+		_assert_equal(int(type_counts.get("material", 0)), 3, "daily bulletin should include exactly three materials")
+	for recipe: Dictionary in repository.recipes:
+		var result_card_id := str(recipe.get("result_card_id", ""))
+		var result_card: Dictionary = repository.get_card(result_card_id)
+		_assert_true(str(recipe.get("result_type", "")) != "support", "live recipes should not produce support cards")
+		if str(result_card.get("type", "")) != "facility":
+			continue
+		_assert_true(not str(recipe.get("recipe_id", "")).contains("upgrade"), "building recipes should not keep old upgrade-chain entries")
+		_assert_true(not recipe.has("ingredient_tags") or recipe.get("ingredient_tags", []).is_empty(), "building recipes should not use legacy tag compatibility inputs")
+		var ingredients: Array = recipe.get("ingredient_card_ids", [])
+		_assert_equal(ingredients.size(), 2, "building recipe %s should use exactly two inputs" % str(recipe.get("recipe_id", "")))
+		var recipe_type_counts := {"building_permit": 0, "material": 0, "facility": 0}
+		for ingredient_variant in ingredients:
+			var ingredient_id := str(ingredient_variant)
+			var ingredient_type := str(repository.get_card(ingredient_id).get("type", ""))
+			recipe_type_counts[ingredient_type] = int(recipe_type_counts.get(ingredient_type, 0)) + 1
+		_assert_equal(int(recipe_type_counts.get("building_permit", 0)), 1, "building recipe %s should require one building permit" % str(recipe.get("recipe_id", "")))
+		_assert_equal(int(recipe_type_counts.get("material", 0)), 1, "building recipe %s should require one material" % str(recipe.get("recipe_id", "")))
+		_assert_equal(int(recipe_type_counts.get("facility", 0)), 0, "building recipe %s should not consume completed facilities" % str(recipe.get("recipe_id", "")))
 
 
 func _test_legacy_systems_are_inert() -> void:
@@ -213,6 +303,61 @@ func _test_legacy_systems_are_inert() -> void:
 		_assert_true(not goal_text.contains("problem") and not goal_text.contains("wish"), "today goals should not mention legacy problems or wishes")
 
 
+func _test_runtime_sources_drop_legacy_dependencies() -> void:
+	for removed_path: String in [
+		"res://scripts/core/RatingRules.gd",
+		"res://scripts/core/AutonomySystem.gd",
+		"res://scripts/core/AnnualReportSystem.gd",
+		"res://scripts/core/EndgameSystem.gd",
+		"res://scripts/core/PostGameSystem.gd",
+		"res://scripts/core/BalanceProfile.gd",
+		"res://tests/demo_balance_smoke.gd",
+		"res://tests/post_game_smoke.gd",
+		"res://data/wishes.json",
+		"res://data/events.json",
+		"res://data/autonomy_levels.json",
+		"res://data/demo_balance_targets.json"
+	]:
+		_assert_true(not FileAccess.file_exists(removed_path), "legacy file should be physically removed: %s" % removed_path)
+	var forbidden_by_file := {
+		"res://scripts/autoload/DayCycle.gd": [
+			"RatingRules.gd",
+			"AutonomySystem.gd",
+			"AnnualReportSystem.gd",
+			"EndgameSystem.gd",
+			"PostGameSystem.gd",
+			"resolve_daily_residents",
+			"_resolve_active_problem_penalties"
+		],
+		"res://scripts/ui/MainView.gd": [
+			"AnnualReportSystem.gd",
+			"EndgameSystem.gd",
+			"PostGameSystem.gd",
+			"completed_run_summary",
+			"day10_summary"
+		],
+		"res://scripts/autoload/SaveManager.gd": [
+			"AutonomySystem.gd",
+			"PostGameSystem.gd"
+		],
+		"res://scripts/autoload/EventManager.gd": [
+			"AutonomySystem.gd"
+		],
+		"res://scripts/core/ResidentSystem.gd": [
+			"AutonomySystem.gd",
+			"resolve_daily_residents",
+			"_resolve_wishes_for_resident"
+		]
+	}
+	for path_variant in forbidden_by_file.keys():
+		var path := str(path_variant)
+		var source := _read_text_file(path)
+		_assert_true(not source.is_empty(), "source %s should be readable for legacy dependency checks" % path)
+		for forbidden_variant in forbidden_by_file.get(path_variant, []):
+			var forbidden := str(forbidden_variant)
+			_assert_true(not source.contains(forbidden), "%s should not reference legacy runtime dependency %s" % [path, forbidden])
+
+
 func _test_continuous_day_timer_and_moral_end() -> void:
 	var game_state: Node = _context.get("game_state")
 	var day_cycle: Node = _context.get("day_cycle")
@@ -232,8 +377,8 @@ func _test_continuous_day_timer_and_moral_end() -> void:
 	_assert_equal(int(state.get("day_elapsed_seconds", -1)), 119, "elapsed seconds should accumulate until 120")
 	var rollover: Dictionary = day_cycle.call("advance_continuous_time", 1.0, false)
 	_assert_equal(int(rollover.get("days_advanced", -1)), 1, "the 120th second should advance the day")
-	_assert_equal(int(state.get("day_count", -1)), 2, "day count should increment after 120 seconds")
 	_assert_equal(int(state.get("day_elapsed_seconds", -1)), 0, "elapsed seconds should reset after the day rolls over")
+	_assert_true(bool(state.get("day_rollover_pending", false)), "crossing 120 seconds should flag a pending day rollover for the live runtime")
 	_assert_true(day_cycle.has_method("should_end_by_moral"), "day cycle should expose the moral fail condition")
 	if day_cycle.has_method("should_end_by_moral"):
 		_assert_true(not bool(day_cycle.call("should_end_by_moral", state)), "fresh runs should not end while moral remains above zero")
@@ -320,6 +465,113 @@ func _test_resident_need_entities_and_moral_settlement() -> void:
 	_assert_equal(int(failed.get("streak_penalty", -1)), 1, "consecutive unmet days should add community streak penalty")
 	_assert_equal(int(state.get("moral", -1)), 7, "moral loss should include unmet residents plus streak penalty")
 
+	# Each spawned need entity should mirror resident need_tags and carry capacity 2
+	state = {
+		"day_count": 6,
+		"moral": 10,
+		"moral_max": 20,
+		"moral_failure_streak": 0,
+		"flowers": 0,
+		"funds": 0,
+		"resident_states": residents.duplicate(true),
+		"built_facilities": [{"card_id": "care_station"}],
+		"resident_need_entities": []
+	}
+	var entities: Array = RESIDENT_SYSTEM.spawn_daily_need_entities(state)
+	_assert_equal(entities.size(), 3, "spawn_daily_need_entities should produce one need per resident at day start")
+	_assert_equal(state.get("resident_need_queue", []).size(), 3, "spawn should populate resident_need_queue at day start")
+	_assert_equal(state.get("daily_need_queue", []).size(), 3, "spawn should populate daily_need_queue at day start")
+	for entity_variant in entities:
+		var entity: Dictionary = entity_variant
+		_assert_equal(int(entity.get("service_capacity", -1)), 2, "every need entity should carry the unified service_capacity of 2")
+		_assert_equal(Array(entity.get("need_tags", [])), ["care"], "need entities should mirror the resident's need_tags")
+		_assert_equal(Array(entity.get("fallback_flower_costs", [])), [1, 2], "need entities should expose the 1/2 flower fallback ladder")
+
+	var resident_system = RESIDENT_SYSTEM.new()
+	_assert_true(resident_system.has_method("resolve_need_with_service_building"), "resident needs should expose an interaction resolver for dragging a need card onto a service building")
+	if resident_system.has_method("resolve_need_with_service_building"):
+		var resolve_result: Dictionary = resident_system.call("resolve_need_with_service_building", state, str(entities[0].get("need_id", "")), "care_station", cards_by_id)
+		_assert_true(bool(resolve_result.get("success", false)), "matching service building should resolve the dragged need")
+		_assert_equal(str(resolve_result.get("status", "")), "resolved", "resolved need interaction should report resolved status")
+		var remaining_pending := 0
+		for entity_variant in state.get("resident_need_entities", []):
+			var entity: Dictionary = entity_variant
+			if str(entity.get("status", "pending")) == "pending":
+				remaining_pending += 1
+		_assert_equal(remaining_pending, 2, "solving one need should leave only unresolved needs pending")
+		var after_manual_resolve: Dictionary = RESIDENT_SYSTEM.settle_daily_need_entities(state, cards_by_id)
+		_assert_equal(int(after_manual_resolve.get("fulfilled_count", -1)), 1, "dusk should spend only the remaining capacity on still-pending needs after a manual resolution")
+		_assert_equal(int(after_manual_resolve.get("unmet_count", -1)), 1, "manual resolution should count against the service building's capacity instead of allowing three serviced needs")
+
+	# No matching facility: only the first two community needs may use flower fallback, the third stays unmet
+	state = {
+		"day_count": 7,
+		"moral": 10,
+		"moral_max": 20,
+		"moral_failure_streak": 0,
+		"flowers": 10,
+		"funds": 0,
+		"resident_states": residents.duplicate(true),
+		"built_facilities": [],
+		"resident_need_entities": []
+	}
+	RESIDENT_SYSTEM.spawn_daily_need_entities(state)
+	var three_no_building: Dictionary = RESIDENT_SYSTEM.settle_daily_need_entities(state, cards_by_id)
+	_assert_equal(int(three_no_building.get("fulfilled_count", -1)), 0, "no facility means no building-fulfilled needs")
+	_assert_equal(int(three_no_building.get("fallback_count", -1)), 2, "community-wide flower fallback is capped at two needs per day")
+	_assert_equal(int(three_no_building.get("unmet_count", -1)), 1, "the third need without a facility must stay unmet, not consume more flowers")
+	_assert_equal(int(three_no_building.get("flowers_spent", -1)), 3, "flower fallback should consume exactly 1 + 2 flowers")
+	_assert_equal(int(state.get("flowers", -1)), 7, "remaining flowers should reflect only the 1 + 2 fallback spend")
+	_assert_equal(int(state.get("funds", -1)), 0, "flower fallback should not give resource income")
+
+	# Matching facility exists but its capacity is exhausted: no fallback may rescue overflow
+	state = {
+		"day_count": 8,
+		"moral": 10,
+		"moral_max": 20,
+		"moral_failure_streak": 0,
+		"flowers": 10,
+		"funds": 0,
+		"resident_states": residents.duplicate(true),
+		"built_facilities": [{"card_id": "care_station"}],
+		"resident_need_entities": []
+	}
+	RESIDENT_SYSTEM.spawn_daily_need_entities(state)
+	var capacity_overflow: Dictionary = RESIDENT_SYSTEM.settle_daily_need_entities(state, cards_by_id)
+	_assert_equal(int(capacity_overflow.get("fulfilled_count", -1)), 2, "a single matching facility should satisfy exactly two needs")
+	_assert_equal(int(capacity_overflow.get("fallback_count", -1)), 0, "capacity overflow must not trigger flower fallback when a matching facility exists")
+	_assert_equal(int(capacity_overflow.get("unmet_count", -1)), 1, "the third need should remain unmet because fallback is reserved for the no-facility case")
+	_assert_equal(int(state.get("flowers", -1)), 12, "fulfilled-by-building needs give +1 flower each, fallback must not run here")
+	_assert_equal(int(state.get("funds", -1)), 2, "only building-fulfilled needs award funds")
+
+	# All needs satisfied via building should leave the lists cleared and grant moral +1
+	state = {
+		"day_count": 9,
+		"moral": 5,
+		"moral_max": 20,
+		"moral_failure_streak": 2,
+		"flowers": 0,
+		"funds": 0,
+		"resident_states": residents.slice(0, 2),
+		"built_facilities": [{"card_id": "care_station"}],
+		"resident_need_entities": []
+	}
+	RESIDENT_SYSTEM.spawn_daily_need_entities(state)
+	var all_met: Dictionary = RESIDENT_SYSTEM.settle_daily_need_entities(state, cards_by_id)
+	_assert_equal(int(all_met.get("fulfilled_count", -1)), 2, "matching facility within capacity should satisfy every need")
+	_assert_equal(int(all_met.get("unmet_count", -1)), 0, "no need should be unmet when capacity is enough")
+	_assert_equal(int(state.get("moral", -1)), 6, "fully satisfied days should grant +1 moral")
+	_assert_equal(int(state.get("moral_failure_streak", -1)), 0, "fully satisfied days should reset the community streak")
+	_assert_equal(Array(state.get("resident_need_entities", [])).size(), 0, "dusk settlement should clear resident_need_entities")
+	_assert_equal(Array(state.get("resident_need_queue", [])).size(), 0, "dusk settlement should clear resident_need_queue")
+	_assert_equal(Array(state.get("daily_need_queue", [])).size(), 0, "dusk settlement should clear daily_need_queue")
+
+	# Re-spawning on the next day should bring the full set of needs back
+	state["day_count"] = 10
+	var next_day_entities: Array = RESIDENT_SYSTEM.spawn_daily_need_entities(state)
+	_assert_equal(next_day_entities.size(), 2, "next sunrise should regenerate one need per resident")
+	_assert_equal(Array(state.get("resident_need_entities", [])).size(), 2, "next sunrise should restore resident_need_entities")
+
 
 func _test_unordered_recipe_match() -> void:
 	var recipes := [
@@ -327,7 +579,7 @@ func _test_unordered_recipe_match() -> void:
 			"recipe_id": "build_ramp",
 			"ingredient_card_ids": ["ramp_blueprint", "lumber_pack"],
 			"result_card_id": "community_ramp",
-			"unlock_trust": 0
+			"unlock_day": 1
 		}
 	]
 	var match: Dictionary = RECIPE_RULES.find_matching_recipe("lumber_pack", "ramp_blueprint", recipes, 0)
@@ -354,125 +606,84 @@ func _test_resource_insufficient_board_placement() -> void:
 func _test_resident_runtime_fields_and_health_manpower() -> void:
 	var repository: Node = _context.get("data_repository")
 	var resident_states: Array[Dictionary] = RESIDENT_SYSTEM.build_initial_states(repository.residents)
-	_assert_equal(int(resident_states[0].get("health", 0)), 80, "initial resident health should default to 80")
 	_assert_true(typeof(resident_states[0].get("wish_progress", {})) == TYPE_DICTIONARY, "resident runtime should include wish progress")
 	_assert_true(not str(resident_states[0].get("location_id", "")).is_empty(), "resident runtime should include a location")
+	_assert_true(not resident_states[0].has("health"), "live resident runtime should stop seeding legacy health")
+	_assert_true(not resident_states[0].has("satisfaction"), "live resident runtime should stop seeding legacy satisfaction")
 	resident_states[0]["health"] = 35
 	var daily_manpower: int = RESIDENT_SYSTEM.calculate_daily_manpower(resident_states)
-	_assert_equal(daily_manpower, resident_states.size() - 1, "health below 40 should reduce that resident's manpower by one")
+	_assert_equal(daily_manpower, resident_states.size(), "legacy health values should no longer reduce manpower after the moral migration")
 
 
-func _test_autonomy_level_thresholds() -> void:
-	var state := {
-		"autonomy": 0,
-		"autonomy_points": 0,
-		"autonomy_history": [],
-		"unlocked_modes": {}
-	}
-	AUTONOMY_SYSTEM.ensure_runtime_fields(state)
-	AUTONOMY_SYSTEM.add_autonomy_points(state, 10, "test_lv1")
-	_assert_equal(int(state.get("autonomy", -1)), 1, "10 autonomy points should reach Lv1")
-	AUTONOMY_SYSTEM.add_autonomy_points(state, 15, "test_lv2")
-	_assert_equal(int(state.get("autonomy", -1)), 2, "25 autonomy points should reach Lv2")
-	AUTONOMY_SYSTEM.add_autonomy_points(state, 20, "test_lv3")
-	_assert_equal(int(state.get("autonomy", -1)), 3, "45 autonomy points should reach Lv3")
-	AUTONOMY_SYSTEM.add_autonomy_points(state, 25, "test_lv4")
-	_assert_equal(int(state.get("autonomy", -1)), 4, "70 autonomy points should reach Lv4")
-	_assert_true(state.get("autonomy_history", []).size() >= 4, "autonomy upgrades should be recorded")
-
-
-func _test_autonomy_auto_handles_simple_problems() -> void:
-	var resource_manager: Node = _context.get("resource_manager")
-	var state := {
-		"trust": 0,
-		"manpower": 4,
-		"current_problem_tokens": 4,
-		"autonomy": 0,
-		"autonomy_points": 0,
-		"autonomy_history": [],
-		"unlocked_modes": {},
-		"active_problems": [{
-			"event_id": "simple_lv0",
-			"title": "simple problem",
-			"problem_card_id": "problem_market_queue",
-			"required_manpower": 1,
-			"assigned_manpower": 0,
-			"status": "active",
-			"reward": {"trust": 2},
-			"penalty": {},
-			"target_resident_ids": []
-		}],
-		"resolved_problem_history": []
-	}
-	var lines_lv0: PackedStringArray = AUTONOMY_SYSTEM.resolve_after_sunrise_events(state, state.get("active_problems", []), resource_manager)
-	_assert_equal(lines_lv0.size(), 0, "Lv0 autonomy should not auto-handle problems")
-	state["autonomy"] = 1
-	state["active_problems"] = [{
-		"event_id": "simple_lv1",
-		"title": "simple problem",
-		"problem_card_id": "problem_market_queue",
-		"required_manpower": 2,
-		"assigned_manpower": 0,
-		"status": "active",
-		"reward": {"trust": 2},
-		"penalty": {},
-		"target_resident_ids": []
-	}]
-	AUTONOMY_SYSTEM.resolve_after_sunrise_events(state, state.get("active_problems", []), resource_manager)
-	_assert_equal(int(state.get("active_problems", [])[0].get("assigned_manpower", 0)), 1, "Lv1 autonomy should advance one point")
-	state["autonomy"] = 2
-	state["active_problems"] = [{
-		"event_id": "simple_lv2",
-		"title": "simple problem",
-		"problem_card_id": "problem_market_queue",
-		"required_manpower": 1,
-		"assigned_manpower": 0,
-		"status": "active",
-		"reward": {"trust": 2},
-		"penalty": {},
-		"target_resident_ids": []
-	}]
-	AUTONOMY_SYSTEM.resolve_after_sunrise_events(state, state.get("active_problems", []), resource_manager)
-	_assert_equal(state.get("active_problems", []).size(), 0, "Lv2 autonomy should resolve one required-manpower-1 problem")
-	_assert_equal(int(state.get("trust", 0)), 2, "autonomy-resolved problems should grant rewards")
-	_assert_equal(str(state.get("resolved_problem_history", [])[0].get("resolved_by", "")), "autonomy", "autonomy resolution should be marked")
-
-
-func _test_sunrise_output_formula() -> void:
+func _test_stationed_output_formula() -> void:
 	var cards_by_id := {
 		"community_ramp": {
-			"primary_resource": "flowers",
-			"base_output": 1,
-			"preferred_zone": "服务",
-			"preferred_zone_bonus": 1,
+			"primary_resource": "trust",
+			"base_output": 9,
+			"preferred_zone": "绿地",
+			"preferred_zone_bonus": 3,
 			"synergy_group": "accessibility",
-			"adjacency_bonus": 1
+			"adjacency_bonus": 1,
+			"board_placeable": true
 		},
-		"guide_handrail": {
-			"primary_resource": "flowers",
-			"base_output": 1,
-			"preferred_zone": "浣忓畢",
-			"preferred_zone_bonus": 0,
-			"synergy_group": "accessibility",
-			"adjacency_bonus": 1
+		"market_stall": {
+			"primary_resource": "trust",
+			"base_output": 7,
+			"preferred_zone": "商业",
+			"preferred_zone_bonus": 2,
+			"synergy_group": "commerce",
+			"adjacency_bonus": 1,
+			"board_placeable": true
+		},
+		"welcome_table": {
+			"primary_resource": "trust",
+			"base_output": 5,
+			"preferred_zone": "服务",
+			"preferred_zone_bonus": 2,
+			"synergy_group": "communication",
+			"adjacency_bonus": 1,
+			"board_placeable": true
 		}
 	}
 	var cells := BOARD_RULES.create_default_board_cells()
-	cells[1]["zone_type"] = "服务"
+	cells[1]["zone_type"] = "绿地"
 	cells[1]["occupied_card_id"] = "community_ramp"
 	cells[1]["unlocked"] = true
-	cells[0]["occupied_card_id"] = "guide_handrail"
+	cells[0]["occupied_card_id"] = "community_ramp"
 	cells[0]["unlocked"] = true
 	var output: Dictionary = BOARD_RULES.calculate_facility_output(1, cells[1], cells, cards_by_id)
-	_assert_equal(output.get("amount", -1), 3, "output should include base, preferred zone, and adjacency synergy bonuses")
-	_assert_equal(output.get("resource", ""), "flowers", "output should expose the card's primary resource")
+	_assert_equal(output.get("amount", -1), 0, "green buildings should not produce flowers without a stationed resident")
+	_assert_equal(output.get("resource", "not_empty"), "", "green buildings without residents should not expose a produced resource")
+	cells[1]["resident_ids"] = ["resident_green"]
+	var staffed_output: Dictionary = BOARD_RULES.calculate_facility_output(1, cells[1], cells, cards_by_id, [{"resident_id": "resident_green", "need_tags": []}])
+	_assert_equal(staffed_output.get("amount", -1), 1, "green stationed facilities should produce a single daily flower")
+	_assert_equal(staffed_output.get("resource", ""), "flowers", "green stationed facilities should produce 小红花")
+	var market_index := BOARD_RULES.cell_index(7, 6)
+	cells[market_index]["zone_type"] = "商业"
+	cells[market_index]["occupied_card_id"] = "market_stall"
+	cells[market_index]["unlocked"] = true
+	var market_output: Dictionary = BOARD_RULES.calculate_facility_output(market_index, cells[market_index], cells, cards_by_id)
+	_assert_equal(market_output.get("amount", -1), 0, "commercial buildings should not produce funds without a stationed resident")
+	_assert_equal(market_output.get("resource", "not_empty"), "", "commercial buildings without residents should not expose a produced resource")
+	cells[market_index]["resident_ids"] = ["resident_market"]
+	var staffed_market_output: Dictionary = BOARD_RULES.calculate_facility_output(market_index, cells[market_index], cells, cards_by_id, [{"resident_id": "resident_market", "need_tags": []}])
+	_assert_equal(staffed_market_output.get("amount", -1), 1, "commercial stationed facilities should produce one daily fund")
+	_assert_equal(staffed_market_output.get("resource", ""), "funds", "commercial stationed facilities should produce funds")
+	var service_index := BOARD_RULES.cell_index(6, 7)
+	cells[service_index]["zone_type"] = "服务"
+	cells[service_index]["occupied_card_id"] = "welcome_table"
+	cells[service_index]["unlocked"] = true
+	cells[service_index]["resident_ids"] = ["resident_service"]
+	var service_output: Dictionary = BOARD_RULES.calculate_facility_output(service_index, cells[service_index], cells, cards_by_id)
+	_assert_equal(service_output.get("amount", -1), 0, "service buildings should not emit stationed output")
+	_assert_equal(service_output.get("resource", "not_empty"), "", "service buildings should not produce a passive resource")
 
 
 func _test_land_unlock_stage_logic() -> void:
 	var rules: RefCounted = BOARD_RULES.new()
 	_assert_true(rules.has_method("count_unlocked_cells_for_stage"), "board rules should expose stage-based land unlock counts")
-	_assert_true(rules.has_method("land_unlock_stage_for_trust"), "board rules should expose trust thresholds for manual land unlocks")
-	if not rules.has_method("count_unlocked_cells_for_stage") or not rules.has_method("land_unlock_stage_for_trust"):
+	_assert_true(rules.has_method("land_unlock_flower_cost"), "board rules should expose flower costs for manual land unlocks")
+	if not rules.has_method("count_unlocked_cells_for_stage") or not rules.has_method("land_unlock_flower_cost"):
 		return
 	_assert_equal(int(rules.call("count_unlocked_cells_for_stage", 0)), 36, "stage 0 should keep the center 6x6 unlocked")
 	_assert_equal(int(rules.call("count_unlocked_cells_for_stage", 1)), 64, "stage 1 should unlock an 8x8 build area")
@@ -480,12 +691,8 @@ func _test_land_unlock_stage_logic() -> void:
 	_assert_equal(int(rules.call("count_unlocked_cells_for_stage", 3)), 144, "stage 3 should unlock a 12x12 build area")
 	_assert_equal(int(rules.call("count_unlocked_cells_for_stage", 4)), 196, "stage 4 should unlock a 14x14 build area")
 	_assert_equal(int(rules.call("count_unlocked_cells_for_stage", 5)), 256, "stage 5 should unlock the full 16x16 community")
-	_assert_equal(int(rules.call("land_unlock_stage_for_trust", 19)), 0, "trust below 20 should not unlock the first expansion tier")
-	_assert_equal(int(rules.call("land_unlock_stage_for_trust", 20)), 1, "trust 20 should qualify the first expansion tier")
-	_assert_equal(int(rules.call("land_unlock_stage_for_trust", 40)), 2, "trust 40 should qualify the second expansion tier")
-	_assert_equal(int(rules.call("land_unlock_stage_for_trust", 60)), 3, "trust 60 should qualify the third expansion tier")
-	_assert_equal(int(rules.call("land_unlock_stage_for_trust", 80)), 4, "trust 80 should qualify the fourth expansion tier")
-	_assert_equal(int(rules.call("land_unlock_stage_for_trust", 100)), 5, "trust 100 should qualify the final expansion tier")
+	_assert_equal(int(rules.call("land_unlock_flower_cost", 1)), 25, "first manual land expansion should cost 25 flowers")
+	_assert_equal(int(rules.call("land_unlock_flower_cost", 2)), 50, "second manual land expansion should scale flower cost by stage")
 
 
 func _test_board_land_unlock_purchase_flow() -> void:
@@ -493,7 +700,6 @@ func _test_board_land_unlock_purchase_flow() -> void:
 	var game_state: Node = _context.get("game_state")
 	game_state.reset_state()
 	var state: Dictionary = game_state.get_state()
-	state["trust"] = 20
 	state["flowers"] = 25
 	var rules: RefCounted = PROTOTYPE_RULES.new()
 	_assert_true(rules.has_method("unlock_board_land_with_flowers"), "prototype rules should expose manual land expansion with flowers")
@@ -504,10 +710,11 @@ func _test_board_land_unlock_purchase_flow() -> void:
 	_assert_true(not bool(state.get("board_cells", [])[locked_next_ring].get("unlocked", true)), "the first expansion ring should still be locked at stage 0")
 	var blocked: Dictionary = rules.call("unlock_board_land_with_flowers", state, far_locked_cell)
 	_assert_true(not bool(blocked.get("success", true)), "cells beyond the immediate next ring should not unlock out of order")
-	state["trust"] = 19
-	var trust_blocked: Dictionary = rules.call("unlock_board_land_with_flowers", state, locked_next_ring)
-	_assert_true(not bool(trust_blocked.get("success", true)), "manual land unlock should still respect trust thresholds")
-	state["trust"] = 20
+	state["flowers"] = 24
+	var flower_blocked: Dictionary = rules.call("unlock_board_land_with_flowers", state, locked_next_ring)
+	_assert_true(not bool(flower_blocked.get("success", true)), "manual land unlock should still cost flowers")
+	_assert_true(str(flower_blocked.get("message", "")).contains("小红花不足"), "manual land unlock should explain missing flowers")
+	state["flowers"] = 25
 	var unlocked: Dictionary = rules.call("unlock_board_land_with_flowers", state, locked_next_ring)
 	_assert_true(bool(unlocked.get("success", false)), "selecting the next ring and spending flowers should unlock the whole next land band")
 	_assert_equal(int(state.get("flowers", -1)), 0, "the first land unlock should spend 25 flowers")
@@ -551,6 +758,81 @@ func _test_bulletin_paid_purchase_flow() -> void:
 	_assert_true(Array(bulletin_prices).has(4), "undoing a free pick should restore the card's same-day bulletin price")
 	var paid_return: Dictionary = rules.call("return_hand_card_to_bulletin", bulletin_cards, hand_cards, state, hand_cards.find("lumber_pack"), repository.recipes, hand_card_sources, hand_card_prices, bulletin_prices)
 	_assert_true(not bool(paid_return.get("success", true)), "paid bulletin purchases should not be returnable for a refund")
+
+
+func _test_housing_and_volunteer_permit_price_lines() -> void:
+	var repository: Node = _context.get("data_repository")
+	var rules: RefCounted = PROTOTYPE_RULES.new()
+	_assert_true(rules.has_method("bulletin_purchase_cost_for_card"), "prototype rules should expose typed bulletin permit price lines")
+	if not rules.has_method("bulletin_purchase_cost_for_card"):
+		return
+	var state := {
+		"funds": 10,
+		"flowers": 10,
+		"selected_cards_today": 1,
+		"permit_purchase_counts": {}
+	}
+	var housing_cost: Dictionary = rules.call("bulletin_purchase_cost_for_card", "ramp_blueprint", state, repository.cards_by_id, repository.recipes)
+	_assert_equal(str(housing_cost.get("resource", "")), "funds", "housing permits should use funds")
+	_assert_equal(int(housing_cost.get("amount", -1)), 2, "first housing permit should cost 2 funds")
+	var volunteer_cost: Dictionary = rules.call("bulletin_purchase_cost_for_card", "volunteer_poster", state, repository.cards_by_id, repository.recipes)
+	_assert_equal(str(volunteer_cost.get("resource", "")), "flowers", "volunteer station permits should use flowers")
+	_assert_equal(int(volunteer_cost.get("amount", -1)), 2, "first volunteer station permit should cost 2 flowers")
+
+	var bulletin_cards: Array[String] = ["ramp_blueprint", "volunteer_poster"]
+	var bulletin_prices: Array = [2, 2]
+	var hand_cards: Array[String] = []
+	var hand_card_sources: Array = []
+	var hand_card_prices: Array = []
+	var paid_housing: Dictionary = rules.call("claim_bulletin_card", bulletin_cards, hand_cards, state, 0, 1, hand_card_sources, hand_card_prices, bulletin_prices, true, repository.cards_by_id, repository.recipes)
+	_assert_true(bool(paid_housing.get("success", false)), "paid housing permit purchase should succeed with funds")
+	_assert_equal(int(state.get("funds", -1)), 8, "housing permit purchase should spend funds")
+	_assert_equal(int(state.get("flowers", -1)), 10, "housing permit purchase should not spend flowers")
+	_assert_equal(int(state.get("permit_purchase_counts", {}).get("housing", -1)), 1, "housing purchase should advance its own price line")
+	var next_housing_cost: Dictionary = rules.call("bulletin_purchase_cost_for_card", "ramp_blueprint", state, repository.cards_by_id, repository.recipes)
+	_assert_equal(int(next_housing_cost.get("amount", -1)), 4, "second housing permit should cost 4 funds")
+
+	var paid_volunteer: Dictionary = rules.call("claim_bulletin_card", bulletin_cards, hand_cards, state, 1, 1, hand_card_sources, hand_card_prices, bulletin_prices, true, repository.cards_by_id, repository.recipes)
+	_assert_true(bool(paid_volunteer.get("success", false)), "paid volunteer station permit purchase should succeed with flowers")
+	_assert_equal(int(state.get("flowers", -1)), 8, "volunteer station permit purchase should spend flowers")
+	_assert_equal(int(state.get("funds", -1)), 8, "volunteer station permit purchase should not spend funds")
+	_assert_equal(int(state.get("permit_purchase_counts", {}).get("volunteer", -1)), 1, "volunteer purchase should advance its own price line")
+	var next_volunteer_cost: Dictionary = rules.call("bulletin_purchase_cost_for_card", "volunteer_poster", state, repository.cards_by_id, repository.recipes)
+	_assert_equal(int(next_volunteer_cost.get("amount", -1)), 4, "second volunteer station permit should cost 4 flowers")
+
+
+func _test_five_day_housing_move_in_refills_residents() -> void:
+	var repository: Node = _context.get("data_repository")
+	var residents: Array[Dictionary] = RESIDENT_SYSTEM.build_initial_states(repository.residents)
+	var rules: RefCounted = RESIDENT_SYSTEM.new()
+	_assert_true(rules.has_method("housing_capacity_for_state"), "resident system should expose housing capacity from built housing")
+	_assert_true(rules.has_method("refill_residents_for_housing_capacity"), "resident system should expose five-day move-in refill")
+	if not rules.has_method("housing_capacity_for_state") or not rules.has_method("refill_residents_for_housing_capacity"):
+		return
+	var state := {
+		"day_count": 5,
+		"resident_states": residents.slice(0, 2),
+		"built_facilities": [
+			{"card_id": "guide_handrail", "cell_index": 1},
+			{"card_id": "shared_laundry", "cell_index": 2}
+		]
+	}
+	_assert_equal(int(rules.call("housing_capacity_for_state", state, repository.cards_by_id)), 4, "two housing buildings should raise the resident cap to four")
+	var moved: Dictionary = rules.call("refill_residents_for_housing_capacity", state, repository.residents, repository.cards_by_id)
+	_assert_equal(int(moved.get("moved_in_count", -1)), 2, "day 5 should refill residents up to the housing cap")
+	_assert_equal(state.get("resident_states", []).size(), 4, "resident list should be filled to the housing cap")
+	var ids := {}
+	for resident_variant in state.get("resident_states", []):
+		var resident: Dictionary = resident_variant
+		var resident_id := str(resident.get("resident_id", ""))
+		_assert_true(not ids.has(resident_id), "move-in should not create duplicate resident ids")
+		ids[resident_id] = true
+	_assert_true(str(state.get("resident_states", [])[2].get("resident_id", "")).contains("_movein_"), "copied template residents should carry numbered move-in ids")
+
+	state["day_count"] = 6
+	state["resident_states"] = residents.slice(0, 2)
+	var skipped: Dictionary = rules.call("refill_residents_for_housing_capacity", state, repository.residents, repository.cards_by_id)
+	_assert_equal(int(skipped.get("moved_in_count", -1)), 0, "non-fifth days should not trigger move-in refill")
 
 
 func _test_v05_board_16x16_center_unlock_and_zone_change() -> void:
@@ -741,8 +1023,9 @@ func _test_tetris_placement_writes_rotation_and_avoids_self_adjacency() -> void:
 	_assert_equal(int(placed.get("rotation", -1)), 90, "placement result should return the used rotation")
 	_assert_equal(int(state.get("built_facilities", [])[0].get("rotation", -1)), 90, "built facility should store rotation")
 	_assert_equal(Array(placed.get("occupied_cells", [])), Array(BOARD_RULES.occupied_indices_for_shape(root_index, cards_by_id["l_test_facility"], 90)), "placement should write all rotated occupied cells")
+	cells[root_index]["resident_ids"] = ["resident_multicell"]
 	var output: Dictionary = BOARD_RULES.calculate_facility_output(root_index, cells[root_index], cells, cards_by_id)
-	_assert_equal(int(output.get("amount", 0)), 1, "a multicell building should not count its own occupied cells as adjacency")
+	_assert_equal(int(output.get("amount", 0)), 1, "a staffed multicell building should not count its own occupied cells as adjacency")
 
 
 func _test_v05_inventory_stacks_and_consumes_items() -> void:
@@ -757,20 +1040,27 @@ func _test_v05_inventory_stacks_and_consumes_items() -> void:
 	_assert_equal(int(inventory.get("materials", {}).get("lumber_pack", 0)), 4, "using one item should decrement the stack")
 
 
-func _test_v05_buildings_produce_crafting_materials() -> void:
+func _test_v05_buildings_stop_producing_crafting_materials() -> void:
 	var card := {
 		"card_id": "repair_booth",
-		"primary_resource": "funds",
-		"base_output": 1,
+		"primary_resource": "trust",
+		"base_output": 3,
+		"preferred_zone": "商业",
 		"production_outputs": {"tool_parts": 2, "info_notes": 1}
 	}
 	var cells := BOARD_RULES.create_default_board_cells()
 	var index: int = BOARD_RULES.cell_index(6, 6)
+	cells[index]["zone_type"] = "商业"
 	cells[index]["occupied_card_id"] = "repair_booth"
 	cells[index]["building_instance_id"] = "repair_booth:0"
 	var output: Dictionary = BOARD_RULES.calculate_facility_output(index, cells[index], cells, {"repair_booth": card})
-	_assert_equal(int(output.get("material_outputs", {}).get("tool_parts", 0)), 2, "facility output should include crafting materials")
-	_assert_equal(int(output.get("material_outputs", {}).get("info_notes", 0)), 1, "facility output should include multiple crafting materials")
+	_assert_equal(int(output.get("amount", -1)), 0, "commercial buildings should not produce funds without a stationed resident")
+	_assert_equal(str(output.get("resource", "not_empty")), "", "commercial buildings without residents should not expose a produced resource")
+	cells[index]["resident_ids"] = ["resident_repair"]
+	var staffed_output: Dictionary = BOARD_RULES.calculate_facility_output(index, cells[index], cells, {"repair_booth": card}, [{"resident_id": "resident_repair", "need_tags": []}])
+	_assert_equal(int(staffed_output.get("amount", -1)), 1, "commercial buildings should produce stationed output only when staffed")
+	_assert_equal(str(staffed_output.get("resource", "")), "funds", "staffed commercial buildings should station funds")
+	_assert_true(Dictionary(output.get("material_outputs", {})).is_empty(), "buildings should no longer produce crafting materials passively")
 
 
 func _test_v05_residents_move_on_board_without_blocking_buildings() -> void:
@@ -821,7 +1111,7 @@ func _test_v06_combo_rules_and_resident_adjacency() -> void:
 			"type": "facility",
 			"primary_resource": "trust",
 			"base_output": 1,
-			"preferred_zone": "service",
+			"preferred_zone": "服务",
 			"preferred_zone_bonus": 1,
 			"synergy_group": "service",
 			"adjacency_bonus": 0,
@@ -863,10 +1153,11 @@ func _test_v06_combo_rules_and_resident_adjacency() -> void:
 		"resident_id": "resident_a",
 		"need_tags": ["care"]
 	}])
-	_assert_equal(int(output.get("bonus_resources", {}).get("funds", 0)), 2, "combo rules should award resources from adjacent groups")
-	_assert_equal(int(output.get("bonus_resources", {}).get("trust", 0)), 1, "resident adjacency should award resources when resident needs match")
+	_assert_equal(int(output.get("amount", -1)), 0, "service buildings should not keep legacy passive output")
+	_assert_equal(str(output.get("resource", "")), "", "service buildings should not expose stationed resources")
+	_assert_true(Dictionary(output.get("bonus_resources", {})).is_empty(), "service buildings should only affect resident needs/capacity, not resource production")
 	_assert_true(output.get("problem_counter_tags", []).has("care"), "facility output should expose problem counter tags")
-	_assert_true(output.get("synergy_details", []).size() >= 2, "combo output should describe both building and resident synergies")
+	_assert_true(output.get("synergy_details", []).size() >= 1, "service output should still describe matching need/capacity signals")
 
 
 func _test_named_board_adjacency_cache_and_daycycle_effects() -> void:
@@ -898,10 +1189,8 @@ func _test_named_board_adjacency_cache_and_daycycle_effects() -> void:
 	_assert_true(_combo_cache_has(cache, "garden_bench"), "garden plus bench should create a named board combo")
 	var combo_effects: Dictionary = BOARD_RULES.aggregate_board_combo_effects(cache)
 	_assert_equal(int(combo_effects.get("satisfaction_bonus", 0)), 1, "garden bench combo should grant a conservative satisfaction bonus")
-	var first_resident: Dictionary = state.get("resident_states", [])[0]
-	var previous_satisfaction := int(first_resident.get("satisfaction", first_resident.get("starting_satisfaction", 60)))
 	day_cycle.resolve_dusk()
-	_assert_equal(int(state.get("resident_states", [])[0].get("satisfaction", 0)), previous_satisfaction, "dusk should no longer run legacy satisfaction settlement")
+	_assert_true(not state.get("resident_states", [])[0].has("satisfaction"), "dusk should not revive legacy resident satisfaction after the moral migration")
 
 	cells[flower_index]["occupied_card_id"] = "community_kitchen"
 	cells[flower_index]["building_instance_id"] = "community_kitchen:1"
@@ -922,327 +1211,42 @@ func _test_named_board_adjacency_cache_and_daycycle_effects() -> void:
 	save_manager.delete_slot(1)
 
 
-func _test_v06_recipe_codex_and_tag_recipe_matching() -> void:
+func _test_v06_recipe_codex_and_direct_build_matching() -> void:
 	var recipes := [
 		{
-			"recipe_id": "support_from_tags",
-			"ingredient_tags": [["community"], ["material"]],
-			"material_costs": {"info_notes": 1},
-			"result_card_id": "support_queue_signs",
-			"result_type": "support",
-			"unlock_trust": 0
+			"recipe_id": "direct_build_station",
+			"ingredient_card_ids": ["volunteer_poster", "phone_tree"],
+			"result_card_id": "volunteer_station",
+			"result_type": "facility",
+			"unlock_day": 1
 		}
 	]
 	var entries := [
 		{"card_id": "volunteer_poster", "type": "hand"},
-		{"card_id": "lumber_pack", "type": "hand"}
+		{"card_id": "phone_tree", "type": "hand"}
 	]
 	var inventory := BOARD_RULES.create_default_inventory()
-	BOARD_RULES.add_inventory_item(inventory, "materials", "info_notes", 1)
 	var match: Dictionary = RECIPE_RULES.find_matching_recipe_entries(entries, recipes, 0, {
 		"volunteer_poster": {"card_id": "volunteer_poster", "tags": ["community"]},
-		"lumber_pack": {"card_id": "lumber_pack", "tags": ["material"]}
+		"phone_tree": {"card_id": "phone_tree", "tags": ["material"]}
 	}, inventory)
-	_assert_equal(str(match.get("recipe_id", "")), "support_from_tags", "tag-based recipes should match entry tags and inventory material costs")
+	_assert_equal(str(match.get("recipe_id", "")), "direct_build_station", "direct build recipes should match one building permit and one material")
 	var state := {"recipe_codex": {}, "discovered_combos": []}
 	RECIPE_RULES.record_recipe_discovery(state, match)
-	_assert_true(state.get("recipe_codex", {}).has("support_from_tags"), "discovering a recipe should update the codex")
-	_assert_true(state.get("discovered_combos", []).has("support_from_tags"), "discovering a recipe should record the combo id")
+	_assert_true(state.get("recipe_codex", {}).has("direct_build_station"), "discovering a direct build recipe should update the codex")
+	_assert_true(state.get("discovered_combos", []).has("direct_build_station"), "discovering a direct build recipe should record the combo id")
 
 	var repository: Node = _context.get("data_repository")
 	var generic_facility_recipe: Dictionary = RECIPE_RULES.find_matching_recipe_entries([
 		{"card_id": "lumber_pack", "type": "hand"},
 		{"card_id": "paint_bucket", "type": "hand"}
 	], repository.recipes, 0, repository.cards_by_id, BOARD_RULES.create_default_inventory())
-	_assert_equal(str(generic_facility_recipe.get("result_card_id", "")), "community_ramp", "facility crafting should support common material pairs without requiring a building permit card")
+	_assert_true(generic_facility_recipe.is_empty(), "facility crafting should not support two-material compatibility recipes")
 	var bench_recipe: Dictionary = RECIPE_RULES.find_matching_recipe_entries([
 		{"card_id": "bench_plan", "type": "hand"},
 		{"card_id": "paint_bucket", "type": "hand"}
 	], repository.recipes, 0, repository.cards_by_id, BOARD_RULES.create_default_inventory())
-	_assert_equal(str(bench_recipe.get("result_card_id", "")), "rest_bench", "specific plan-plus-material recipes should beat broader tag recipes")
-
-
-func _test_v06_support_items_handle_problems_without_manpower() -> void:
-	var event_manager: Node = _context.get("event_manager")
-	var game_state: Node = _context.get("game_state")
-	game_state.reset_state()
-	var state: Dictionary = game_state.get_state()
-	state["manpower"] = 0
-	state["current_problem_tokens"] = 0
-	state["inventory"] = BOARD_RULES.create_default_inventory()
-	BOARD_RULES.add_inventory_item(state["inventory"], "consumables", "support_queue_signs", 1)
-	state["active_problems"] = [{
-		"event_id": "event_market_queue",
-		"title": "閹烘帡妲﹂幏銉ョ壄",
-		"problem_card_id": "problem_market_queue",
-		"required_manpower": 2,
-		"assigned_manpower": 0,
-		"status": "active",
-		"reward": {"trust": 1},
-		"penalty": {"trust": 2, "satisfaction_delta": 4},
-		"counter_tags": ["queue"],
-		"target_resident_ids": []
-	}]
-	var manpower_result: Dictionary = event_manager.assign_manpower_to_problem(0, 1)
-	_assert_true(not bool(manpower_result.get("success", true)), "problems should reject manpower assignment when no problem tokens remain")
-	var support_cards := {
-		"support_queue_signs": {
-			"card_id": "support_queue_signs",
-			"type": "support",
-			"problem_counter_tags": ["queue"],
-			"problem_manpower_reduction": 2
-		}
-	}
-	var support_result: Dictionary = event_manager.apply_support_to_problem(0, "support_queue_signs", support_cards)
-	_assert_true(bool(support_result.get("success", false)), "support items should be usable against matching problem tags")
-	_assert_equal(state.get("active_problems", []).size(), 0, "matching support items should be able to resolve a problem without manpower")
-	_assert_equal(int(state.get("inventory", {}).get("consumables", {}).get("support_queue_signs", 0)), 0, "using a support item should consume one stack")
-
-
-func _test_v06_problem_escalation_queue() -> void:
-	var game_state: Node = _context.get("game_state")
-	var day_cycle: Node = _context.get("day_cycle")
-	game_state.reset_state()
-	var state: Dictionary = game_state.get_state()
-	state["active_problems"] = [{
-		"event_id": "event_power_outage",
-		"title": "婢舵粓妫块崑婊呮暩",
-		"problem_card_id": "problem_power_outage",
-		"required_manpower": 3,
-		"assigned_manpower": 0,
-		"status": "active",
-		"reward": {"trust": 1},
-		"penalty": {"trust": 2, "satisfaction_delta": 4},
-		"failure_escalation": {
-			"event_id": "event_power_outage_followup",
-			"title": "閸嬫粎鏁告潻鐐舵敚",
-			"problem_card_id": "problem_night_patrol",
-			"required_manpower": 2,
-			"counter_tags": ["safety"]
-		},
-		"target_resident_ids": ["xiao_lin"]
-	}]
-	day_cycle.resolve_dusk()
-	_assert_equal(state.get("pending_problem_escalations", []).size(), 1, "expired problems with escalation metadata should queue a follow-up problem")
-	var queued: Dictionary = state.get("pending_problem_escalations", [])[0]
-	_assert_equal(str(queued.get("event_id", "")), "event_power_outage_followup", "queued escalation should preserve follow-up event id")
-
-
-func _test_day_ten_rating() -> void:
-	var high_residents: Array[Dictionary] = [{
-		"resident_id": "wang_nainai",
-		"name": "Wang",
-		"satisfaction": 95,
-		"health": 95,
-		"wish_progress": {
-			"wish_safe_ramp": {"completed": true},
-			"wish_safe_ramp_2": {"completed": true}
-		}
-	}]
-	var summary_without_autonomy: Dictionary = RATING_RULES.calculate_rating_summary(high_residents, 100, [], [], 3)
-	_assert_true(str(summary_without_autonomy.get("rating", "")) != "S", "autonomy below Lv4 should block S")
-	var summary: Dictionary = RATING_RULES.calculate_rating_summary(high_residents, 100, [], [], 4)
-	_assert_equal(summary.get("rating", ""), "S", "high trust, satisfaction, health, wish completion, and Lv4 autonomy should earn S")
-	_assert_true(str(summary.get("ending_id", "")).begins_with("ending_"), "rating summary should include an ending id")
-	var unhealthy_residents: Array[Dictionary] = high_residents.duplicate(true)
-	unhealthy_residents[0]["health"] = 25
-	var unhealthy_summary: Dictionary = RATING_RULES.calculate_rating_summary(unhealthy_residents, 100, [], [], 4)
-	_assert_true(str(unhealthy_summary.get("rating", "")) != "S", "low health should block S even when other scores are high")
-
-
-func _test_s_rating_unlocks_post_game_modes() -> void:
-	var game_state: Node = _context.get("game_state")
-	var day_cycle: Node = _context.get("day_cycle")
-	game_state.reset_state()
-	var high_residents: Array[Dictionary] = [{
-		"resident_id": "wang_nainai",
-		"name": "Wang",
-		"satisfaction": 100,
-		"health": 100,
-		"wish_progress": {
-			"wish_safe_ramp": {"completed": true},
-			"wish_safe_ramp_2": {"completed": true}
-		},
-		"personal_messages": [],
-		"memory_log": []
-	}]
-	game_state.set_resident_states(high_residents)
-	var state: Dictionary = game_state.get_state()
-	state["day_count"] = 10
-	state["trust"] = 100
-	state["autonomy"] = 4
-	state["autonomy_points"] = 70
-	var summary: Dictionary = day_cycle.resolve_night()
-	_assert_equal(str(summary.get("rating", "")), "S", "S summary should be reachable with Lv4 autonomy")
-	_assert_true(bool(state.get("unlocked_modes", {}).get("free_mode", false)), "S + Lv4 should unlock free mode")
-	_assert_true(bool(state.get("unlocked_modes", {}).get("new_game_plus", false)), "S + Lv4 should unlock new game plus")
-	_assert_true(typeof(state.get("completed_run_summary", {})) == TYPE_DICTIONARY and not state.get("completed_run_summary", {}).is_empty(), "S + Lv4 should store a completed run summary")
-	_assert_true(typeof(summary.get("celebration_summary", {})) == TYPE_DICTIONARY, "S + Lv4 night summary should include celebration summary")
-
-
-func _test_s_celebration_summary_and_completed_run() -> void:
-	var state := {
-		"rating": "S",
-		"trust": 100,
-		"autonomy": 4,
-		"autonomy_points": 70,
-		"built_facilities": [{"card_id": "community_ramp", "cell_index": 1}],
-		"resolved_problem_history": [{"event_id": "event_day2_rain_path", "status": "resolved"}],
-		"unlocked_modes": {"free_mode": true, "new_game_plus": true},
-		"resident_states": [
-			{
-				"resident_id": "wang_nainai",
-				"name": "Resident One",
-				"satisfaction": 96,
-				"health": 92,
-				"memory_log": [{"type": "wish_completed", "text": "The ramp made every morning safer."}],
-				"personal_messages": []
-			},
-			{
-				"resident_id": "chen_shu",
-				"name": "Resident Two",
-				"satisfaction": 90,
-				"health": 88,
-				"memory_log": [],
-				"personal_messages": []
-			}
-		]
-	}
-	var rating_summary := {
-		"rating": "S",
-		"score": 94.0,
-		"annual_report": {"title": "report"},
-		"ending_title": "celebration",
-		"ending_text": "done"
-	}
-	var celebration: Dictionary = ENDGAME_SYSTEM.build_celebration_summary(state, rating_summary)
-	_assert_true(bool(celebration.get("is_celebration_unlocked", false)), "S + Lv4 should unlock celebration summary")
-	_assert_equal(celebration.get("resident_thanks", []).size(), 2, "celebration should thank every resident")
-	_assert_true(str(celebration.get("resident_thanks", [])[0]).contains("ramp"), "resident thanks should use important memory when available")
-	_assert_true(str(celebration.get("resident_thanks", [])[1]).contains("Resident Two"), "resident thanks should fall back to resident status when memory is missing")
-	_assert_true(ENDGAME_SYSTEM.format_celebration_lines(celebration).size() >= 4, "celebration summary should format into display lines")
-
-	var a_summary := rating_summary.duplicate(true)
-	a_summary["rating"] = "A"
-	var locked: Dictionary = ENDGAME_SYSTEM.build_celebration_summary(state, a_summary)
-	_assert_true(not bool(locked.get("is_celebration_unlocked", true)), "A-D endings should not unlock S celebration")
-
-
-func _test_free_mode_and_new_game_plus_flow() -> void:
-	var resource_manager: Node = _context.get("resource_manager")
-	var base_state := {
-		"day_count": 10,
-		"phase": "night",
-		"flowers": 3,
-		"funds": 4,
-		"manpower": 0,
-		"trust": 100,
-		"autonomy": 4,
-		"autonomy_points": 70,
-		"autonomy_history": [],
-		"autonomy_counted_facility_count": 1,
-		"unlocked_modes": {"free_mode": true, "new_game_plus": true},
-		"completed_run_summary": {"rating": "S", "score": 94.0},
-		"new_game_plus_count": 0,
-		"legacy_bonus": {},
-		"built_facilities": [{"card_id": "community_ramp", "cell_index": 1}],
-		"board_cells": BOARD_RULES.create_default_board_cells(),
-		"resident_states": [{
-			"resident_id": "wang_nainai",
-			"name": "Resident One",
-			"satisfaction": 95,
-			"health": 92,
-			"daily_manpower": 1,
-			"specialty_resource": "flowers",
-			"specialty_amount": 1,
-			"personal_messages": [],
-			"memory_log": []
-		}],
-		"active_problems": [],
-		"resolved_problem_history": [],
-		"announcement_queue": [{"event_id": "kept"}],
-		"selected_cards_today": 3
-	}
-	base_state.get("board_cells", [])[1]["occupied_card_id"] = "community_ramp"
-	var enter_result: Dictionary = POST_GAME_SYSTEM.enter_free_mode(base_state)
-	_assert_true(bool(enter_result.get("success", false)), "unlocked free mode should be enterable")
-	_assert_equal(str(base_state.get("post_game_mode", "")), "free_mode", "entering free mode should set post-game mode")
-	var month_result: Dictionary = POST_GAME_SYSTEM.advance_free_mode_month(base_state, resource_manager)
-	_assert_true(bool(month_result.get("success", false)), "free mode month should advance")
-	_assert_true(month_result.get("lines", []).size() >= 2, "free mode month should produce report lines")
-	_assert_true(int(base_state.get("free_mode_month", 0)) >= 1, "free mode should count elapsed months")
-	_assert_equal(base_state.get("announcement_queue", []).size(), 1, "free mode should not refresh or clear bulletin/announcement flow")
-	_assert_true(not base_state.get("resident_states", [])[0].get("personal_messages", []).is_empty(), "free mode should refresh resident messages")
-
-	var ngp_result: Dictionary = POST_GAME_SYSTEM.start_new_game_plus(base_state)
-	_assert_true(bool(ngp_result.get("success", false)), "unlocked new game plus should be startable")
-	var new_state: Dictionary = ngp_result.get("state", {})
-	_assert_equal(int(new_state.get("day_count", 0)), 1, "new game plus should restart on day 1")
-	_assert_equal(int(new_state.get("trust", 0)), 10, "new game plus should apply trust bonus")
-	_assert_equal(int(new_state.get("funds", 0)), 6, "new game plus should apply funds bonus")
-	_assert_equal(int(new_state.get("flowers", 0)), 5, "new game plus should apply flower bonus")
-	_assert_equal(int(new_state.get("new_game_plus_count", 0)), 1, "new game plus count should increment")
-	_assert_true(bool(new_state.get("unlocked_modes", {}).get("free_mode", false)), "new game plus should preserve unlocked modes")
-	_assert_true(not new_state.get("completed_run_summary", {}).is_empty(), "new game plus should preserve completed run summary")
-
-
-func _test_annual_report_contains_demo_fields() -> void:
-	var repository: Node = _context.get("data_repository")
-	var state := {
-		"day_count": 10,
-		"trust": 82,
-		"autonomy": 3,
-		"autonomy_points": 48,
-		"built_facilities": [
-			{"card_id": "community_ramp", "cell_index": 1},
-			{"card_id": "market_stall", "cell_index": 5}
-		],
-		"resolved_problem_history": [
-			{"event_id": "queue_fix", "status": "resolved"},
-			{"event_id": "missed_visit", "status": "expired"}
-		],
-		"resident_states": [{
-			"resident_id": "wang_nainai",
-			"name": "Wang",
-			"satisfaction": 88,
-			"health": 82,
-			"memory_log": [{"text": "Ramp helped residents feel safer."}],
-			"personal_messages": ["Walking is steadier today."]
-		}]
-	}
-	var rating_summary := {
-		"rating": "A",
-		"score": 82.5,
-		"ending_title": "浼樼绀惧尯鎸傜墝",
-		"ending_text": "Legacy annual report text.",
-		"resident_epilogues": []
-	}
-	var report: Dictionary = ANNUAL_REPORT_SYSTEM.build_report(state, rating_summary, repository.cards_by_id)
-	_assert_equal(str(report.get("rating", "")), "A", "annual report should keep final rating")
-	_assert_true(str(report.get("title", "")).contains("鎸傜墝"), "A ending report should mention the excellent community plaque")
-	_assert_true(report.get("key_facilities", []).size() >= 2, "annual report should include key facilities")
-	_assert_equal(int(report.get("problem_summary", {}).get("expired", -1)), 1, "annual report should count expired problems")
-	_assert_true(report.get("resident_summaries", []).size() >= 1, "annual report should include resident summaries")
-	_assert_equal(int(report.get("autonomy", {}).get("level", -1)), 3, "annual report should include autonomy level")
-	_assert_true(report.get("next_year_suggestions", []).size() >= 1, "annual report should include next-year suggestions")
-
-	var s_summary := rating_summary.duplicate(true)
-	s_summary["rating"] = "S"
-	var s_report: Dictionary = ANNUAL_REPORT_SYSTEM.build_report(state, s_summary, repository.cards_by_id)
-	_assert_true(str(s_report.get("demo_completion_note", "")).length() >= 0, "S report should be marked as a full-version celebration preview")
-
-
-func _test_demo_balance_targets_and_time_estimates() -> void:
-	var repository: Node = _context.get("data_repository")
-	var profile: Dictionary = repository.demo_balance_targets
-	var normal_minutes := BALANCE_PROFILE.estimate_minutes(profile, "normal")
-	_assert_true(normal_minutes >= 50.0 and normal_minutes <= 55.0, "normal demo route should estimate 50-55 minutes")
-	for scenario_id: String in ["conservative", "normal", "optimized"]:
-		var minutes := BALANCE_PROFILE.estimate_minutes(profile, scenario_id)
-		_assert_true(minutes >= 45.0 and minutes <= 60.0, "%s route should stay inside the 45-60 minute demo range" % scenario_id)
-		var metrics: Dictionary = BALANCE_PROFILE.build_scenario_metrics(profile, scenario_id)
-		_assert_true(BALANCE_PROFILE.is_rating_expected(metrics, scenario_id, profile), "%s route should land in its expected rating range" % scenario_id)
-	_assert_true(str(BALANCE_PROFILE.build_scenario_metrics(profile, "optimized").get("rating", "")) != "S", "optimized demo route should not require S")
+	_assert_equal(str(bench_recipe.get("result_card_id", "")), "rest_bench", "specific building-permit-plus-material recipes should craft buildings")
 
 
 func _test_pick_craft_place_flow() -> void:
@@ -1299,11 +1303,32 @@ func _test_pick_craft_place_flow() -> void:
 		"recipe_id": "late_recipe",
 		"ingredient_card_ids": ["late_a", "late_b"],
 		"result_card_id": "late_result",
-		"unlock_trust": 5
+		"unlock_day": 6
 	}]
 	PROTOTYPE_RULES.move_hand_card_to_craft(locked_hand, locked_slots, 0, locked_recipes, 0)
 	var locked_craft: Dictionary = PROTOTYPE_RULES.move_hand_card_to_craft(locked_hand, locked_slots, 0, locked_recipes, 0)
-	_assert_true(str(locked_craft.get("message", "")).contains("信任达到 5"), "locked recipes should explain the missing trust threshold")
+	_assert_true(str(locked_craft.get("message", "")).contains("第 6 天"), "locked recipes should explain the next day-wave unlock instead of a trust threshold")
+	_assert_true(not str(locked_craft.get("message", "")).contains("信任"), "locked recipe copy should stop mentioning legacy trust gates")
+
+
+func _test_day_wave_unlock_progress_replaces_trust_gating() -> void:
+	var repository: Node = _context.get("data_repository")
+	var day_one_cards: Array[Dictionary] = repository.get_cards_available_for_state({
+		"day_count": 1,
+		"flower_unlocks": []
+	})
+	var day_six_cards: Array[Dictionary] = repository.get_cards_available_for_state({
+		"day_count": 6,
+		"flower_unlocks": []
+	})
+	var day_eleven_cards: Array[Dictionary] = repository.get_cards_available_for_state({
+		"day_count": 11,
+		"flower_unlocks": []
+	})
+	_assert_true(not _card_list_contains_id(day_one_cards, "refill_station_plan"), "day 1 should keep wave-two building permits locked")
+	_assert_true(_card_list_contains_id(day_six_cards, "refill_station_plan"), "day 6 should unlock the wave-two permit set")
+	_assert_true(not _card_list_contains_id(day_six_cards, "community_kitchen_plan"), "day 6 should keep wave-three permits locked")
+	_assert_true(_card_list_contains_id(day_eleven_cards, "community_kitchen_plan"), "day 11 should unlock the wave-three permit set")
 
 
 func _test_new_day_bulletin_refresh() -> void:
@@ -1319,123 +1344,6 @@ func _test_new_day_bulletin_refresh() -> void:
 	_assert_equal(remaining, 0, "clearing the bulletin should remove all unselected cards")
 	var next_day_cards: Array[String] = PROTOTYPE_RULES.generate_daily_bulletin(unlocked_cards, 5, 5)
 	_assert_equal(next_day_cards.size(), 5, "the next day should refresh the bulletin with a fresh set of cards")
-
-
-func _test_resident_satisfaction_updates() -> void:
-	var game_state: Node = _context.get("game_state")
-	var day_cycle: Node = _context.get("day_cycle")
-	game_state.reset_state()
-	game_state.set_resident_states(_make_resident_states())
-	var state: Dictionary = game_state.get_state()
-	state["built_facilities"] = [{"card_id": "community_ramp", "cell_index": 1}]
-	var lines: PackedStringArray = day_cycle.resolve_dusk()
-	_assert_true(not lines.is_empty(), "dusk settlement should emit summary lines")
-	var residents: Array[Dictionary] = state.get("resident_states", [])
-	_assert_true(int(residents[0].get("satisfaction", 0)) > int(residents[0].get("starting_satisfaction", 0)), "dusk should recalculate resident satisfaction upward when facilities exist")
-	_assert_true(int(state.get("trust", 0)) > 0, "dusk should grant at least one trust when residents are re-evaluated")
-
-
-func _test_wish_progression_and_messages() -> void:
-	var repository: Node = _context.get("data_repository")
-	var resource_manager: Node = _context.get("resource_manager")
-	var game_state: Node = _context.get("game_state")
-	game_state.reset_state()
-	game_state.set_resident_states(RESIDENT_SYSTEM.build_initial_states(repository.residents))
-	var state: Dictionary = game_state.get_state()
-	state["built_facilities"] = [{"card_id": "community_ramp", "cell_index": 1}]
-	var lines: PackedStringArray = RESIDENT_SYSTEM.resolve_daily_residents(state, repository.cards_by_id, repository.wishes_by_id, resource_manager)
-	var resident: Dictionary = state.get("resident_states", [])[0]
-	var wish_progress: Dictionary = resident.get("wish_progress", {})
-	var safe_ramp_progress: Dictionary = wish_progress.get("wish_safe_ramp", {})
-	_assert_true(bool(safe_ramp_progress.get("completed", false)), "matching facility should complete the first resident wish | progress=%s resident=%s" % [str(safe_ramp_progress), str(resident)])
-	_assert_true(resident.get("active_wish_ids", []).has("wish_safe_ramp_2"), "completed wish should activate its next wish")
-	_assert_true(not resident.get("personal_messages", []).is_empty(), "wish completion should add a personal message")
-	_assert_true(int(state.get("trust", 0)) > 0, "wish completion should grant trust rewards")
-	_assert_true(not lines.is_empty(), "resident resolution should report wish progress")
-
-
-func _test_health_problem_penalty_at_dusk() -> void:
-	var game_state: Node = _context.get("game_state")
-	var day_cycle: Node = _context.get("day_cycle")
-	game_state.reset_state()
-	game_state.set_resident_states(_make_resident_states())
-	var state: Dictionary = game_state.get_state()
-	state["active_problems"] = [{
-		"event_id": "event_medical_check",
-		"title": "health check backlog",
-		"problem_card_id": "problem_medical_check",
-		"source_type": "local",
-		"required_manpower": 2,
-		"assigned_manpower": 0,
-		"status": "active",
-		"reward": {"trust": 2},
-		"penalty": {"trust": 2, "satisfaction_delta": 5},
-		"target_resident_ids": ["liu_yisheng"]
-	}]
-	day_cycle.resolve_dusk()
-	for resident: Dictionary in state.get("resident_states", []):
-		if str(resident.get("resident_id", "")) == "liu_yisheng":
-			_assert_true(int(resident.get("health", 80)) < 80, "expired health problem should reduce targeted resident health")
-			return
-	_assert_true(false, "health penalty test should find liu_yisheng")
-
-
-func _test_resident_memory_log_and_autonomy_contribution() -> void:
-	var repository: Node = _context.get("data_repository")
-	var resource_manager: Node = _context.get("resource_manager")
-	var game_state: Node = _context.get("game_state")
-	game_state.reset_state()
-	game_state.set_resident_states(RESIDENT_SYSTEM.build_initial_states(repository.residents))
-	var state: Dictionary = game_state.get_state()
-	state["built_facilities"] = [{"card_id": "community_ramp", "cell_index": 1}]
-	RESIDENT_SYSTEM.resolve_daily_residents(state, repository.cards_by_id, repository.wishes_by_id, resource_manager)
-	var resident: Dictionary = state.get("resident_states", [])[0]
-	_assert_true(not resident.get("memory_log", []).is_empty(), "wish completion should create resident memory")
-	_assert_true(int(resident.get("autonomy_contribution", 0)) > 0, "healthy and satisfied residents should gain autonomy contribution")
-	_assert_true(resident.get("wish_branch_flags", {}).has("wish_safe_ramp"), "wish completion should record branch flags")
-	RESIDENT_SYSTEM.record_memory(resident, "manual", "test", "manual memory")
-	_assert_equal(str(resident.get("memory_log", []).back().get("type", "")), "manual", "record_memory should append typed memory")
-
-
-func _test_new_residents_wish_memory_and_report_hooks() -> void:
-	var repository: Node = _context.get("data_repository")
-	var resource_manager: Node = _context.get("resource_manager")
-	var required_residents := ["gao_meihua", "a_qiang"]
-	for resident_id: String in required_residents:
-		var resident_def: Dictionary = repository.residents_by_id.get(resident_id, {})
-		_assert_true(not resident_def.is_empty(), "new resident %s should exist" % resident_id)
-		_assert_true(str(resident_def.get("bio", "")).length() > 10, "new resident %s should have a useful bio" % resident_id)
-		_assert_true(resident_def.get("concerns", []).size() >= 2, "new resident %s should declare personal concerns" % resident_id)
-		_assert_true(resident_def.get("starting_messages", []).size() >= 3, "new resident %s should declare three starter messages" % resident_id)
-		_assert_true(resident_def.get("memory_seeds", []).size() >= 2, "new resident %s should seed resident memories" % resident_id)
-
-	var resident_states: Array[Dictionary] = RESIDENT_SYSTEM.build_initial_states(repository.residents)
-	var gao := _resident_state_by_id(resident_states, "gao_meihua")
-	_assert_true(gao.get("personal_messages", []).size() >= 3, "starting messages should enter resident runtime state")
-	_assert_true(gao.get("memory_log", []).size() >= 2, "memory seeds should enter resident runtime state")
-	_assert_true(gao.get("concerns", []).has("meal"), "resident concerns should enter runtime state")
-
-	var state := {
-		"day_count": 4,
-		"trust": 0,
-		"autonomy": 0,
-		"autonomy_points": 0,
-		"autonomy_history": [],
-		"built_facilities": [
-			{"card_id": "community_kitchen", "cell_index": 10},
-			{"card_id": "volunteer_station", "cell_index": 11}
-		],
-		"resident_states": resident_states
-	}
-	var lines: PackedStringArray = RESIDENT_SYSTEM.resolve_daily_residents(state, repository.cards_by_id, repository.wishes_by_id, resource_manager)
-	_assert_true(_lines_contain(lines, "resident") or _lines_contain(lines, "wish"), "dusk resident summary should mention new resident wish progress")
-	_assert_true(bool(gao.get("wish_progress", {}).get("wish_warm_meal_circle", {}).get("completed", false)), "new resident wish should complete from built facilities")
-	_assert_true(int(state.get("trust", 0)) >= 2, "new resident wish completion should affect trust")
-	_assert_true(int(state.get("autonomy_points", 0)) >= 8, "new resident wish completion should affect autonomy")
-
-	var report: Dictionary = ANNUAL_REPORT_SYSTEM.build_report(state, {"rating": "B", "score": 70.0}, repository.cards_by_id)
-	_assert_true(str(report.get("resident_result", "")).length() >= 0, "annual report should expose a named resident result")
-	_assert_true(report.get("resident_summaries", []).size() >= 9, "annual report should include all resident summaries")
 
 
 func _test_tutorial_progress() -> void:
@@ -1542,92 +1450,6 @@ func _test_v05_ten_day_event_pressure_curve() -> void:
 	_assert_equal(str(day_three[0].get("event_id", "")), "event_day3_first_notice_check", "Day 3 should preserve the tutorial problem")
 
 
-func _test_public_space_story_chain_and_annual_report() -> void:
-	var repository: Node = _context.get("data_repository")
-	var story_events: Array[Dictionary] = []
-	for event_def: Dictionary in repository.events:
-		if str(event_def.get("chain_id", "")) == "chain_public_space_rebuild":
-			story_events.append(event_def)
-	_assert_equal(story_events.size(), 5, "public space rebuild story chain should contain five events")
-	var steps := {}
-	var target_residents := {}
-	for event_def: Dictionary in story_events:
-		steps[int(event_def.get("chain_step", 0))] = true
-		_assert_true(not event_def.get("trigger_days", []).is_empty(), "story chain event should declare trigger days")
-		_assert_true(int(event_def.get("manpower_required", 0)) >= 1, "story chain event should require player intervention")
-		_assert_true(not event_def.get("reward", {}).is_empty(), "story chain event should declare rewards")
-		_assert_true(not event_def.get("penalty", {}).is_empty(), "story chain event should declare penalties")
-		_assert_true(str(event_def.get("story_stage", "")).length() > 0, "story chain event should declare story stage")
-		_assert_true(str(event_def.get("failure_feedback", "")).length() > 0, "story chain failure should have feedback text")
-		for resident_id_variant in event_def.get("target_resident_ids", []):
-			target_residents[str(resident_id_variant)] = true
-	for step: int in range(1, 6):
-		_assert_true(steps.has(step), "public space rebuild chain should include step %d" % step)
-	_assert_true(target_residents.size() >= 2, "public space rebuild chain should bind at least two residents")
-
-	var state := {
-		"resolved_problem_history": [
-			{
-				"event_id": "event_public_space_idle_complaint",
-				"title": "public space complaint",
-				"status": "resolved",
-				"chain_id": "chain_public_space_rebuild",
-				"chain_step": 1
-			},
-			{
-				"event_id": "event_public_space_need_split",
-				"title": "public space split",
-				"status": "expired",
-				"chain_id": "chain_public_space_rebuild",
-				"chain_step": 3
-			}
-		],
-		"resident_states": [],
-		"built_facilities": [],
-		"trust": 20,
-		"autonomy": 1,
-		"autonomy_points": 12
-	}
-	var report: Dictionary = ANNUAL_REPORT_SYSTEM.build_report(state, {"rating": "B", "score": 70.0}, repository.cards_by_id)
-	var story_summary: Dictionary = report.get("story_chain_summary", {})
-	_assert_true(story_summary.has("chain_public_space_rebuild"), "annual report should summarize the public space story chain")
-	var chain_summary: Dictionary = story_summary.get("chain_public_space_rebuild", {})
-	_assert_equal(int(chain_summary.get("resolved", -1)), 1, "story chain report should count resolved steps")
-	_assert_equal(int(chain_summary.get("expired", -1)), 1, "story chain report should count expired steps")
-	_assert_true(str(chain_summary.get("summary", "")).contains("鍏叡绌洪棿"), "story chain report should mention public space outcome")
-
-
-func _test_problem_resolution() -> void:
-	var game_state: Node = _context.get("game_state")
-	var event_manager: Node = _context.get("event_manager")
-	var tutorial_manager: Node = _context.get("tutorial_manager")
-	game_state.reset_state()
-	game_state.set_resident_states(_make_resident_states())
-	tutorial_manager.reload_data()
-	var state: Dictionary = game_state.get_state()
-	state["day_count"] = 2
-	state["manpower"] = 3
-	state["current_problem_tokens"] = 3
-	state["active_problems"] = [{
-		"event_id": "event_day2_rain_path",
-		"title": "rainy path notice",
-		"problem_card_id": "problem_rainy_walkway",
-		"source_type": "local",
-		"required_manpower": 2,
-		"assigned_manpower": 0,
-		"status": "active",
-		"reward": {"trust": 2},
-		"penalty": {"trust": 2, "satisfaction_delta": 4},
-		"target_resident_ids": ["wang_nainai", "xiao_lin"]
-	}]
-	var progress: Dictionary = event_manager.assign_manpower_to_problem(0, 1)
-	_assert_true(bool(progress.get("success", false)) and not bool(progress.get("resolved", false)), "partial manpower should progress the problem")
-	var resolved: Dictionary = event_manager.assign_manpower_to_problem(0, 1)
-	_assert_true(bool(resolved.get("success", false)) and bool(resolved.get("resolved", false)), "meeting manpower requirement should resolve the problem")
-	_assert_equal(state.get("active_problems", []).size(), 0, "resolved problem should be removed from active list")
-	_assert_true(int(state.get("trust", 0)) >= 2, "resolving a problem should grant rewards")
-
-
 func _test_v04_flower_unlock_and_board_v2_defaults() -> void:
 	var repository: Node = _context.get("data_repository")
 	var game_state: Node = _context.get("game_state")
@@ -1680,7 +1502,7 @@ func _test_board_v5_save_migration_preserves_unlocked_area() -> void:
 	var restored: Dictionary = save_manager.call("_restore_community_state", old_state)
 	_assert_equal(int(restored.get("board_version", 0)), 5, "existing board saves should migrate forward to board version 5")
 	_assert_equal(int(restored.get("land_unlock_stage", -1)), 1, "board version 5 migration should infer stage from the saved unlocked area instead of current trust")
-	_assert_equal(int(restored.get("trust", 0)), 100, "board version 5 migration should preserve trust while decoupling land unlock progress")
+	_assert_equal(int(restored.get("trust", -1)), 0, "board version 5 migration should discard legacy trust after land unlock progress is preserved")
 	_assert_true(bool(restored.get("board_cells", [])[BOARD_RULES.cell_index(4, 4)].get("unlocked", false)), "board version 5 migration should preserve the 8x8 unlocked area")
 	_assert_true(not bool(restored.get("board_cells", [])[BOARD_RULES.cell_index(3, 3)].get("unlocked", true)), "board version 5 migration should not over-expand beyond the saved land stage")
 
@@ -1788,7 +1610,7 @@ func _test_v04_facility_output_describes_synergy_sources() -> void:
 	var output: Dictionary = BOARD_RULES.calculate_facility_output(1, cells[1], cells, cards_by_id)
 	_assert_true(output.get("synergy_details", []).size() >= 2, "output should describe same-group and cross-group synergy sources")
 	_assert_true(str(output.get("reason", "")).length() > 0, "output reason should mention adjacency synergy")
-	_assert_true(output.get("bonus_resources", {}).has("trust"), "cross-type synergy should expose secondary bonus resources")
+	_assert_true(Dictionary(output.get("bonus_resources", {})).is_empty(), "service facilities should describe synergies without producing resource bonuses")
 
 
 func _test_ai_fallback() -> void:
@@ -1958,6 +1780,65 @@ func _test_save_manager_round_trips_runtime_state() -> void:
 	save_manager.delete_slot(1)
 
 
+func _test_save_manager_migrates_legacy_runtime_fields_out_of_loaded_state() -> void:
+	var save_manager: Node = _context.get("save_manager")
+	var old_cells := BOARD_RULES.create_default_board_cells()
+	var old_state := {
+		"board_version": 5,
+		"day_count": 8,
+		"flowers": 13,
+		"funds": 7,
+		"trust": 44,
+		"autonomy": 3,
+		"autonomy_points": 80,
+		"autonomy_history": [{"day": 7, "delta": 2}],
+		"autonomy_counted_facility_count": 9,
+		"current_problem_tokens": 5,
+		"active_problems": [{"event_id": "legacy_problem", "status": "active"}],
+		"resolved_problem_history": [{"event_id": "legacy_resolved", "status": "resolved"}],
+		"event_history": [{"event_id": "legacy_event"}],
+		"announcement_queue": [{"event_id": "legacy_announcement"}],
+		"pending_problem_escalations": [{"event_id": "legacy_escalation"}],
+		"resident_states": [{
+			"resident_id": "legacy_resident",
+			"name": "Legacy Resident",
+			"daily_manpower": 1,
+			"starting_satisfaction": 65,
+			"satisfaction": 40,
+			"health": 20,
+			"active_wish_ids": ["wish_safe_ramp"],
+			"wish_progress": {"wish_safe_ramp": {"completed": true}},
+			"autonomy_contribution": 4,
+			"pending_satisfaction_penalty": 3,
+			"pending_health_delta": -2
+		}],
+		"board_cells": old_cells,
+		"built_facilities": [],
+		"board_combo_cache": []
+	}
+	var restored: Dictionary = save_manager.call("_restore_community_state", old_state)
+	_assert_equal(int(restored.get("trust", -1)), 0, "loaded saves should discard legacy trust as runtime progress")
+	_assert_equal(int(restored.get("autonomy", -1)), 0, "loaded saves should discard legacy autonomy levels")
+	_assert_equal(int(restored.get("autonomy_points", -1)), 0, "loaded saves should discard legacy autonomy points")
+	_assert_equal(Array(restored.get("autonomy_history", [1])).size(), 0, "loaded saves should clear legacy autonomy history")
+	_assert_equal(int(restored.get("autonomy_counted_facility_count", -1)), 0, "loaded saves should clear legacy autonomy facility counters")
+	_assert_equal(int(restored.get("current_problem_tokens", -1)), 0, "loaded saves should clear old problem-token counters")
+	for queue_key: String in ["active_problems", "resolved_problem_history", "event_history", "announcement_queue", "pending_problem_escalations"]:
+		_assert_equal(Array(restored.get(queue_key, [1])).size(), 0, "loaded saves should clear legacy queue %s" % queue_key)
+	var resident: Dictionary = Array(restored.get("resident_states", []))[0]
+	_assert_true(not resident.has("starting_satisfaction"), "legacy saved residents should drop starting_satisfaction")
+	_assert_true(not resident.has("satisfaction"), "legacy saved residents should drop satisfaction")
+	_assert_true(not resident.has("health"), "legacy saved residents should drop health")
+	_assert_equal(Array(resident.get("active_wish_ids", [1])).size(), 0, "legacy saved residents should clear active wish ids")
+	_assert_equal(Dictionary(resident.get("wish_progress", {"legacy": true})).size(), 0, "legacy saved residents should clear wish progress")
+	_assert_equal(int(resident.get("autonomy_contribution", -1)), 0, "legacy saved residents should clear autonomy contribution")
+	_assert_equal(int(resident.get("pending_satisfaction_penalty", -1)), 0, "legacy saved residents should clear satisfaction penalties")
+	_assert_equal(int(resident.get("pending_health_delta", -1)), 0, "legacy saved residents should clear health deltas")
+	_assert_equal(int(restored.get("day_count", 0)), 8, "save migration should preserve current day")
+	_assert_equal(int(restored.get("flowers", 0)), 13, "save migration should preserve current flowers")
+	_assert_equal(int(restored.get("funds", 0)), 7, "save migration should preserve current funds")
+
+
 func _test_save_manager_rejects_legacy_save_versions() -> void:
 	var save_manager: Node = _context.get("save_manager")
 	var save_dir := ProjectSettings.globalize_path("user://saves")
@@ -1981,41 +1862,6 @@ func _test_save_manager_rejects_legacy_save_versions() -> void:
 	_assert_true(not bool(loaded.get("success", true)), "legacy save versions should be rejected")
 	_assert_equal(str(loaded.get("reason", "")), "incompatible_save_version", "legacy saves should fail with an explicit incompatibility reason")
 	save_manager.delete_slot(77)
-
-
-func _test_save_manager_backfills_legacy_resident_state() -> void:
-	var save_manager: Node = _context.get("save_manager")
-	var game_state: Node = _context.get("game_state")
-	game_state.reset_state()
-	game_state.set_resident_states([{
-		"resident_id": "wang_nainai",
-		"name": "Wang",
-		"starting_satisfaction": 68,
-		"satisfaction": 68,
-		"daily_manpower": 1,
-		"specialty_resource": "flowers",
-		"specialty_amount": 1,
-		"active_wish_ids": ["wish_safe_ramp"],
-		"pending_satisfaction_penalty": 0
-	}])
-	_assert_true(bool(save_manager.save_slot(3).get("success", false)), "legacy-shaped resident save should succeed")
-	game_state.reset_state()
-	_assert_true(bool(save_manager.load_slot(3).get("success", false)), "legacy-shaped resident load should succeed")
-	var loaded_state: Dictionary = game_state.get_state()
-	_assert_equal(int(loaded_state.get("autonomy_points", -1)), 0, "loaded legacy state should get autonomy points")
-	_assert_true(typeof(loaded_state.get("autonomy_history", [])) == TYPE_ARRAY, "loaded legacy state should get autonomy history")
-	_assert_true(typeof(loaded_state.get("unlocked_modes", {})) == TYPE_DICTIONARY, "loaded legacy state should get unlocked modes")
-	_assert_equal(str(loaded_state.get("post_game_mode", "")), "", "loaded legacy state should get post-game mode default")
-	_assert_true(typeof(loaded_state.get("completed_run_summary", {})) == TYPE_DICTIONARY, "loaded legacy state should get completed run summary")
-	_assert_equal(int(loaded_state.get("new_game_plus_count", -1)), 0, "loaded legacy state should get new game plus count")
-	_assert_true(typeof(loaded_state.get("legacy_bonus", {})) == TYPE_DICTIONARY, "loaded legacy state should get legacy bonus")
-	var restored_resident: Dictionary = game_state.get_state().get("resident_states", [])[0]
-	_assert_equal(int(restored_resident.get("health", 0)), 80, "loaded legacy resident should get default health")
-	_assert_true(typeof(restored_resident.get("wish_progress", {})) == TYPE_DICTIONARY, "loaded legacy resident should get wish progress")
-	_assert_true(typeof(restored_resident.get("personal_messages", [])) == TYPE_ARRAY, "loaded legacy resident should get personal messages")
-	_assert_true(typeof(restored_resident.get("memory_log", [])) == TYPE_ARRAY, "loaded legacy resident should get memory log")
-	_assert_true(typeof(restored_resident.get("wish_branch_flags", {})) == TYPE_DICTIONARY, "loaded legacy resident should get wish branch flags")
-	save_manager.delete_slot(3)
 
 
 func _test_steam_bridge_mock_is_safe_without_sdk() -> void:
@@ -2047,10 +1893,10 @@ func _test_audio_manager_registers_feedback_ids() -> void:
 	if not audio_manager.has_method("get_registered_sfx_ids") or not audio_manager.has_method("get_registered_bgm_ids"):
 		return
 	var sfx_ids: Array = Array(audio_manager.call("get_registered_sfx_ids"))
-	for id: String in ["card_pick", "craft_success", "craft_fail", "facility_place", "problem_resolved", "dusk_penalty", "day10_summary"]:
+	for id: String in ["card_pick", "craft_success", "craft_fail", "facility_place", "dusk_penalty"]:
 		_assert_true(sfx_ids.has(id), "audio manager should register SFX id %s" % id)
 	var bgm_ids: Array = Array(audio_manager.call("get_registered_bgm_ids"))
-	for id: String in ["sunrise", "day", "dusk", "night", "day10_summary"]:
+	for id: String in ["sunrise", "day", "dusk", "night"]:
 		_assert_true(bgm_ids.has(id), "audio manager should register BGM id %s" % id)
 	_assert_true(audio_manager.play_sfx("missing_asset"), "unknown SFX should remain a silent fallback")
 	if audio_manager.has_method("get_last_sfx_id") and audio_manager.has_method("was_last_sfx_fallback"):
@@ -2121,18 +1967,19 @@ func _test_card_view_localizes_player_facing_keys() -> void:
 		"fund_cost": 2,
 		"manpower_cost": 1,
 		"primary_resource": "trust",
-		"base_output": 1,
-		"preferred_zone": "service",
+		"base_output": 5,
+		"preferred_zone": "商业",
 		"description": "localization test"
 	}, "hand", 0, "", false)
 	var visible_text := str(card.call("get_visible_face_text"))
 	var tooltip_text := str(card.tooltip_text)
-	_assert_true(visible_text.contains("信任"), "card front should use Chinese resource labels")
+	_assert_true(visible_text.contains("资金"), "card front should expose the remapped stationed resource instead of trust")
+	_assert_true(visible_text.contains("驻扎"), "card front should describe stationed output rules")
 	_assert_true(visible_text.contains("设施"), "card front should use Chinese card type labels")
 	_assert_true(visible_text.length() > 0, "card front should render rarity labels")
 	_assert_true(tooltip_text.length() > 0, "card tooltip should render tag labels")
 	_assert_true(tooltip_text.contains("建设"), "card tooltip should use Chinese tag labels")
-	_assert_true(not visible_text.contains("trust"), "card front should not expose raw resource keys")
+	_assert_true(not visible_text.contains("trust") and not visible_text.contains("信任"), "card front should stop exposing legacy trust output")
 	_assert_true(not tooltip_text.contains("accessibility"), "card tooltip should not expose raw tag keys")
 	_assert_true(not tooltip_text.contains("construction"), "card tooltip should not expose raw tag keys")
 	card.free()
@@ -2296,6 +2143,221 @@ func _test_main_view_exposes_tabletop_layout_state() -> void:
 	main_view.free()
 
 
+func _test_main_view_free_tabletop_contract() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	_assert_true(main_view.has_method("can_tabletop_cards_overlap"), "main view should expose free-card overlap support")
+	if main_view.has_method("can_tabletop_cards_overlap"):
+		_assert_true(bool(main_view.call("can_tabletop_cards_overlap")), "tabletop cards should be allowed to overlap and stack")
+	_assert_true(main_view.has_method("is_grid_primary_placement_enabled"), "main view should expose whether the old grid is still the primary placement path")
+	if main_view.has_method("is_grid_primary_placement_enabled"):
+		_assert_true(not bool(main_view.call("is_grid_primary_placement_enabled")), "old grid placement should not be the primary building placement path")
+	_assert_true(main_view.has_method("place_hand_card_on_tabletop"), "main view should place hand cards at free tabletop coordinates")
+	_assert_true(main_view.has_method("get_tabletop_card_positions"), "main view should expose tabletop card positions")
+	_assert_true(main_view.has_method("get_tabletop_card_z_order"), "main view should expose tabletop z-order")
+	if not main_view.has_method("place_hand_card_on_tabletop"):
+		main_view.free()
+		return
+	main_view.set_hand_cards_state(["community_ramp", "rest_bench"])
+	var first_position := Vector2(128, 92)
+	var second_position := Vector2(136, 98)
+	var first_result: Dictionary = main_view.call("place_hand_card_on_tabletop", 0, first_position)
+	var second_result: Dictionary = main_view.call("place_hand_card_on_tabletop", 0, second_position)
+	_assert_true(bool(first_result.get("success", false)), "first tabletop placement should succeed")
+	_assert_true(bool(second_result.get("success", false)), "second tabletop placement should succeed even when overlapping the first")
+	var first_key := str(first_result.get("instance_id", ""))
+	var second_key := str(second_result.get("instance_id", ""))
+	_assert_true(not first_key.is_empty(), "tabletop placement should return a stable instance id")
+	_assert_true(not second_key.is_empty(), "second tabletop placement should return a stable instance id")
+	var positions: Dictionary = main_view.call("get_tabletop_card_positions") if main_view.has_method("get_tabletop_card_positions") else {}
+	var z_order: Dictionary = main_view.call("get_tabletop_card_z_order") if main_view.has_method("get_tabletop_card_z_order") else {}
+	_assert_equal(positions.get(first_key, Vector2.ZERO), first_position, "tabletop should remember the first free position")
+	_assert_equal(positions.get(second_key, Vector2.ZERO), second_position, "tabletop should remember the overlapping second free position")
+	_assert_true(int(z_order.get(second_key, 0)) > int(z_order.get(first_key, 0)), "later tabletop placements should be above earlier cards")
+	if main_view.has_method("bring_tabletop_card_to_front"):
+		main_view.call("bring_tabletop_card_to_front", first_key)
+		z_order = main_view.call("get_tabletop_card_z_order")
+		_assert_true(int(z_order.get(first_key, 0)) > int(z_order.get(second_key, 0)), "bringing a tabletop card forward should increase its z-index")
+	main_view.free()
+
+
+func _test_main_view_tabletop_drop_replaces_primary_grid_target() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	main_view.set_hand_cards_state(["community_ramp"])
+	main_view.set("drag_card_id", "community_ramp")
+	main_view.set("drag_source_zone", "hand")
+	main_view.set("drag_source_index", 0)
+	main_view.set("is_dragging", true)
+	var board_panel: Control = main_view.get("board_panel")
+	_assert_true(board_panel != null, "main view should expose the tabletop panel")
+	if board_panel == null:
+		main_view.free()
+		return
+	board_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	board_panel.global_position = Vector2(100, 80)
+	board_panel.size = Vector2(520, 320)
+	var drop_position := board_panel.global_position + Vector2(214, 126)
+	var target: Dictionary = main_view.call("_resolve_drop_target", drop_position)
+	_assert_equal(str(target.get("type", "")), "tabletop", "hand facility drops over the playmat should resolve to tabletop, not the legacy grid")
+	_assert_equal(target.get("position", Vector2.ZERO), Vector2(214, 126), "tabletop drop target should preserve local free placement coordinates")
+	main_view.free()
+
+
+func _test_main_view_tabletop_state_round_trips_through_save_state() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.set_hand_cards_state(["community_ramp"])
+	if not main_view.has_method("place_hand_card_on_tabletop"):
+		_assert_true(false, "main view should place tabletop cards before save round trip")
+		main_view.free()
+		return
+	var placed: Dictionary = main_view.call("place_hand_card_on_tabletop", 0, Vector2(88, 144))
+	_assert_true(bool(placed.get("success", false)), "tabletop placement should succeed before save round trip")
+	var instance_id := str(placed.get("instance_id", ""))
+	var save_state: Dictionary = main_view.call("_build_ui_save_state")
+	_assert_true(save_state.has("tabletop_card_positions"), "ui save state should persist tabletop positions")
+	_assert_true(save_state.has("tabletop_card_z"), "ui save state should persist tabletop z-order")
+	var restored: Control = main_scene.instantiate()
+	restored.call("_apply_ui_save_state", save_state)
+	var restored_positions: Dictionary = restored.call("get_tabletop_card_positions") if restored.has_method("get_tabletop_card_positions") else {}
+	var restored_z: Dictionary = restored.call("get_tabletop_card_z_order") if restored.has_method("get_tabletop_card_z_order") else {}
+	_assert_equal(restored_positions.get(instance_id, Vector2.ZERO), Vector2(88, 144), "restored main view should keep tabletop card position")
+	_assert_true(int(restored_z.get(instance_id, 0)) > 0, "restored main view should keep tabletop z-order")
+	var save_manager: Node = _context.get("save_manager")
+	var normalized: Dictionary = save_manager.call("_normalize_ui_state", save_state)
+	var normalized_positions: Dictionary = normalized.get("tabletop_card_positions", {})
+	var normalized_position: Dictionary = normalized_positions.get(instance_id, {})
+	_assert_equal(float(normalized_position.get("x", 0.0)), 88.0, "SaveManager should normalize tabletop x position for JSON")
+	_assert_equal(float(normalized_position.get("y", 0.0)), 144.0, "SaveManager should normalize tabletop y position for JSON")
+	_assert_true(int(Dictionary(normalized.get("tabletop_card_z", {})).get(instance_id, 0)) > 0, "SaveManager should normalize tabletop z-order")
+	main_view.free()
+	restored.free()
+
+
+func _test_main_view_paper_table_palette_replaces_iso_board() -> void:
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	var script: Script = main_view.get_script()
+	var table_bg: Color = script.get("TABLETOP_BG_COLOR")
+	_assert_equal(int(round(table_bg.r * 255)), 0xE9, "table background should be cream paper red channel")
+	_assert_equal(int(round(table_bg.g * 255)), 0xD5, "table background should be cream paper green channel")
+	_assert_equal(int(round(table_bg.b * 255)), 0xB0, "table background should be cream paper blue channel")
+	var border: Color = script.get("PLAYMAT_BORDER_COLOR")
+	_assert_equal(int(round(border.r * 255)), 0x3B, "playmat border should remain deep brown red channel")
+	_assert_true(int(script.get("PLAYMAT_RADIUS")) >= 18, "playmat should be a rounded rectangle")
+	_assert_true(not bool(script.get("SHOW_ISO_GRID_PAINTER")), "iso grid should not be shown in stacklands mode")
+	main_view.call("_build_ui")
+	var iso_painter: Node = main_view.get("iso_grid_painter")
+	if iso_painter != null and iso_painter is CanvasItem:
+		_assert_true(not (iso_painter as CanvasItem).visible, "iso_grid_painter should be hidden when SHOW_ISO_GRID_PAINTER is false")
+	main_view.free()
+
+
+func _test_main_view_tasks_panel_lists_recipes_and_goals() -> void:
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	var lines: PackedStringArray = main_view.call("get_tasks_panel_lines")
+	_assert_true(lines.size() >= 5, "tasks panel should expose at least the recipe list for day 1 (got %d)" % lines.size())
+	if lines.size() > 0:
+		_assert_true(lines[0].begins_with("·"), "tasks panel rows should be bullet-style (got '%s')" % lines[0])
+	main_view.free()
+
+
+func _test_main_view_toolbar_strip_has_four_round_buttons() -> void:
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	var toolbar: Control = main_view.get_node_or_null("ToolbarStrip")
+	_assert_true(toolbar != null, "toolbar strip should exist as a named region")
+	if toolbar != null:
+		var button_count := 0
+		for child in toolbar.get_children():
+			if child is Button:
+				button_count += 1
+				_assert_equal(int(child.custom_minimum_size.x), 44, "each toolbar button should be 44px round (got %d)" % int(child.custom_minimum_size.x))
+		_assert_equal(button_count, 4, "toolbar should have four round buttons (got %d)" % button_count)
+	main_view.free()
+
+
+func _test_main_view_tabletop_stack_renders_title_bar_peeks() -> void:
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	main_view.set("tabletop_card_ids", {"perm:1": "ramp_blueprint", "mat:1": "lumber_pack"})
+	main_view.set("tabletop_card_positions", {"perm:1": Vector2(100, 100), "mat:1": Vector2(100, 118)})
+	main_view.set("tabletop_card_z", {"perm:1": 1, "mat:1": 2})
+	var offsets: Array = main_view.call("get_visible_stack_bar_offsets", "")
+	_assert_equal(offsets.size(), 2, "stack should expose two peek offsets")
+	if offsets.size() >= 2:
+		_assert_true(int(offsets[0]) <= 22, "bottom peek should reveal only title bar")
+		_assert_true(int(offsets[1]) >= 22, "top peek should reveal full card")
+	main_view.free()
+
+
+func _test_main_view_dropping_permit_on_material_triggers_build() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	main_view.set("tabletop_card_ids", {"perm:1": "ramp_blueprint", "mat:1": "lumber_pack"})
+	main_view.set("tabletop_card_positions", {"perm:1": Vector2(200, 200), "mat:1": Vector2(200, 200)})
+	main_view.set("tabletop_card_z", {"perm:1": 1, "mat:1": 2})
+	var result: Dictionary = main_view.call("drop_tabletop_card_on", "ramp_blueprint", "lumber_pack")
+	_assert_true(bool(result.get("success", false)), "permit+material drop should resolve a recipe")
+	_assert_equal(str(result.get("result_card_id", "")), "community_ramp", "ramp_blueprint + lumber_pack should produce community_ramp")
+	var built: Array = game_state.get_state().get("built_facilities", [])
+	var has_ramp := false
+	for entry_variant in built:
+		if typeof(entry_variant) == TYPE_DICTIONARY and str((entry_variant as Dictionary).get("card_id", "")) == "community_ramp":
+			has_ramp = true
+	_assert_true(has_ramp, "built_facilities should record the newly crafted community_ramp")
+	main_view.free()
+
+
+func _test_card_view_stacklands_title_bar_palette() -> void:
+	var card_scene: PackedScene = load("res://scenes/CardView.tscn")
+	var card: Control = card_scene.instantiate()
+	card.call("configure", {"card_id":"ramp_blueprint","name":"坡道许可","type":"building_permit"}, "hand", 0)
+	var title_bar: Node = card.get_node_or_null("MarginContainer/VBoxContainer/TitleBar")
+	if title_bar == null:
+		# fall back: search by name in subtree
+		title_bar = card.find_child("TitleBar", true, false)
+	_assert_true(title_bar != null, "card should expose a TitleBar node")
+	if title_bar != null and title_bar is PanelContainer:
+		var style: StyleBox = (title_bar as PanelContainer).get_theme_stylebox("panel")
+		_assert_true(style is StyleBoxFlat, "TitleBar should use a StyleBoxFlat")
+		if style is StyleBoxFlat:
+			var bg: Color = (style as StyleBoxFlat).bg_color
+			_assert_equal(int(round(bg.r * 255)), 0x47, "building_permit title bar should be deep brown red channel")
+			_assert_equal(int(round(bg.g * 255)), 0x2E, "building_permit title bar should be deep brown green channel")
+			_assert_equal(int(round(bg.b * 255)), 0x18, "building_permit title bar should be deep brown blue channel")
+	_assert_true(int(card.get_minimum_size().y) >= 80, "stacklands cards should remain portrait")
+	card.free()
+
+
+func _test_main_view_stacklands_five_region_layout() -> void:
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	for region_name in ["ResourceHud", "BulletinStrip", "TasksPanel", "PlaymatPanel", "ToolbarStrip"]:
+		_assert_true(main_view.has_node(region_name), "main view should expose region '%s' as a named child" % region_name)
+	var playmat: Control = main_view.get_node_or_null("PlaymatPanel")
+	if playmat != null:
+		_assert_true(playmat.size.x >= 600, "PlaymatPanel should occupy the largest tabletop region (>=600 px wide)")
+		_assert_true(playmat.size.y >= 280, "PlaymatPanel should reserve significant height")
+	main_view.free()
+
+
 func _test_main_view_defaults_to_live_ui_instead_of_reference_overlay() -> void:
 	var main_scene: PackedScene = load("res://scenes/Main.tscn")
 	var main_view: Control = main_scene.instantiate()
@@ -2411,26 +2473,78 @@ func _test_main_view_v04_chinese_status_helpers() -> void:
 	var main_scene: PackedScene = load("res://scenes/Main.tscn")
 	var main_view: Control = main_scene.instantiate()
 	_assert_true(main_view.has_method("format_selection_status"), "main view should expose selection status copy")
-	_assert_true(main_view.has_method("advance_button_text_for_phase"), "main view should expose phase-aware advance button copy")
+	_assert_true(main_view.has_method("runtime_control_button_text"), "main view should expose pause/resume button copy")
+	_assert_true(main_view.has_method("runtime_phase_action_hint"), "main view should expose runtime timer hint copy")
 	if main_view.has_method("format_selection_status"):
 		_assert_equal(str(main_view.call("format_selection_status", 2, 3)), "今日已选 2/3", "selection status should be clear Chinese copy")
-	if main_view.has_method("advance_button_text_for_phase"):
-		_assert_equal(str(main_view.call("advance_button_text_for_phase", "day")), "进入黄昏结算", "day button should enter dusk settlement first")
-		_assert_true(str(main_view.call("advance_button_text_for_phase", "dusk")).length() > 0, "dusk button should communicate the next transition")
-	if main_view.has_method("format_phase_action_hint"):
-		var hint_text := str(main_view.call("format_phase_action_hint", "day", {
+	if main_view.has_method("runtime_control_button_text"):
+		_assert_equal(str(main_view.call("runtime_control_button_text")), "暂停菜单", "runtime control button should open the pause menu during active play")
+		main_view.call("_build_ui")
+		main_view.call("_toggle_settings_panel")
+		_assert_equal(str(main_view.call("runtime_control_button_text")), "继续游戏", "runtime control button should resume play while the pause menu is open")
+		main_view.call("_toggle_settings_panel")
+	if main_view.has_method("runtime_phase_action_hint"):
+		var hint_text := str(main_view.call("runtime_phase_action_hint", {
 			"active_problems": [{"penalty": {"trust": 2, "satisfaction_delta": 1}}],
-			"resident_states": []
+			"resident_states": [],
+			"day_seconds_per_day": 120,
+			"day_elapsed_seconds": 18
 		}))
 		_assert_true(hint_text.contains("需求") and hint_text.contains("民心"), "day hint should describe demand and moral settlement")
+		_assert_true(hint_text.contains("自动") and hint_text.contains("120"), "day hint should explain the automatic 120-second day rollover")
 		_assert_true(not hint_text.contains("问题") and not hint_text.contains("愿望") and not hint_text.contains("信任") and not hint_text.contains("满意度"), "day hint should not expose legacy problem/wish/trust/satisfaction copy")
+	main_view.free()
+
+
+func _test_main_view_continuous_timer_pause_and_auto_rollover_contract() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	game_state.set_resident_states([{
+		"resident_id": "resident_timer",
+		"name": "计时居民",
+		"daily_manpower": 1,
+		"need_tags": ["service"],
+		"specialty_resource": "flowers",
+		"specialty_amount": 0
+	}])
+	var state: Dictionary = game_state.get_state()
+	state["phase"] = "day"
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	_assert_true(main_view.has_method("advance_runtime_clock"), "main view should expose runtime clock advancement for the continuous day system")
+	_assert_true(main_view.has_method("is_pause_menu_open"), "main view should expose whether the pause menu is open")
+	_assert_true(main_view.has_method("is_day_timer_paused"), "main view should expose whether the runtime day timer is paused")
+	_assert_true(main_view.has_method("get_day_timer_remaining_seconds"), "main view should expose remaining seconds in the current day")
+	_assert_true(main_view.has_method("format_day_timer_text"), "main view should expose localized timer copy")
+	if not main_view.has_method("advance_runtime_clock"):
+		main_view.free()
+		return
+	var tick: Dictionary = main_view.call("advance_runtime_clock", 30.0)
+	_assert_equal(int(tick.get("days_advanced", -1)), 0, "30 seconds should stay within the current day")
+	_assert_equal(int(state.get("day_elapsed_seconds", -1)), 30, "runtime clock should accumulate elapsed seconds during active play")
+	main_view.call("_toggle_settings_panel")
+	_assert_true(bool(main_view.call("is_pause_menu_open")), "pause menu should open from the runtime control")
+	_assert_true(bool(main_view.call("is_day_timer_paused")), "opening the pause menu should stop the continuous timer")
+	var paused_tick: Dictionary = main_view.call("advance_runtime_clock", 90.0)
+	_assert_equal(int(paused_tick.get("days_advanced", -1)), 0, "paused runtime should not auto-advance the day")
+	_assert_equal(int(state.get("day_elapsed_seconds", -1)), 30, "paused runtime should preserve elapsed day seconds")
+	main_view.call("_toggle_settings_panel")
+	var rollover_tick: Dictionary = main_view.call("advance_runtime_clock", 90.0)
+	_assert_equal(int(rollover_tick.get("days_advanced", -1)), 1, "the 120th live second should automatically settle the day")
+	_assert_equal(int(state.get("day_count", -1)), 2, "automatic rollover should move the community into the next day without a button click")
+	_assert_equal(int(state.get("day_elapsed_seconds", -1)), 0, "automatic rollover should reset elapsed day seconds")
+	_assert_equal(str(state.get("phase", "")), "day", "automatic rollover should return play to the live day phase")
+	_assert_true(Array(state.get("resident_need_entities", [])).size() >= 1, "automatic rollover should seed the next day's resident needs")
+	_assert_equal(int(main_view.call("get_day_timer_remaining_seconds")), 120, "a fresh day should reset the remaining timer to 120 seconds")
+	_assert_true(str(main_view.call("format_day_timer_text")).contains("120"), "timer copy should surface the 120-second day length to players")
 	main_view.free()
 
 
 func _test_main_view_localizes_resident_summary_keys() -> void:
 	var main_scene: PackedScene = load("res://scenes/Main.tscn")
 	var main_view: Control = main_scene.instantiate()
-	var summary := str(main_view.call("_format_residents", [{
+	var resident := {
 		"name": "娴嬭瘯灞呮皯",
 		"satisfaction": 66,
 		"health": 80,
@@ -2441,13 +2555,37 @@ func _test_main_view_localizes_resident_summary_keys() -> void:
 		"specialty_resource": "flowers",
 		"specialty_amount": 1,
 		"personal_messages": [{"text": "娴嬭瘯鐣欒█"}]
-	}]))
+	}
+	var summary := str(main_view.call("_format_residents", [resident]))
 	_assert_true(summary.contains("位置"), "resident summary should keep Chinese labels")
 	_assert_true(summary.contains("小红花 +1"), "resident summary should localize specialty resources")
 	_assert_true(summary.contains("需求"), "resident summary should expose demand tags")
 	_assert_true(not summary.contains("home"), "resident summary should not expose raw location keys")
 	_assert_true(not summary.contains("flowers"), "resident summary should not expose raw resource keys")
 	_assert_true(not summary.contains("愿望") and not summary.contains("满意度") and not summary.contains("自治"), "resident summary should not expose legacy wish/satisfaction/autonomy fields")
+	var resident_card: PanelContainer = main_view.call("_make_resident_summary_card", resident)
+	var resident_card_text := "\n".join(_collect_control_text(resident_card))
+	_assert_true(resident_card_text.contains("小红花 +1"), "resident summary cards should still expose specialty output")
+	_assert_true(not resident_card_text.contains("❤") and not resident_card_text.contains("体") and not resident_card_text.contains("满意度") and not resident_card_text.contains("健康"), "resident summary cards should stop exposing legacy satisfaction and health")
+	resident_card.free()
+	main_view.free()
+
+
+func _test_main_view_displays_moral_resource_chip() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var state: Dictionary = game_state.get_state()
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	main_view.call("_refresh_status_header_ui", state)
+	var moral_chip: Label = main_view.get("resource_chip_moral") as Label
+	_assert_true(moral_chip != null, "main view should expose a dedicated moral chip in the top resource bar")
+	if moral_chip != null:
+		var chip_container: Node = moral_chip.get_parent()
+		var chip_text := "\n".join(_collect_control_text(chip_container))
+		_assert_true(chip_text.contains("民心"), "the moral chip should label the resource as 民心 instead of hiding it in a status line")
+		_assert_true(moral_chip.text == "10/20", "the moral chip should reflect both the current and capped moral values")
 	main_view.free()
 
 
@@ -2460,19 +2598,23 @@ func _test_main_view_readability_feedback_helpers() -> void:
 	_assert_true(main_view.has_method("format_dusk_settlement_summary"), "main view should expose a dusk settlement digest")
 	if main_view.has_method("format_problem_progress_summary"):
 		var problem_text := str(main_view.call("format_problem_progress_summary", {
-			"title": "闆ㄥぉ閫氶亾",
-			"required_manpower": 3,
-			"assigned_manpower": 1,
-			"penalty": {"trust": 2, "satisfaction_delta": 1},
-			"counter_tags": ["rain", "access"],
-			"mitigated_by_card_ids": ["community_ramp"]
+			"need_id": "need_preview",
+			"resident_name": "测试居民",
+			"need_tags": ["care", "service"],
+			"service_capacity": 2,
+			"fallback_flower_costs": [1, 2],
+			"status": "pending",
+			"day_created": 1
 		}))
-		_assert_true(problem_text.contains("已停用"), "legacy problem progress copy should report that the old UI is disabled")
-		_assert_true(not problem_text.contains("信任") and not problem_text.contains("满意度"), "legacy problem progress copy should not mention trust or satisfaction")
+		_assert_true(problem_text.contains("居民需求") and problem_text.contains("小红花"), "demand progress copy should explain resident needs and flower fallback")
+		_assert_true(problem_text.contains("容量 2") or problem_text.contains("容量2"), "demand progress copy should expose the service-capacity rule")
+		_assert_true(not problem_text.contains("信任") and not problem_text.contains("满意度") and not problem_text.contains("问题"), "demand progress copy should not mention legacy trust, satisfaction, or problem framing")
 	if main_view.has_method("format_facility_yield_summary"):
 		var facility_text := str(main_view.call("format_facility_yield_summary", "community_ramp", 112))
 		_assert_true(facility_text.contains("设施收益"), "facility summary should be labeled as yield feedback")
 		_assert_true(facility_text.length() > 0, "facility summary should explain placement cost")
+		_assert_true(facility_text.contains("驻扎") or facility_text.contains("服务建筑"), "facility summary should explain stationed output or service-only behavior")
+		_assert_true(not facility_text.contains("基础产出") and not facility_text.contains("材料产出"), "facility summary should stop describing legacy natural production")
 		_assert_true(not facility_text.contains("问题对策"), "facility summary should not expose legacy problem-counter copy")
 	if main_view.has_method("format_adjacency_bonus_summary"):
 		var combo_text := str(main_view.call("format_adjacency_bonus_summary", [{
@@ -2489,6 +2631,29 @@ func _test_main_view_readability_feedback_helpers() -> void:
 	main_view.free()
 
 
+func _test_main_view_source_drops_legacy_problem_wish_and_upgrade_helpers() -> void:
+	var source := _read_text_file("res://scripts/ui/MainView.gd")
+	_assert_true(source.length() > 0, "MainView source should be readable for legacy sweep guards")
+	_assert_true(not source.contains("func _drop_problem_token("), "MainView should remove the old problem-token drop handler")
+	_assert_true(not source.contains("func assign_manpower_to_problem_from_ui("), "MainView should remove the old direct problem manpower action helper")
+	_assert_true(not source.contains("func _problem_resolved_feedback("), "MainView should remove legacy problem resolution feedback copy")
+	_assert_true(not source.contains("func _problem_index_at("), "MainView should stop hit-testing legacy problem cards")
+	_assert_true(not source.contains("func _begin_problem_token_drag("), "MainView should remove the unused problem-token drag entrypoint")
+	_assert_true(not source.contains("func _make_problem_token_card("), "MainView should remove the unused problem-token card factory")
+	_assert_true(not source.contains("func _wish_hint_for_card("), "MainView should remove legacy wish hint helpers")
+	_assert_true(not source.contains("func _facility_wish_feedback("), "MainView should remove legacy facility-wish feedback helpers")
+	_assert_true(not source.contains("func _build_upgrade_button("), "MainView should remove the old facility-upgrade UI block")
+	_assert_true(not source.contains("func _refresh_facility_upgrade_button("), "MainView should remove the old facility-upgrade refresh helper")
+	_assert_true(not source.contains("func _on_facility_upgrade_pressed("), "MainView should remove the old facility-upgrade click handler")
+	_assert_true(not source.contains("apply_support_to_problem"), "MainView should not route consumables into the removed problem system")
+	_assert_true(not source.contains("DataRepository.wishes_by_id"), "MainView should not keep wish repository hooks after the legacy sweep")
+	_assert_true(not source.contains("active_wish_ids"), "MainView should not keep resident wish references after the legacy sweep")
+	_assert_true(not source.contains("resident.get(\"satisfaction\""), "MainView should stop reading resident satisfaction after moral replaces resident mood stats")
+	_assert_true(not source.contains("resident.get(\"health\""), "MainView should stop reading resident health after moral replaces resident mood stats")
+	_assert_true(not source.contains("get(\"trust\", 0)"), "MainView should stop reading legacy trust gates after the day-wave migration")
+	_assert_true(not source.contains("\"key\": \"trust\""), "MainView resource floaters should stop tracking legacy trust")
+
+
 func _test_main_view_audio_feedback_mapping() -> void:
 	var main_scene: PackedScene = load("res://scenes/Main.tscn")
 	var main_view: Control = main_scene.instantiate()
@@ -2499,32 +2664,37 @@ func _test_main_view_audio_feedback_mapping() -> void:
 		_assert_equal(str(main_view.call("audio_sfx_id_for_action", "craft_success")), "craft_success", "craft success should use the craft_success SFX")
 		_assert_equal(str(main_view.call("audio_sfx_id_for_action", "craft_fail")), "craft_fail", "craft failure should use the craft_fail SFX")
 		_assert_equal(str(main_view.call("audio_sfx_id_for_action", "place")), "facility_place", "facility placement should use the facility_place SFX")
-		_assert_equal(str(main_view.call("audio_sfx_id_for_action", "problem_resolved")), "problem_resolved", "problem resolution should use the problem_resolved SFX")
-		_assert_equal(str(main_view.call("audio_sfx_id_for_action", "dusk_penalty")), "dusk_penalty", "dusk penalties should use the dusk_penalty SFX")
-		_assert_equal(str(main_view.call("audio_sfx_id_for_action", "day10_summary")), "day10_summary", "Day 10 settlement should use the day10_summary SFX")
+		_assert_equal(str(main_view.call("audio_sfx_id_for_action", "dusk_penalty")), "dusk_penalty", "moral/demand dusk changes should use the dusk_penalty SFX")
 	if main_view.has_method("audio_bgm_id_for_phase"):
 		_assert_equal(str(main_view.call("audio_bgm_id_for_phase", "sunrise")), "sunrise", "sunrise should have a BGM state")
 		_assert_equal(str(main_view.call("audio_bgm_id_for_phase", "day")), "day", "day should have a BGM state")
 		_assert_equal(str(main_view.call("audio_bgm_id_for_phase", "dusk")), "dusk", "dusk should have a BGM state")
 		_assert_equal(str(main_view.call("audio_bgm_id_for_phase", "night")), "night", "night should have a BGM state")
-		_assert_equal(str(main_view.call("audio_bgm_id_for_phase", "day10_summary")), "day10_summary", "Day 10 settlement should have a BGM state")
 	main_view.free()
 
 
 func _test_main_view_dusk_phase_clarity_contract() -> void:
 	var main_scene: PackedScene = load("res://scenes/Main.tscn")
 	var main_view: Control = main_scene.instantiate()
-	_assert_true(main_view.has_method("format_phase_action_hint"), "main view should explain what the current phase button will do")
+	_assert_true(main_view.has_method("runtime_phase_action_hint"), "main view should explain the automatic runtime timer")
 	_assert_true(main_view.has_method("format_dusk_settlement_summary"), "main view should expose a structured dusk settlement report")
-	if main_view.has_method("format_phase_action_hint"):
-		var day_hint := str(main_view.call("format_phase_action_hint", "day", {
+	if main_view.has_method("runtime_phase_action_hint"):
+		var day_hint := str(main_view.call("runtime_phase_action_hint", {
 			"active_problems": [{"penalty": {"trust": 2, "satisfaction_delta": 1}}],
-			"resident_states": []
+			"resident_states": [],
+			"day_seconds_per_day": 120,
+			"day_elapsed_seconds": 48
 		}))
-		var dusk_hint := str(main_view.call("format_phase_action_hint", "dusk", {}))
+		main_view.call("_build_ui")
+		main_view.call("_toggle_settings_panel")
+		var paused_hint := str(main_view.call("runtime_phase_action_hint", {
+			"day_seconds_per_day": 120,
+			"day_elapsed_seconds": 48
+		}))
 		_assert_true(day_hint.contains("需求") and day_hint.contains("民心"), "day hint should preview demand and moral settlement")
+		_assert_true(day_hint.contains("自动") and day_hint.contains("120"), "day hint should explain the automatic 120-second rollover")
 		_assert_true(not day_hint.contains("问题") and not day_hint.contains("愿望"), "day hint should not mention disabled legacy systems")
-		_assert_true(dusk_hint.length() > 0, "dusk hint should explain the next click starts tomorrow's setup")
+		_assert_true(paused_hint.contains("暂停"), "pause hint should explain that the timer is currently stopped")
 	if main_view.has_method("format_dusk_settlement_summary"):
 		var report := str(main_view.call("format_dusk_settlement_summary", PackedStringArray([
 			"需求结算: 满足 2, 小红花兜底 0, 未满足 0, 民心 11",
@@ -2754,7 +2924,7 @@ func _test_main_view_recipe_handbook_quick_craft_contract() -> void:
 		main_view.call("set_hand_cards_state", material_suggest_hand)
 		main_view.call("set_craft_slots_state", material_suggest_slots)
 		var material_suggestion: Dictionary = main_view.call("find_quick_craft_suggestion", "lumber_pack", "hand", 0)
-		_assert_equal(str(material_suggestion.get("result_card_id", "")), "community_ramp", "quick craft should suggest a facility from two common materials, not only building-permit-plus-specific-material pairs")
+		_assert_true(material_suggestion.is_empty(), "quick craft should not suggest a facility from two materials")
 	if main_view.has_method("quick_craft_hand_card_index"):
 		var quick_hand: Array[String] = ["ramp_blueprint", "lumber_pack"]
 		var quick_slots: Array[String] = []
@@ -2795,7 +2965,6 @@ func _test_main_view_land_unlock_and_bulletin_action_contract() -> void:
 	game_state.reset_state()
 	var state: Dictionary = game_state.get_state()
 	state["day_count"] = 5
-	state["trust"] = 20
 	state["flowers"] = 25
 	var main_scene: PackedScene = load("res://scenes/Main.tscn")
 	var main_view: Control = main_scene.instantiate()
@@ -2804,7 +2973,7 @@ func _test_main_view_land_unlock_and_bulletin_action_contract() -> void:
 	if not main_view.has_method("get_board_land_unlock_action_state") or not main_view.has_method("get_bulletin_card_action_state"):
 		main_view.free()
 		return
-	main_view.call("set_bulletin_cards_state", ["ramp_blueprint", "lumber_pack", "", "", ""], [6, 4, 0, 0, 0])
+	main_view.call("set_bulletin_cards_state", ["lumber_pack", "ramp_blueprint", "", "", ""], [6, 4, 0, 0, 0])
 	state["selected_cards_today"] = 1
 	main_view.call("_update_all_ui")
 	var paid_state: Dictionary = main_view.call("get_bulletin_card_action_state", 0)
@@ -2815,10 +2984,13 @@ func _test_main_view_land_unlock_and_bulletin_action_contract() -> void:
 	var unlock_state: Dictionary = main_view.call("get_board_land_unlock_action_state")
 	_assert_true(bool(unlock_state.get("visible", false)) and bool(unlock_state.get("enabled", false)), "selecting the next locked ring should surface an enabled board expansion action")
 	_assert_true(str(unlock_state.get("button_text", "")).contains("8x8"), "board expansion UI should say which target size will be unlocked next")
+	_assert_true(not str(unlock_state.get("button_text", "")).contains("信任"), "board expansion UI should no longer mention trust thresholds")
+	_assert_true(not str(unlock_state.get("message", "")).contains("信任"), "board expansion helper copy should no longer mention trust thresholds")
 	main_view.set("selected_board_index", BOARD_RULES.cell_index(0, 0))
 	main_view.call("_update_all_ui")
 	var blocked_state: Dictionary = main_view.call("get_board_land_unlock_action_state")
 	_assert_true(bool(blocked_state.get("visible", false)) and not bool(blocked_state.get("enabled", true)), "selecting a future outer ring should surface a blocked land expansion state instead of unlocking out of order")
+	_assert_true(not str(blocked_state.get("message", "")).contains("信任"), "blocked board expansion copy should stay on stage order or flower cost, not trust")
 	main_view.free()
 
 
@@ -2930,6 +3102,7 @@ func _test_main_view_contextual_tutorial_coachmark_contract() -> void:
 	game_state.reset_state()
 	var main_scene: PackedScene = load("res://scenes/Main.tscn")
 	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
 	_assert_true(main_view.has_method("get_active_tutorial_coachmark"), "main view should expose the active contextual coachmark")
 	_assert_true(main_view.has_method("get_tutorial_pointer_visual_spec"), "main view should expose tutorial pointer visual design")
 	if not main_view.has_method("get_active_tutorial_coachmark"):
@@ -2959,9 +3132,39 @@ func _test_main_view_contextual_tutorial_coachmark_contract() -> void:
 
 	progress["first_place_done"] = true
 	var state: Dictionary = game_state.get_state()
-	state["active_problems"] = [{"problem_card_id": "noise_complaint", "assigned_manpower": 0}]
-	var problem_hint: Dictionary = main_view.call("get_active_tutorial_coachmark")
-	_assert_equal(str(problem_hint.get("target", "")), "problem", "when a problem exists, coachmark should point to the problem card")
+	state["resident_need_entities"] = [{
+		"need_id": "need_1",
+		"resident_id": "resident_1",
+		"resident_name": "测试居民",
+		"need_tags": ["care", "service"],
+		"service_capacity": 2,
+		"fallback_flower_costs": [1, 2],
+		"status": "pending",
+		"day_created": 1
+	}]
+	main_view.call("_build_ui")
+	main_view.call("_update_problem_cards")
+	var demand_views: Array = main_view.get("problem_card_views")
+	_assert_true(demand_views.size() > 0, "resident needs should render visible demand cards on the desktop")
+	if not demand_views.is_empty() and demand_views[0] != null and demand_views[0].has_method("get_visible_face_text"):
+		var demand_face_text := str(demand_views[0].call("get_visible_face_text"))
+		_assert_true(demand_face_text.contains("需求") or demand_face_text.contains("照护"), "rendered demand cards should visually read as resident needs")
+		_assert_true(not demand_face_text.contains("问题"), "rendered demand cards should stop presenting resident needs as legacy problems")
+	var demand_hint: Dictionary = main_view.call("get_active_tutorial_coachmark")
+	_assert_equal(str(demand_hint.get("target", "")), "demand", "when resident needs exist, coachmark should point to the demand cards")
+	_assert_true(str(demand_hint.get("body", "")).contains("需求"), "demand coachmark should describe resident needs")
+	_assert_true(main_view.has_method("resolve_resident_need_on_board_index"), "main view should expose a drop target action for demand cards on service buildings")
+	if main_view.has_method("resolve_resident_need_on_board_index"):
+		var board_cells: Array[Dictionary] = BOARD_RULES.create_default_board_cells()
+		var service_index := BOARD_RULES.cell_index(6, 6)
+		board_cells[service_index]["occupied_card_id"] = "care_station"
+		board_cells[service_index]["building_instance_id"] = "care_station:ui_test"
+		board_cells[service_index]["root_index"] = service_index
+		state["board_cells"] = board_cells
+		state["built_facilities"] = [{"instance_id": "care_station:ui_test", "card_id": "care_station", "cell_index": service_index, "root_cell": service_index, "occupied_cells": [service_index]}]
+		var ui_resolve: Dictionary = main_view.call("resolve_resident_need_on_board_index", "need_1", service_index)
+		_assert_true(bool(ui_resolve.get("success", false)), "dropping a demand card onto a matching service building should resolve it")
+		_assert_equal(str(state.get("resident_need_entities", [])[0].get("status", "")), "resolved", "main view service drop should mark the need resolved")
 
 	if main_view.has_method("get_tutorial_pointer_visual_spec"):
 		var visual: Dictionary = main_view.call("get_tutorial_pointer_visual_spec")
@@ -2972,57 +3175,9 @@ func _test_main_view_contextual_tutorial_coachmark_contract() -> void:
 		_assert_true(bubble_size.x > 0 and bubble_size.y > 0, "tutorial visual spec should declare the actual bubble size")
 		_assert_true(bubble_size.x <= 260 and bubble_size.y <= 72, "tutorial bubble should stay compact so it does not block the board")
 		_assert_equal(visual.get("text_color", Color.TRANSPARENT), Color.html("#3A210F"), "tutorial bubble text should use a high-contrast dark color")
-		_assert_true(bool(visual.get("problem_targets_card", false)), "problem tutorial target should resolve to the concrete problem card, not the whole container")
+		_assert_true(bool(visual.get("demand_targets_card", false)), "demand tutorial target should resolve to the concrete demand card, not the whole container")
 		_assert_true(bool(visual.get("tracks_scroll", false)), "tutorial pointer should recompute its screen position after the page scrolls")
 		_assert_true(bool(visual.get("repositions_same_target", false)), "tutorial pointer should update even when the active tutorial target name has not changed")
-	main_view.free()
-
-
-func _test_problem_manpower_assignment_ui_contract() -> void:
-	var game_state: Node = _context.get("game_state")
-	game_state.reset_state()
-	var state: Dictionary = game_state.get_state()
-	state["manpower"] = 1
-	state["current_problem_tokens"] = 1
-	state["active_problems"] = [{
-		"event_id": "ui_problem_assignment",
-		"title": "ui problem assignment",
-		"problem_card_id": "problem_notice_conflict",
-		"required_manpower": 1,
-		"assigned_manpower": 0,
-		"status": "active",
-		"reward": {"trust": 1},
-		"penalty": {},
-		"target_resident_ids": []
-	}]
-
-	var main_scene: PackedScene = load("res://scenes/Main.tscn")
-	var main_view: Control = main_scene.instantiate()
-	_assert_true(main_view.has_method("assign_manpower_to_problem_from_ui"), "problem UI should expose a direct one-click manpower assignment action")
-
-	var board_panel := PanelContainer.new()
-	board_panel.set_position(Vector2.ZERO)
-	board_panel.set_size(Vector2(420, 260))
-	var problem_card := Control.new()
-	problem_card.set_position(Vector2(300, 70))
-	problem_card.set_size(Vector2(90, 130))
-	main_view.add_child(board_panel)
-	board_panel.add_child(problem_card)
-	main_view.set("board_panel", board_panel)
-	main_view.set("iso_grid_painter", null)
-	var problem_views: Array[Control] = [problem_card]
-	main_view.set("problem_card_views", problem_views)
-	main_view.set("drag_source_zone", "problem")
-
-	var problem_target: Dictionary = main_view.call("_resolve_drop_target", Vector2(320, 90))
-	_assert_equal(str(problem_target.get("type", "")), "problem", "dropping a manpower token over a problem card should target the card instead of the map behind it")
-	_assert_equal(int(problem_target.get("index", -1)), 0, "problem card target should keep the active problem index")
-
-	if main_view.has_method("assign_manpower_to_problem_from_ui"):
-		var result: Dictionary = main_view.call("assign_manpower_to_problem_from_ui", 0, "problem_notice_conflict")
-		_assert_true(bool(result.get("success", false)) and bool(result.get("resolved", false)), "clicking the problem card action should immediately invest one manpower")
-		_assert_equal(int(state.get("current_problem_tokens", -1)), 0, "direct problem action should consume one available problem token")
-		_assert_equal(state.get("active_problems", []).size(), 0, "direct problem action should resolve a one-point teaching problem")
 	main_view.free()
 
 
@@ -3368,54 +3523,6 @@ func _test_core_gameplay_regression_facility_placement_and_adjacency_bonus() -> 
 	_assert_true(int(effects.get("satisfaction_bonus", 0)) > 0, "active adjacency reward should expose a satisfaction bonus")
 
 
-func _test_core_gameplay_regression_problem_resolution_and_unresolved_penalty() -> void:
-	var game_state: Node = _context.get("game_state")
-	var event_manager: Node = _context.get("event_manager")
-	var day_cycle: Node = _context.get("day_cycle")
-	game_state.reset_state()
-	game_state.set_resident_states(_make_resident_states())
-	var state: Dictionary = game_state.get_state()
-	state["manpower"] = 2
-	state["current_problem_tokens"] = 2
-	state["active_problems"] = [{
-		"event_id": "regression_resolved_problem",
-		"title": "resolved regression problem",
-		"problem_card_id": "problem_notice_conflict",
-		"required_manpower": 2,
-		"assigned_manpower": 0,
-		"status": "active",
-		"reward": {"trust": 3},
-		"penalty": {"funds": 2},
-		"target_resident_ids": []
-	}]
-	var progress_result: Dictionary = event_manager.assign_manpower_to_problem(0, 1)
-	_assert_true(bool(progress_result.get("success", false)) and not bool(progress_result.get("resolved", false)), "first manpower assignment should progress but not resolve the problem")
-	_assert_equal(int(progress_result.get("assigned_manpower", 0)), 1, "problem progress should report assigned manpower")
-	var resolved_result: Dictionary = event_manager.assign_manpower_to_problem(0, 1)
-	_assert_true(bool(resolved_result.get("success", false)) and bool(resolved_result.get("resolved", false)), "second manpower assignment should resolve the problem")
-	_assert_equal(state.get("active_problems", []).size(), 0, "resolved problem should leave the active problem list")
-	_assert_true(_problem_history_has_status(state.get("resolved_problem_history", []), "regression_resolved_problem", "resolved"), "resolved problem should be recorded in history")
-	_assert_equal(int(state.get("trust", 0)), 3, "resolved problem should grant its trust reward")
-
-	state["funds"] = 5
-	state["active_problems"] = [{
-		"event_id": "regression_unresolved_problem",
-		"title": "unresolved regression problem",
-		"problem_card_id": "problem_notice_conflict",
-		"required_manpower": 2,
-		"assigned_manpower": 0,
-		"status": "active",
-		"reward": {"trust": 1},
-		"penalty": {"funds": 2},
-		"target_resident_ids": []
-	}]
-	var dusk_lines: PackedStringArray = day_cycle.resolve_dusk()
-	_assert_true(dusk_lines.size() >= 0, "dusk should report unresolved problem expiration")
-	_assert_equal(int(state.get("funds", 0)), 3, "unresolved problem should apply its dusk resource penalty")
-	_assert_true(_problem_history_has_status(state.get("resolved_problem_history", []), "regression_unresolved_problem", "expired"), "expired problem should be recorded in history")
-	_assert_equal(state.get("active_problems", []).size(), 0, "dusk penalty settlement should clear active unresolved problems")
-
-
 func _test_core_gameplay_regression_ai_save_infinite_mode_and_asset_fallbacks() -> void:
 	var repository: Node = _context.get("data_repository")
 	var game_state: Node = _context.get("game_state")
@@ -3423,10 +3530,9 @@ func _test_core_gameplay_regression_ai_save_infinite_mode_and_asset_fallbacks() 
 	var ai_director: Node = _context.get("ai_director")
 	var audio_manager: Node = _context.get("audio_manager")
 	var save_manager: Node = _context.get("save_manager")
-	var hybrid_event: Dictionary = repository.get_event_def("event_day4_market_queue")
 	ai_director.apply_settings({"mode": "hybrid", "api_key": "", "force_local_fallback": false}, false)
-	var ai_result: Dictionary = ai_director.generate_event_candidate({}, hybrid_event)
-	_assert_true(hybrid_event.is_empty() or bool(ai_result.is_empty()) or str(ai_result.get("source_type", "")) == "local", "legacy event-driven AI fallback should stay inert")
+	var ai_result: Dictionary = ai_director.generate_event_candidate({}, {})
+	_assert_true(bool(ai_result.is_empty()) or str(ai_result.get("source_type", "")) == "local", "legacy event-driven AI fallback should stay inert")
 	_assert_true(audio_manager.play_sfx("missing_core_regression_sfx"), "missing SFX should be a silent no-op success")
 	_assert_true(bool(audio_manager.call("was_last_sfx_fallback")), "missing SFX should mark fallback status")
 	_assert_true(audio_manager.play_bgm("missing_core_regression_bgm"), "missing BGM should be a silent no-op success")
@@ -3471,35 +3577,21 @@ func _test_core_gameplay_regression_ai_save_infinite_mode_and_asset_fallbacks() 
 	save_manager.delete_slot(99)
 
 
-func _test_core_gameplay_regression_resident_wish_chains() -> void:
-	var repository: Node = _context.get("data_repository")
-	var chained_residents := 0
-	for resident: Dictionary in repository.residents:
-		var resident_id := str(resident.get("resident_id", ""))
-		var active_wish_ids: Array = resident.get("active_wish_ids", [])
-		_assert_true(not active_wish_ids.is_empty(), "resident %s should start with an active wish" % resident_id)
-		for wish_id_variant in active_wish_ids:
-			var wish_id := str(wish_id_variant)
-			var wish: Dictionary = repository.wishes_by_id.get(wish_id, {})
-			_assert_true(not wish.is_empty(), "resident %s should reference an existing wish %s" % [resident_id, wish_id])
-			_assert_equal(str(wish.get("resident_id", "")), resident_id, "resident %s wish should point back to the same resident" % resident_id)
-			var next_wish_id := str(wish.get("next_wish_id", ""))
-			if next_wish_id.is_empty():
-				continue
-			var next_wish: Dictionary = repository.wishes_by_id.get(next_wish_id, {})
-			_assert_true(not next_wish.is_empty(), "resident %s next wish %s should exist" % [resident_id, next_wish_id])
-			_assert_equal(str(next_wish.get("resident_id", "")), resident_id, "resident %s next wish should stay on the same resident chain" % resident_id)
-			_assert_true(int(next_wish.get("stage", 0)) > int(wish.get("stage", 0)), "resident %s wish chain should advance to a later stage" % resident_id)
-			chained_residents += 1
-	_assert_equal(chained_residents, repository.residents.size(), "every resident, including newly added residents, should have a two-stage wish chain")
-
-
 func _contains_available_recipe_pair(card_ids: Array[String], recipes: Array[Dictionary], trust: int) -> bool:
+	var repository: Node = _context.get("data_repository")
 	for recipe: Dictionary in recipes:
-		if int(recipe.get("unlock_trust", 0)) > trust:
+		var unlock_day := int(recipe.get("unlock_day", repository.unlock_day_for_requirement(int(recipe.get("unlock_trust", 0)))))
+		if repository.unlock_progress_for_day(unlock_day) > trust:
 			continue
 		var ingredients: Array = recipe.get("ingredient_card_ids", [])
 		if ingredients.size() == 2 and card_ids.has(str(ingredients[0])) and card_ids.has(str(ingredients[1])):
+			return true
+	return false
+
+
+func _card_list_contains_id(cards: Array[Dictionary], card_id: String) -> bool:
+	for card: Dictionary in cards:
+		if str(card.get("card_id", "")) == card_id:
 			return true
 	return false
 
@@ -3516,6 +3608,15 @@ func _lines_contain(lines: PackedStringArray, needle: String) -> bool:
 		if line.contains(needle):
 			return true
 	return false
+
+
+func _read_text_file(path: String) -> String:
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return ""
+	var text := file.get_as_text()
+	file.close()
+	return text
 
 
 func _resident_state_by_id(resident_states: Array[Dictionary], resident_id: String) -> Dictionary:
@@ -3578,6 +3679,17 @@ func _prepare_shape_cells_for_card(state: Dictionary, card_id: String, board_ind
 		return
 	for index: int in occupied_indices:
 		BOARD_RULES.change_cell_zone(cells, index, target_zone)
+
+
+func _collect_control_text(node: Node) -> PackedStringArray:
+	var lines := PackedStringArray()
+	if node is Label:
+		lines.append(str((node as Label).text))
+	elif node is RichTextLabel:
+		lines.append(str((node as RichTextLabel).text))
+	for child: Node in node.get_children():
+		lines.append_array(_collect_control_text(child))
+	return lines
 
 
 func _has_fallback_metadata(entries: Array) -> bool:

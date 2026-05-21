@@ -1,12 +1,15 @@
 extends RefCounted
 
+const DATA_REPOSITORY := preload("res://scripts/autoload/DataRepository.gd")
+
 
 static func find_matching_recipe(card_a_id: String, card_b_id: String, recipes: Array, trust: int) -> Dictionary:
 	if card_a_id.is_empty() or card_b_id.is_empty():
 		return {}
 	for recipe_value in recipes:
 		var recipe: Dictionary = recipe_value
-		if trust < int(recipe.get("unlock_trust", 0)):
+		var unlock_day := int(recipe.get("unlock_day", DATA_REPOSITORY.unlock_day_for_requirement(int(recipe.get("unlock_trust", 0)))))
+		if trust < DATA_REPOSITORY.unlock_progress_for_day(unlock_day):
 			continue
 		var ingredients: Array = recipe.get("ingredient_card_ids", [])
 		if ingredients.size() != 2:
@@ -27,7 +30,8 @@ static func find_matching_recipe_entries(entries: Array, recipes: Array, trust: 
 		card_ids.append(str(entry.get("card_id", "")))
 	for recipe_value in recipes:
 		var recipe: Dictionary = recipe_value
-		if trust < int(recipe.get("unlock_trust", 0)):
+		var unlock_day := int(recipe.get("unlock_day", DATA_REPOSITORY.unlock_day_for_requirement(int(recipe.get("unlock_trust", 0)))))
+		if trust < DATA_REPOSITORY.unlock_progress_for_day(unlock_day):
 			continue
 		if not _recipe_material_costs_available(recipe, inventory):
 			continue
@@ -35,7 +39,8 @@ static func find_matching_recipe_entries(entries: Array, recipes: Array, trust: 
 			return recipe
 	for recipe_value in recipes:
 		var recipe: Dictionary = recipe_value
-		if trust < int(recipe.get("unlock_trust", 0)):
+		var unlock_day := int(recipe.get("unlock_day", DATA_REPOSITORY.unlock_day_for_requirement(int(recipe.get("unlock_trust", 0)))))
+		if trust < DATA_REPOSITORY.unlock_progress_for_day(unlock_day):
 			continue
 		if not _recipe_material_costs_available(recipe, inventory):
 			continue
@@ -122,7 +127,8 @@ static func build_recipe_codex_entries(recipes: Array, state: Dictionary, cards_
 	var recently: Array = state.get("recently_discovered_recipes", [])
 	for recipe_variant in recipes:
 		var recipe: Dictionary = recipe_variant
-		if trust < int(recipe.get("unlock_trust", 0)):
+		var unlock_day := int(recipe.get("unlock_day", DATA_REPOSITORY.unlock_day_for_requirement(int(recipe.get("unlock_trust", 0)))))
+		if trust < DATA_REPOSITORY.unlock_progress_for_day(unlock_day):
 			continue
 		var material_costs: Dictionary = recipe.get("material_costs", {})
 		var missing := PackedStringArray()
@@ -148,7 +154,7 @@ static func build_recipe_codex_entries(recipes: Array, state: Dictionary, cards_
 			"ingredient_tags": tags.duplicate(true),
 			"ingredient_count": maxi(ingredients.size(), tags.size()),
 			"time_cost_sec": float(recipe.get("time_cost_sec", 0.0)),
-			"unlock_trust": int(recipe.get("unlock_trust", 0)),
+			"unlock_day": unlock_day,
 			"missing_material_ids": missing
 		})
 	return entries

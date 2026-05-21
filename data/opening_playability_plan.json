@@ -15,7 +15,6 @@
         "wish_safe_ramp"
       ],
       "recommended_recipe_ids": [
-        "material_ramp_kit",
         "build_ramp",
         "build_welcome_table"
       ],
@@ -48,7 +47,7 @@
       ],
       "recommended_recipe_ids": [
         "build_bench",
-        "upgrade_notice_board"
+        "build_clear_notice_board"
       ],
       "recommended_wish_ids": [
         "wish_rest_space",

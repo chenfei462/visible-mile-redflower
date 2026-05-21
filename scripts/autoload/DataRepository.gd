@@ -2,27 +2,18 @@ extends Node
 
 const REQUIRED_CARD_KEYS := [
 	"card_id", "name", "type", "rarity", "tags", "description", "art",
-	"board_placeable", "fund_cost", "manpower_cost", "primary_resource", "base_output",
-	"preferred_zone", "preferred_zone_bonus", "synergy_group", "adjacency_bonus", "unlock_trust",
-	"art_key", "icon_key", "resident_links", "event_tags"
+	"board_placeable", "fund_cost", "manpower_cost", "base_output",
+	"preferred_zone", "preferred_zone_bonus", "synergy_group", "adjacency_bonus", "unlock_day",
+	"art_key", "icon_key", "resident_links"
 ]
-const REQUIRED_RECIPE_KEYS := ["recipe_id", "ingredient_card_ids", "result_card_id", "unlock_trust"]
+const REQUIRED_RECIPE_KEYS := ["recipe_id", "ingredient_card_ids", "result_card_id", "unlock_day"]
 const REQUIRED_RESIDENT_KEYS := [
 	"resident_id", "name", "portrait", "starting_satisfaction", "daily_manpower",
 	"specialty_resource", "specialty_amount", "portrait_key", "bio", "event_affinity_tags"
 ]
-const REQUIRED_WISH_KEYS := [
-	"wish_id", "resident_id", "title", "stage", "required_card_ids", "required_tags",
-	"required_count", "reward", "next_wish_id", "message_on_complete"
-]
-const REQUIRED_EVENT_KEYS := [
-	"event_id", "category", "trigger_days", "title", "announcement_text", "problem_card_id",
-	"target_resident_ids", "manpower_required", "reward", "penalty",
-	"ai_prompt_template_id", "fallback_event_id", "icon_key"
-]
-const RESOURCE_KEYS := ["flowers", "funds", "manpower", "moral", "trust"]
+const RESOURCE_KEYS := ["flowers", "funds", "manpower", "moral"]
 const CARD_TYPES := ["facility", "building_permit", "material"]
-const EVENT_CATEGORIES := ["fixed", "ai", "hybrid"]
+const LIVE_UNLOCK_DAYS := [1, 6, 11]
 
 var cards_by_id: Dictionary = {}
 var card_list: Array[Dictionary] = []
@@ -38,7 +29,6 @@ var day_sequence: Dictionary = {}
 var strings: Dictionary = {}
 var tutorial: Dictionary = {}
 var art_manifest: Dictionary = {}
-var demo_balance_targets: Dictionary = {}
 var opening_playability_plan: Dictionary = {}
 var validation_errors: PackedStringArray = []
 const DEFAULT_ART_PLACEHOLDER_PATH := "res://icon.svg"
@@ -64,12 +54,11 @@ func load_all(base_path: String = "res://data") -> bool:
 	strings.clear()
 	tutorial.clear()
 	art_manifest.clear()
-	demo_balance_targets.clear()
 	opening_playability_plan.clear()
 	validation_errors.clear()
 
 	card_list = _filter_cards_for_current_rules(_load_array("%s/cards.json" % base_path))
-	recipes = _load_array("%s/recipes.json" % base_path)
+	var raw_recipes := _load_array("%s/recipes.json" % base_path)
 	residents = _load_array("%s/residents.json" % base_path)
 	wishes = []
 	autonomy_levels = []
@@ -78,13 +67,12 @@ func load_all(base_path: String = "res://data") -> bool:
 	strings = _load_dictionary("%s/strings.json" % base_path)
 	tutorial = _load_dictionary("%s/tutorial.json" % base_path)
 	art_manifest = _load_dictionary("%s/art_manifest.json" % base_path)
-	demo_balance_targets = {}
 	opening_playability_plan = _sanitize_opening_playability_plan(_load_dictionary("%s/opening_playability_plan.json" % base_path))
 
 	for card: Dictionary in card_list:
 		if _validate_required_keys(card, REQUIRED_CARD_KEYS, "card"):
 			cards_by_id[str(card.get("card_id", ""))] = card
-	recipes = _filter_recipes_for_current_rules(recipes)
+	recipes = _filter_recipes_for_current_rules(raw_recipes)
 	for recipe: Dictionary in recipes:
 		_validate_required_keys(recipe, REQUIRED_RECIPE_KEYS, "recipe")
 	for resident: Dictionary in residents:
@@ -104,31 +92,94 @@ func load_all(base_path: String = "res://data") -> bool:
 	return validation_errors.is_empty()
 
 
+func get_event_def(_event_id: String) -> Dictionary:
+	return {}
+
+
+func get_event_defs_for_day(_day_count: int) -> Array[Dictionary]:
+	return []
+
+
 func _filter_cards_for_current_rules(raw_cards: Array[Dictionary]) -> Array[Dictionary]:
 	var filtered: Array[Dictionary] = []
 	for card: Dictionary in raw_cards:
 		var card_type := str(card.get("type", ""))
 		if not CARD_TYPES.has(card_type):
 			continue
-		filtered.append(card)
+		filtered.append(_normalize_live_card_schema(card))
 	return filtered
 
 
 func _filter_recipes_for_current_rules(raw_recipes: Array[Dictionary]) -> Array[Dictionary]:
 	var filtered: Array[Dictionary] = []
 	for recipe: Dictionary in raw_recipes:
+		var normalized_recipe := _normalize_live_recipe_schema(recipe)
 		var result_card_id := str(recipe.get("result_card_id", ""))
 		if result_card_id.is_empty() or not cards_by_id.has(result_card_id):
 			continue
-		var all_ingredients_available := true
-		for ingredient_variant in recipe.get("ingredient_card_ids", []):
-			if not cards_by_id.has(str(ingredient_variant)):
-				all_ingredients_available = false
-				break
-		if not all_ingredients_available:
+		if str(cards_by_id.get(result_card_id, {}).get("type", "")) != "facility":
 			continue
-		filtered.append(recipe)
+		if not _is_direct_build_recipe(normalized_recipe):
+			continue
+		filtered.append(normalized_recipe)
 	return filtered
+
+
+func _is_direct_build_recipe(recipe: Dictionary) -> bool:
+	if not recipe.get("ingredient_tags", []).is_empty():
+		return false
+	if str(recipe.get("recipe_id", "")).contains("upgrade"):
+		return false
+	if str(recipe.get("result_type", "")) == "support":
+		return false
+	var ingredients: Array = recipe.get("ingredient_card_ids", [])
+	if ingredients.size() != 2:
+		return false
+	var type_counts := {"building_permit": 0, "material": 0}
+	for ingredient_variant in ingredients:
+		var ingredient_id := str(ingredient_variant)
+		if not cards_by_id.has(ingredient_id):
+			return false
+		var ingredient_type := str(cards_by_id.get(ingredient_id, {}).get("type", ""))
+		if not type_counts.has(ingredient_type):
+			return false
+		type_counts[ingredient_type] = int(type_counts.get(ingredient_type, 0)) + 1
+	return int(type_counts.get("building_permit", 0)) == 1 and int(type_counts.get("material", 0)) == 1
+
+
+func _normalize_live_card_schema(card: Dictionary) -> Dictionary:
+	var normalized := card.duplicate(true)
+	if not normalized.has("unlock_day"):
+		normalized["unlock_day"] = unlock_day_for_requirement(int(card.get("unlock_trust", 0)))
+	normalized.erase("primary_resource")
+	normalized.erase("unlock_trust")
+	normalized.erase("event_tags")
+	normalized.erase("problem_payload")
+	normalized.erase("production_outputs")
+	normalized.erase("upgrade_cost")
+	normalized.erase("upgrade_options")
+	for rule_variant in normalized.get("synergy_rules", []):
+		if typeof(rule_variant) != TYPE_DICTIONARY:
+			continue
+		var rule: Dictionary = rule_variant
+		if str(rule.get("bonus_resource", "")) == "trust":
+			rule["bonus_resource"] = "flowers"
+	return normalized
+
+
+func _normalize_live_recipe_schema(recipe: Dictionary) -> Dictionary:
+	var normalized := recipe.duplicate(true)
+	if not normalized.has("unlock_day"):
+		normalized["unlock_day"] = unlock_day_for_requirement(int(recipe.get("unlock_trust", 0)))
+	normalized.erase("unlock_trust")
+	if typeof(normalized.get("first_discovery_reward", {})) == TYPE_DICTIONARY:
+		var reward: Dictionary = normalized.get("first_discovery_reward", {}).duplicate(true)
+		var trust_reward := int(reward.get("trust", 0))
+		if trust_reward > 0:
+			reward["flowers"] = int(reward.get("flowers", 0)) + trust_reward
+		reward.erase("trust")
+		normalized["first_discovery_reward"] = reward
+	return normalized
 
 
 func _sanitize_opening_playability_plan(raw_plan: Dictionary) -> Dictionary:
@@ -149,36 +200,51 @@ func get_card(card_id: String) -> Dictionary:
 	return cards_by_id.get(card_id, {})
 
 
-func get_event_def(event_id: String) -> Dictionary:
-	return events_by_id.get(event_id, {})
+static func unlock_progress_for_day(day_count: int) -> int:
+	if day_count >= 11:
+		return 25
+	if day_count >= 6:
+		return 10
+	return 0
 
 
-func get_event_defs_for_day(day_count: int) -> Array[Dictionary]:
-	var matched: Array[Dictionary] = []
-	for event_def: Dictionary in events:
-		var trigger_days: Array = event_def.get("trigger_days", [])
-		for trigger_day_variant in trigger_days:
-			if int(trigger_day_variant) == day_count:
-				matched.append(event_def)
-				break
-	return matched
+static func unlock_day_for_requirement(unlock_requirement: int) -> int:
+	if LIVE_UNLOCK_DAYS.has(unlock_requirement):
+		return unlock_requirement
+	if unlock_requirement >= 25:
+		return 11
+	if unlock_requirement >= 10:
+		return 6
+	return 1
+
+
+static func unlock_day_label_for_requirement(unlock_requirement: int) -> String:
+	return "第 %d 天" % unlock_day_for_requirement(unlock_requirement)
+
+
+func unlock_progress_for_state(state: Dictionary) -> int:
+	return unlock_progress_for_day(int(state.get("day_count", 1)))
 
 
 func get_cards_unlocked_for_trust(trust: int) -> Array[Dictionary]:
+	return get_cards_unlocked_for_progress(trust)
+
+
+func get_cards_unlocked_for_progress(progress: int) -> Array[Dictionary]:
 	var unlocked: Array[Dictionary] = []
 	for card: Dictionary in card_list:
-		if int(card.get("unlock_trust", 0)) <= trust:
+		if unlock_progress_for_day(int(card.get("unlock_day", 1))) <= progress:
 			unlocked.append(card)
 	return unlocked
 
 
 func get_cards_available_for_state(state: Dictionary) -> Array[Dictionary]:
 	var unlocked: Array[Dictionary] = []
-	var trust := int(state.get("trust", 0))
+	var progress := unlock_progress_for_state(state)
 	var flower_unlocks: Array = state.get("flower_unlocks", [])
 	for card: Dictionary in card_list:
 		var card_id := str(card.get("card_id", ""))
-		if int(card.get("unlock_trust", 0)) <= trust or flower_unlocks.has(card_id):
+		if unlock_progress_for_day(int(card.get("unlock_day", 1))) <= progress or flower_unlocks.has(card_id):
 			unlocked.append(card)
 	return unlocked
 
@@ -320,10 +386,8 @@ func _validate_cards() -> void:
 			validation_errors.append("card %s tags should be an array" % card_id)
 		if typeof(card.get("resident_links", [])) != TYPE_ARRAY:
 			validation_errors.append("card %s resident_links should be an array" % card_id)
-		if typeof(card.get("event_tags", [])) != TYPE_ARRAY:
-			validation_errors.append("card %s event_tags should be an array" % card_id)
-		if not _is_valid_resource_key(str(card.get("primary_resource", "")), true):
-			validation_errors.append("card %s has invalid primary_resource" % card_id)
+		if not LIVE_UNLOCK_DAYS.has(int(card.get("unlock_day", 0))):
+			validation_errors.append("card %s unlock_day should be one of 1/6/11" % card_id)
 		if not art_entries.has(str(card.get("art_key", ""))):
 			validation_errors.append("card %s art_key missing in art_manifest" % card_id)
 		if not art_entries.has(str(card.get("icon_key", ""))):
@@ -342,8 +406,6 @@ func _validate_cards() -> void:
 			validation_errors.append("card %s resident_adjacency_effects should be an array when present" % card_id)
 		if typeof(card.get("problem_counter_tags", [])) != TYPE_ARRAY:
 			validation_errors.append("card %s problem_counter_tags should be an array when present" % card_id)
-		if typeof(card.get("material_outputs", {})) != TYPE_DICTIONARY and card.has("material_outputs"):
-			validation_errors.append("card %s material_outputs should be a dictionary when present" % card_id)
 
 
 func _validate_recipes() -> void:
@@ -357,6 +419,8 @@ func _validate_recipes() -> void:
 		var has_valid_tags := tag_size >= 2 and tag_size <= 4
 		if not has_valid_ids and not has_valid_tags:
 			validation_errors.append("recipe %s should define 2-4 card ids or 2-4 tag slots" % recipe_id)
+		if not LIVE_UNLOCK_DAYS.has(int(recipe.get("unlock_day", 0))):
+			validation_errors.append("recipe %s unlock_day should be one of 1/6/11" % recipe_id)
 		for ingredient_variant in ingredient_ids:
 			var ingredient_id: String = str(ingredient_variant)
 			if not cards_by_id.has(ingredient_id):
@@ -365,6 +429,7 @@ func _validate_recipes() -> void:
 			validation_errors.append("recipe %s material_costs should be a dictionary when present" % recipe_id)
 		if recipe.has("first_discovery_reward") and typeof(recipe.get("first_discovery_reward", {})) != TYPE_DICTIONARY:
 			validation_errors.append("recipe %s first_discovery_reward should be a dictionary when present" % recipe_id)
+		_validate_resource_bundle("recipe %s first_discovery_reward" % recipe_id, recipe.get("first_discovery_reward", {}))
 		var result_card_id: String = str(recipe.get("result_card_id", ""))
 		if not cards_by_id.has(result_card_id):
 			validation_errors.append("recipe %s references missing result %s" % [recipe_id, result_card_id])
@@ -386,65 +451,6 @@ func _validate_residents() -> void:
 			validation_errors.append("resident %s has invalid specialty_resource" % resident_id)
 		if not art_entries.has(str(resident.get("portrait_key", ""))):
 			validation_errors.append("resident %s portrait_key missing in art_manifest" % resident_id)
-
-
-func _validate_wishes() -> void:
-	for wish: Dictionary in wishes:
-		var wish_id: String = str(wish.get("wish_id", ""))
-		var resident_id: String = str(wish.get("resident_id", ""))
-		if not residents_by_id.has(resident_id):
-			validation_errors.append("wish %s references missing resident %s" % [wish_id, resident_id])
-		if typeof(wish.get("required_card_ids", [])) != TYPE_ARRAY:
-			validation_errors.append("wish %s required_card_ids should be an array" % wish_id)
-		if typeof(wish.get("required_tags", [])) != TYPE_ARRAY:
-			validation_errors.append("wish %s required_tags should be an array" % wish_id)
-		for card_id_variant in wish.get("required_card_ids", []):
-			var card_id: String = str(card_id_variant)
-			if not cards_by_id.has(card_id):
-				validation_errors.append("wish %s references missing card %s" % [wish_id, card_id])
-		var next_wish_id: String = str(wish.get("next_wish_id", ""))
-		if not next_wish_id.is_empty() and not wishes_by_id.has(next_wish_id):
-			validation_errors.append("wish %s references missing next wish %s" % [wish_id, next_wish_id])
-		_validate_wish_reward_bundle("wish reward %s" % wish_id, wish.get("reward", {}))
-
-
-func _validate_autonomy_levels() -> void:
-	var seen_levels := {}
-	for level_def: Dictionary in autonomy_levels:
-		var level := int(level_def.get("level", -1))
-		seen_levels[level] = true
-		if level < 0 or level > 4:
-			validation_errors.append("autonomy level %d out of range" % level)
-		if int(level_def.get("threshold", -1)) < 0:
-			validation_errors.append("autonomy level %d has invalid threshold" % level)
-	for level: int in range(5):
-		if not seen_levels.has(level):
-			validation_errors.append("autonomy level %d missing" % level)
-
-
-func _validate_events() -> void:
-	var art_entries: Dictionary = art_manifest.get("entries", {})
-	for event_def: Dictionary in events:
-		var event_id: String = str(event_def.get("event_id", ""))
-		if not EVENT_CATEGORIES.has(str(event_def.get("category", ""))):
-			validation_errors.append("event %s has unsupported category" % event_id)
-		if typeof(event_def.get("trigger_days", [])) != TYPE_ARRAY:
-			validation_errors.append("event %s trigger_days should be an array" % event_id)
-		if not cards_by_id.has(str(event_def.get("problem_card_id", ""))):
-			validation_errors.append("event %s problem_card_id references missing card" % event_id)
-		for resident_id_variant in event_def.get("target_resident_ids", []):
-			var resident_id: String = str(resident_id_variant)
-			if not residents_by_id.has(resident_id):
-				validation_errors.append("event %s references missing resident %s" % [event_id, resident_id])
-		var fallback_event_id: String = str(event_def.get("fallback_event_id", ""))
-		if not fallback_event_id.is_empty() and not events_by_id.has(fallback_event_id):
-			validation_errors.append("event %s fallback_event_id references missing event %s" % [event_id, fallback_event_id])
-		if not art_entries.has(str(event_def.get("icon_key", ""))):
-			validation_errors.append("event %s icon_key missing in art_manifest" % event_id)
-		if typeof(event_def.get("counter_tags", [])) != TYPE_ARRAY and event_def.has("counter_tags"):
-			validation_errors.append("event %s counter_tags should be an array when present" % event_id)
-		_validate_resource_bundle("event reward %s" % event_id, event_def.get("reward", {}))
-		_validate_penalty_bundle("event penalty %s" % event_id, event_def.get("penalty", {}))
 
 
 func _validate_day_sequence() -> void:
@@ -481,31 +487,6 @@ func _validate_art_manifest() -> void:
 		var entry: Dictionary = entries.get(key, {})
 		if str(entry.get("placeholder_path", "")).is_empty():
 			validation_errors.append("art_manifest entry %s missing placeholder_path" % key)
-
-
-func _validate_demo_balance_targets() -> void:
-	var goal: Dictionary = demo_balance_targets.get("demo_goal", {})
-	if int(goal.get("days", 0)) != 10:
-		validation_errors.append("demo_balance_targets demo_goal days should be 10")
-	if bool(goal.get("s_is_demo_target", true)):
-		validation_errors.append("demo_balance_targets should mark S as outside the demo target")
-	if typeof(demo_balance_targets.get("action_cost_seconds", {})) != TYPE_DICTIONARY:
-		validation_errors.append("demo_balance_targets action_cost_seconds should be a dictionary")
-	var daily_targets: Array = demo_balance_targets.get("daily_targets", [])
-	if daily_targets.size() != 10:
-		validation_errors.append("demo_balance_targets daily_targets should cover 10 days")
-	var scenarios: Dictionary = demo_balance_targets.get("scenarios", {})
-	for scenario_id in ["conservative", "normal", "optimized"]:
-		var scenario: Dictionary = scenarios.get(scenario_id, {})
-		if scenario.is_empty():
-			validation_errors.append("demo_balance_targets missing scenario %s" % scenario_id)
-			continue
-		if typeof(scenario.get("expected_ratings", [])) != TYPE_ARRAY:
-			validation_errors.append("demo_balance_targets scenario %s expected_ratings should be an array" % scenario_id)
-		if typeof(scenario.get("actions", {})) != TYPE_DICTIONARY:
-			validation_errors.append("demo_balance_targets scenario %s actions should be a dictionary" % scenario_id)
-		if typeof(scenario.get("metrics", {})) != TYPE_DICTIONARY:
-			validation_errors.append("demo_balance_targets scenario %s metrics should be a dictionary" % scenario_id)
 
 
 func _validate_opening_playability_plan() -> void:
@@ -566,15 +547,6 @@ func _validate_penalty_bundle(bundle_name: String, bundle: Dictionary) -> void:
 			continue
 		if not _is_valid_resource_key(key, false):
 			validation_errors.append("%s contains invalid penalty key %s" % [bundle_name, key])
-
-
-func _validate_wish_reward_bundle(bundle_name: String, bundle: Dictionary) -> void:
-	for key_variant in bundle.keys():
-		var key: String = str(key_variant)
-		if key == "health":
-			continue
-		if not _is_valid_resource_key(key, false):
-			validation_errors.append("%s contains invalid reward key %s" % [bundle_name, key])
 
 
 func _is_valid_resource_key(resource_key: String, allow_empty: bool) -> bool:

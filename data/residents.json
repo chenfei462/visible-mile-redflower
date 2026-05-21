@@ -17,10 +17,23 @@
       "care"
     ],
     "daily_diary_pool": [
-      {"text": "今天下楼没那么怕了，新坡道虽然还有点滑，但比以前好多了。", "requires_facility": "community_ramp"},
-      {"text": "雨天扶着墙走还是不太稳，要是坡道边能加个扶手就好了。", "weather": "rainy", "missing_facility": "guide_handrail"},
-      {"text": "看小同学帮我贴指示牌，心里暖暖的。", "satisfaction_min": 75},
-      {"text": "高温天出门特别累，要是有个清凉补给就好了。", "weather": "heatwave"}
+      {
+        "text": "今天下楼没那么怕了，新坡道虽然还有点滑，但比以前好多了。",
+        "requires_facility": "community_ramp"
+      },
+      {
+        "text": "雨天扶着墙走还是不太稳，要是坡道边能加个扶手就好了。",
+        "weather": "rainy",
+        "missing_facility": "guide_handrail"
+      },
+      {
+        "text": "看小同学帮我贴指示牌，心里暖暖的。",
+        "satisfaction_min": 75
+      },
+      {
+        "text": "高温天出门特别累，要是有个清凉补给就好了。",
+        "weather": "heatwave"
+      }
     ]
   },
   {
@@ -41,10 +54,21 @@
       "delivery"
     ],
     "daily_diary_pool": [
-      {"text": "早市那边终于有遮阳棚了，排队不用晒太阳。", "requires_facility": "shade_canopy"},
-      {"text": "雨天市场积水，菜价好像也跟着涨了。", "weather": "rainy"},
-      {"text": "节日街上多了几个新摊位，热闹是真热闹。", "weather": "festival"},
-      {"text": "下棋的老李还没来，我先把座位占着。"}
+      {
+        "text": "早市那边终于有遮阳棚了，排队不用晒太阳。",
+        "requires_facility": "shade_canopy"
+      },
+      {
+        "text": "雨天市场积水，菜价好像也跟着涨了。",
+        "weather": "rainy"
+      },
+      {
+        "text": "节日街上多了几个新摊位，热闹是真热闹。",
+        "weather": "festival"
+      },
+      {
+        "text": "下棋的老李还没来，我先把座位占着。"
+      }
     ]
   },
   {
@@ -53,7 +77,7 @@
     "portrait": "",
     "starting_satisfaction": 66,
     "daily_manpower": 1,
-    "specialty_resource": "trust",
+    "specialty_resource": "flowers",
     "specialty_amount": 1,
     "active_wish_ids": [
       "wish_better_notice"
@@ -65,10 +89,22 @@
       "night"
     ],
     "daily_diary_pool": [
-      {"text": "新公告栏一上墙，大家不再瞎猜了。", "requires_facility": "clear_notice_board"},
-      {"text": "雨天大家更关心动态，多发几条天气提醒。", "weather": "rainy"},
-      {"text": "和刘医生筹划一场健康讲座，需要个活动场地。", "missing_facility": "welcome_table"},
-      {"text": "今天群里很安静，大概是节日大家都出门了。", "weather": "festival"}
+      {
+        "text": "新公告栏一上墙，大家不再瞎猜了。",
+        "requires_facility": "clear_notice_board"
+      },
+      {
+        "text": "雨天大家更关心动态，多发几条天气提醒。",
+        "weather": "rainy"
+      },
+      {
+        "text": "和刘医生筹划一场健康讲座，需要个活动场地。",
+        "missing_facility": "welcome_table"
+      },
+      {
+        "text": "今天群里很安静，大概是节日大家都出门了。",
+        "weather": "festival"
+      }
     ]
   },
   {
@@ -89,10 +125,21 @@
       "night"
     ],
     "daily_diary_pool": [
-      {"text": "工具柜满了，干活心里就有底。", "requires_facility": "repair_booth"},
-      {"text": "下雨天楼道灯坏了好几个，得抓紧修。", "weather": "rainy"},
-      {"text": "和老陈下了两盘棋，输了一盘，算他赢。"},
-      {"text": "今天的活有点多，幸好年轻人都肯搭手。", "satisfaction_min": 75}
+      {
+        "text": "工具柜满了，干活心里就有底。",
+        "requires_facility": "repair_booth"
+      },
+      {
+        "text": "下雨天楼道灯坏了好几个，得抓紧修。",
+        "weather": "rainy"
+      },
+      {
+        "text": "和老陈下了两盘棋，输了一盘，算他赢。"
+      },
+      {
+        "text": "今天的活有点多，幸好年轻人都肯搭手。",
+        "satisfaction_min": 75
+      }
     ]
   },
   {
@@ -113,10 +160,22 @@
       "festival"
     ],
     "daily_diary_pool": [
-      {"text": "花坛今天又开了一茬，邻居都来拍照。", "requires_facility": "flower_bed"},
-      {"text": "下雨刚好不用浇水，花儿喝个饱。", "weather": "rainy"},
-      {"text": "高温对苗有点压力，得给小苗搭点遮阴。", "weather": "heatwave"},
-      {"text": "节日把红灯笼挂上，社区一下子就有味道了。", "weather": "festival"}
+      {
+        "text": "花坛今天又开了一茬，邻居都来拍照。",
+        "requires_facility": "flower_bed"
+      },
+      {
+        "text": "下雨刚好不用浇水，花儿喝个饱。",
+        "weather": "rainy"
+      },
+      {
+        "text": "高温对苗有点压力，得给小苗搭点遮阴。",
+        "weather": "heatwave"
+      },
+      {
+        "text": "节日把红灯笼挂上，社区一下子就有味道了。",
+        "weather": "festival"
+      }
     ]
   },
   {
@@ -125,7 +184,7 @@
     "portrait": "",
     "starting_satisfaction": 67,
     "daily_manpower": 1,
-    "specialty_resource": "trust",
+    "specialty_resource": "flowers",
     "specialty_amount": 1,
     "active_wish_ids": [
       "wish_health_visit"
@@ -137,10 +196,21 @@
       "care"
     ],
     "daily_diary_pool": [
-      {"text": "健康咨询台开了之后，问诊比上门方便多了。", "requires_facility": "clinic_desk"},
-      {"text": "高温里老人血压不稳，得多叮嘱几句。", "weather": "heatwave"},
-      {"text": "雨天关节痛的居民会变多，建议多备热敷包。", "weather": "rainy"},
-      {"text": "小林帮我布置了讲座场地，下午来听的人不少。"}
+      {
+        "text": "健康咨询台开了之后，问诊比上门方便多了。",
+        "requires_facility": "clinic_desk"
+      },
+      {
+        "text": "高温里老人血压不稳，得多叮嘱几句。",
+        "weather": "heatwave"
+      },
+      {
+        "text": "雨天关节痛的居民会变多，建议多备热敷包。",
+        "weather": "rainy"
+      },
+      {
+        "text": "小林帮我布置了讲座场地，下午来听的人不少。"
+      }
     ]
   },
   {
@@ -161,10 +231,22 @@
       "culture"
     ],
     "daily_diary_pool": [
-      {"text": "今天王奶奶教我包饺子，馅都被我塞太多了。"},
-      {"text": "节日做了一面手绘海报贴在公告栏。", "weather": "festival", "requires_facility": "clear_notice_board"},
-      {"text": "雨天宅在家里画画，画了社区一角。", "weather": "rainy"},
-      {"text": "听说要选文明楼栋了，我去帮忙拍照片！", "event_flag": "resolved:event_day3_notice_conflict"}
+      {
+        "text": "今天王奶奶教我包饺子，馅都被我塞太多了。"
+      },
+      {
+        "text": "节日做了一面手绘海报贴在公告栏。",
+        "weather": "festival",
+        "requires_facility": "clear_notice_board"
+      },
+      {
+        "text": "雨天宅在家里画画，画了社区一角。",
+        "weather": "rainy"
+      },
+      {
+        "text": "听说要选文明楼栋了，我去帮忙拍照片！",
+        "event_flag": "resolved:event_day3_notice_conflict"
+      }
     ]
   },
   {

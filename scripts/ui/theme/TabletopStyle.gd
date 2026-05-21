@@ -92,6 +92,45 @@ static func make_resource_bar_style() -> StyleBoxFlat:
 	return style
 
 
+static func make_tabletop_playmat_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color8(0xF1, 0xE2, 0xB9)
+	style.border_color = Color8(0x3B, 0x26, 0x12)
+	style.set_border_width_all(4)
+	style.set_corner_radius_all(22)
+	style.shadow_color = Color(0.20, 0.14, 0.08, 0.30)
+	style.shadow_size = 10
+	style.shadow_offset = Vector2(4, 6)
+	style.set_content_margin_all(14)
+	return style
+
+
+static func make_bulletin_strip_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color8(0x1A, 0x14, 0x0A)
+	style.border_color = Color8(0x3B, 0x26, 0x12)
+	style.set_border_width_all(3)
+	style.set_corner_radius_all(14)
+	style.shadow_color = Color(0.05, 0.03, 0.01, 0.30)
+	style.shadow_size = 7
+	style.shadow_offset = Vector2(2, 4)
+	style.set_content_margin_all(10)
+	return style
+
+
+static func make_round_button_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color8(0xF1, 0xE2, 0xB9)
+	style.border_color = Color8(0x3B, 0x26, 0x12)
+	style.set_border_width_all(3)
+	style.set_corner_radius_all(22)
+	style.shadow_color = Color(0.20, 0.14, 0.08, 0.28)
+	style.shadow_size = 5
+	style.shadow_offset = Vector2(2, 3)
+	style.set_content_margin_all(6)
+	return style
+
+
 static func _make_base_panel_style(background: Color, border: Color, radius: int, border_width: int) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = background

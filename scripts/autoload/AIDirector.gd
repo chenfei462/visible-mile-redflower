@@ -274,7 +274,7 @@ func _fallback_result(event_def: Dictionary, reason: String) -> Dictionary:
 	var fallback_def: Dictionary = event_def
 	var fallback_event_id: String = str(event_def.get("fallback_event_id", ""))
 	if not fallback_event_id.is_empty() and DataRepository.events_by_id.has(fallback_event_id):
-		fallback_def = DataRepository.get_event_def(fallback_event_id)
+		fallback_def = DataRepository.events_by_id.get(fallback_event_id, {})
 	last_fallback_event_id = str(fallback_def.get("event_id", fallback_event_id))
 	var candidate := _build_default_candidate(fallback_def, event_def)
 	_log_request({
