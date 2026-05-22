@@ -126,6 +126,7 @@ func run(context: Dictionary) -> PackedStringArray:
 	_test_main_view_uses_fixed_stacklands_first_screen()
 	_test_tabletop_drawer_module_state_and_lazy_refresh_contract()
 	_test_main_view_drawers_default_closed_and_open_from_toolbar()
+	_test_main_view_settings_modal_stays_above_tabletop_cards()
 	_test_main_view_basic_tabletop_organize_groups_idle_cards()
 	_test_main_view_drag_feedback_exposes_stack_snap()
 	_test_main_view_bottom_strip_keeps_panel_border_inside_viewport()
@@ -3799,6 +3800,45 @@ func _test_main_view_drawers_default_closed_and_open_from_toolbar() -> void:
 		var state_after_close: Dictionary = main_view.call("get_tabletop_drawer_state")
 		_assert_equal(str(state_after_close.get("active_drawer", "")), "", "drawer state should clear after closing")
 		_assert_true(not bool(state_after_close.get("visible", true)), "drawer layer should hide after closing")
+	main_view.free()
+
+
+func _test_main_view_settings_modal_stays_above_tabletop_cards() -> void:
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	main_view.set("tabletop_card_ids", {
+		"permit:1": "ramp_blueprint",
+		"mat:1": "lumber_pack",
+		"facility:1": "community_ramp"
+	})
+	main_view.set("tabletop_card_positions", {
+		"permit:1": Vector2(220, 120),
+		"mat:1": Vector2(280, 130),
+		"facility:1": Vector2(340, 140)
+	})
+	main_view.set("tabletop_card_z", {"permit:1": 160, "mat:1": 320, "facility:1": 480})
+	main_view.call("refresh_tabletop_only")
+
+	var opened: Dictionary = main_view.call("open_tabletop_drawer", "settings")
+	_assert_true(bool(opened.get("success", false)), "settings entry should still be accepted through the drawer API")
+	var drawer_state: Dictionary = main_view.call("get_tabletop_drawer_state")
+	_assert_true(not bool(drawer_state.get("visible", true)), "opening settings should not leave an empty tabletop drawer visible")
+	_assert_equal(str(drawer_state.get("active_drawer", "")), "", "settings should not remain registered as a tabletop drawer")
+
+	var settings_panel: Control = main_view.get("settings_panel") as Control
+	var tabletop_layer: Control = main_view.get("tabletop_layer") as Control
+	_assert_true(settings_panel != null and settings_panel.visible, "settings panel should be visible after opening settings")
+	_assert_true(tabletop_layer != null, "tabletop layer should exist for z-order checks")
+	if settings_panel != null and tabletop_layer != null:
+		var settings_parent: CanvasItem = settings_panel.get_parent() as CanvasItem
+		_assert_true(settings_parent != null and settings_parent.visible, "settings panel should live inside a visible modal layer")
+		var highest_rendered_card_z := -1
+		for child: Node in tabletop_layer.get_children():
+			if child is CanvasItem:
+				highest_rendered_card_z = maxi(highest_rendered_card_z, int((child as CanvasItem).z_index))
+		_assert_true(highest_rendered_card_z <= 1, "tabletop logical z-order should not leak into global render z-order")
+		_assert_true(int(settings_parent.z_index) > highest_rendered_card_z, "settings modal layer should render above tabletop cards")
 	main_view.free()
 
 

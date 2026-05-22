@@ -71,6 +71,7 @@ const FIRST_SCREEN_PLAYMAT_RECT := Rect2(Vector2(260, 184), Vector2(978, 520))
 const FIRST_SCREEN_TOOLBAR_RECT := Rect2(Vector2(456, 652), Vector2(368, 54))
 const FIRST_SCREEN_SELL_RECT := Rect2(Vector2(270, 194), Vector2(84, 30))
 const TABLETOP_DRAWER_IDS := ["quick_options", "residents", "status", "end_day", "board", "settings", "codex"]
+const SETTINGS_MODAL_Z_INDEX := 1000
 
 var resource_bar: Label
 var resource_chip_flowers: Label
@@ -188,6 +189,7 @@ var problem_card_views: Array[Control] = []
 var day_minus_one_view: Control
 var previously_unlocked_cells: PackedInt32Array = []
 var main_content_root: Control
+var settings_modal_layer: Control
 var drawer_layer: PanelContainer
 var drawer_scroll_container: ScrollContainer
 var drawer_content_stack: VBoxContainer
@@ -583,14 +585,15 @@ func get_tabletop_drawer_state() -> Dictionary:
 func open_tabletop_drawer(drawer_id: String) -> Dictionary:
 	if not TABLETOP_DRAWER_IDS.has(drawer_id):
 		return {"success": false, "message": "drawer_unknown", "drawer_id": drawer_id}
+	if drawer_id == "settings":
+		_set_settings_panel_open(true)
+		return {"success": true, "drawer_id": drawer_id}
 	active_tabletop_drawer = drawer_id
 	if drawer_layer != null:
 		drawer_layer.visible = true
 		_set_tabletop_drawer_content_visibility(drawer_id)
 		if drawer_scroll_container != null:
 			drawer_scroll_container.scroll_vertical = 0
-	if drawer_id == "settings" and settings_panel != null:
-		settings_panel.visible = true
 	return {"success": true, "drawer_id": drawer_id}
 
 
@@ -598,8 +601,8 @@ func close_tabletop_drawer() -> Dictionary:
 	active_tabletop_drawer = ""
 	if drawer_layer != null:
 		drawer_layer.visible = false
-	if settings_panel != null:
-		settings_panel.visible = false
+		_set_tabletop_drawer_content_visibility("")
+	_set_settings_panel_open(false)
 	return {"success": true}
 
 
@@ -2546,7 +2549,7 @@ func _refresh_tabletop_layer() -> void:
 		if _is_community_funds_card_id(card_id) and card_view.has_method("set_primary_action"):
 			card_view.call("set_primary_action", "收", true)
 		card_view.position = _vector2_from_variant(tabletop_card_positions.get(instance_id, Vector2(24 + index * 18, 26 + index * 10)))
-		card_view.z_index = int(tabletop_card_z.get(instance_id, index + 1))
+		card_view.z_index = 0
 		card_view.mouse_filter = Control.MOUSE_FILTER_STOP
 		card_view.drag_requested.connect(_handle_card_view_drag_request.bind(card_view))
 		if card_view.has_signal("primary_action_requested"):
@@ -4801,6 +4804,22 @@ func _fit_iso_board_to_frame() -> void:
 
 
 func _build_settings_panel() -> void:
+	settings_modal_layer = Control.new()
+	settings_modal_layer.name = "SettingsModalLayer"
+	settings_modal_layer.visible = false
+	settings_modal_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	settings_modal_layer.mouse_filter = Control.MOUSE_FILTER_STOP
+	settings_modal_layer.z_index = SETTINGS_MODAL_Z_INDEX
+	settings_modal_layer.z_as_relative = false
+	add_child(settings_modal_layer)
+
+	var backdrop := ColorRect.new()
+	backdrop.name = "SettingsBackdrop"
+	backdrop.color = Color(0.05, 0.07, 0.06, 0.42)
+	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+	settings_modal_layer.add_child(backdrop)
+
 	settings_panel = PanelContainer.new()
 	settings_panel.visible = false
 	settings_panel.offset_left = 560
@@ -4808,7 +4827,7 @@ func _build_settings_panel() -> void:
 	settings_panel.offset_right = 1004
 	settings_panel.offset_bottom = 560
 	settings_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.12, 0.16, 0.15, 0.97), Color(0.62, 0.78, 0.63), 18, 2))
-	add_child(settings_panel)
+	settings_modal_layer.add_child(settings_panel)
 
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -5119,9 +5138,21 @@ func _on_reset_game() -> void:
 
 func _toggle_settings_panel() -> void:
 	if settings_panel != null:
-		settings_panel.visible = not settings_panel.visible
+		_set_settings_panel_open(not settings_panel.visible)
 		_refresh_status_header_ui(GameState.get_state())
 		_cache_runtime_timer_state()
+
+
+func _set_settings_panel_open(open: bool) -> void:
+	if open:
+		active_tabletop_drawer = ""
+		if drawer_layer != null:
+			drawer_layer.visible = false
+			_set_tabletop_drawer_content_visibility("")
+	if settings_modal_layer != null:
+		settings_modal_layer.visible = open
+	if settings_panel != null:
+		settings_panel.visible = open
 
 
 func _manual_save() -> void:
