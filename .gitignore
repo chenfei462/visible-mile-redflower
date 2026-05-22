@@ -21,3 +21,6 @@ tmp_*.json
 
 # Local agent execution plans
 docs/superpowers/plans/
+
+# Local git worktrees
+.worktrees/
