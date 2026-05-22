@@ -208,5 +208,70 @@
     "result_card_id": "care_station",
     "result_type": "facility",
     "unlock_day": 6
+  },
+  {
+    "recipe_id": "gather_lumber_from_scrap",
+    "ingredient_card_ids": [
+      "neighbor_helper",
+      "scrap_wood_pile"
+    ],
+    "result_card_id": "lumber_pack",
+    "result_type": "material",
+    "unlock_day": 1,
+    "time_cost_sec": 1.5,
+    "preserve_ingredient_types": [
+      "resident",
+      "resource_node"
+    ]
+  },
+  {
+    "recipe_id": "register_donation_supplies",
+    "ingredient_card_ids": [
+      "neighbor_helper",
+      "donation_supply_box"
+    ],
+    "result_card_id": "convenience_supplies",
+    "result_type": "material",
+    "unlock_day": 1,
+    "time_cost_sec": 1.5,
+    "preserve_ingredient_types": [
+      "resident",
+      "resource_node"
+    ]
+  },
+  {
+    "recipe_id": "collect_community_clues",
+    "ingredient_card_ids": [
+      "neighbor_helper",
+      "community_clue_board"
+    ],
+    "result_card_id": "info_notes",
+    "result_type": "material",
+    "unlock_day": 1,
+    "time_cost_sec": 1.5,
+    "preserve_ingredient_types": [
+      "resident",
+      "resource_node"
+    ]
+  },
+  {
+    "recipe_id": "staff_ramp_shift",
+    "ingredient_card_ids": [
+      "neighbor_helper",
+      "community_ramp"
+    ],
+    "result_card_id": "community_funds",
+    "result_card_ids": [
+      "community_funds",
+      "community_funds",
+      "community_funds"
+    ],
+    "result_type": "material",
+    "unlock_day": 1,
+    "time_cost_sec": 1.5,
+    "preserve_ingredient_types": [
+      "resident",
+      "facility"
+    ]
   }
 ]

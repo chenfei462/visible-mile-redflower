@@ -1,11 +1,13 @@
 extends SceneTree
 
+const OS_CLICK_HELPERS := preload("res://tests/helpers/os_click_helpers.gd")
 const TARGET_PATH := "res://tmp_bulletin_paid_purchase_target.json"
 const RESULT_PATH := "res://tmp_bulletin_paid_purchase_result.json"
 
 var main_view: Control
 var game_state: Node
 var data_repository: Node
+var os_click_helpers: RefCounted = OS_CLICK_HELPERS.new()
 
 
 func _initialize() -> void:
@@ -36,16 +38,22 @@ func _run() -> void:
 	for _index in range(3):
 		await process_frame
 
-	var free_button := _find_visible_button_with_text(main_view, "拿")
+	if main_view.has_method("open_tabletop_drawer"):
+		main_view.call("open_tabletop_drawer", "quick_options")
+		for _index in range(3):
+			await process_frame
+
+	var free_action_state: Dictionary = main_view.call("get_bulletin_card_action_state", 0)
+	var free_button: Button = os_click_helpers.call("find_primary_action_button_for_card", main_view, "ramp_blueprint", "bulletin", str(free_action_state.get("label", "")))
 	if free_button == null:
-		_write_result(false, "free pick button not found; buttons=%s" % str(_visible_button_texts(main_view)))
+		_write_result(false, "free pick button not found; action=%s buttons=%s" % [str(free_action_state), str(os_click_helpers.call("visible_button_texts", main_view))])
 		quit(1)
 		return
-	await _scroll_control_into_view(free_button)
+	await os_click_helpers.call("scroll_control_into_view", self, free_button, main_view.get("page_scroll_container") as ScrollContainer)
 	var free_click := free_button.get_global_rect().get_center()
 	_write_target(free_click, Vector2.ZERO)
 	if OS.get_environment("RFT_AUTO_PUSH_CLICK") == "1":
-		await _push_viewport_click(free_click)
+		await os_click_helpers.call("push_viewport_click", self, free_click)
 
 	var free_deadline := Time.get_ticks_msec() + 8000
 	while Time.get_ticks_msec() < free_deadline:
@@ -55,26 +63,33 @@ func _run() -> void:
 			break
 
 	var paid_action_state: Dictionary = main_view.call("get_bulletin_card_action_state", 1)
-	if not str(paid_action_state.get("label", "")).contains("7"):
-		_write_result(false, "paid action state did not switch after free pick: %s" % str(paid_action_state))
+	if not bool(paid_action_state.get("is_paid_purchase", false)) or int(paid_action_state.get("price", 0)) != 7:
+		_write_result(false, "paid action state did not switch after free pick: %s hover=%s free_button=%s hand=%s selected=%d flowers=%d" % [
+			str(paid_action_state),
+			str(os_click_helpers.call("describe_control", root.gui_get_hovered_control())),
+			str(os_click_helpers.call("describe_control", free_button)),
+			str(main_view.get("hand_cards")),
+			int(game_state.get_state().get("selected_cards_today", 0)),
+			int(game_state.get_state().get("flowers", 0))
+		])
 		quit(1)
 		return
 
-	var paid_button := _find_primary_action_button_for_card(main_view, "lumber_pack", "bulletin", str(paid_action_state.get("label", "")))
+	var paid_button: Button = os_click_helpers.call("find_primary_action_button_for_card", main_view, "lumber_pack", "bulletin", str(paid_action_state.get("label", "")))
 	if paid_button == null:
 		_write_result(false, "paid purchase button not found; buttons=%s hand=%s bulletin=%s action=%s" % [
-			str(_visible_button_texts(main_view)),
+			str(os_click_helpers.call("visible_button_texts", main_view)),
 			str(main_view.get("hand_cards")),
 			str(main_view.get("bulletin_cards")),
 			str(paid_action_state)
 		])
 		quit(1)
 		return
-	await _scroll_control_into_view(paid_button)
+	await os_click_helpers.call("scroll_control_into_view", self, paid_button, main_view.get("page_scroll_container") as ScrollContainer)
 	var paid_click := paid_button.get_global_rect().get_center()
 	_write_target(free_click, paid_click)
 	if OS.get_environment("RFT_AUTO_PUSH_CLICK") == "1":
-		await _push_viewport_click(paid_click)
+		await os_click_helpers.call("push_viewport_click", self, paid_click)
 
 	var deadline_msec := Time.get_ticks_msec() + 8000
 	while Time.get_ticks_msec() < deadline_msec:
@@ -110,90 +125,6 @@ func _run() -> void:
 		str(main_view.get("bulletin_cards"))
 	])
 	quit(1)
-
-
-func _find_visible_button_with_text(node: Node, text: String) -> Button:
-	if node is Button and (node as Button).visible and str((node as Button).text) == text:
-		return node as Button
-	for child: Node in node.get_children():
-		var found := _find_visible_button_with_text(child, text)
-		if found != null:
-			return found
-	return null
-
-
-func _find_visible_button_containing(node: Node, fragment: String) -> Button:
-	if node is Button and (node as Button).visible and str((node as Button).text).contains(fragment):
-		return node as Button
-	for child: Node in node.get_children():
-		var found := _find_visible_button_containing(child, fragment)
-		if found != null:
-			return found
-	return null
-
-
-func _visible_button_texts(node: Node) -> Array[String]:
-	var texts: Array[String] = []
-	if node is Button and (node as Button).visible:
-		texts.append(str((node as Button).text))
-	for child: Node in node.get_children():
-		texts.append_array(_visible_button_texts(child))
-	return texts
-
-
-func _find_primary_action_button_for_card(node: Node, target_card_id: String, target_zone: String, action_label: String) -> Button:
-	if node is Button and (node as Button).visible:
-		var parent := node.get_parent()
-		while parent != null:
-			if parent.has_method("is_primary_action_visible") \
-				and bool(parent.call("is_primary_action_visible")) \
-				and str(parent.get("card_id")) == target_card_id \
-				and str(parent.get("zone")) == target_zone \
-				and str((node as Button).text) == action_label:
-				return node as Button
-			parent = parent.get_parent()
-	for child: Node in node.get_children():
-		var found := _find_primary_action_button_for_card(child, target_card_id, target_zone, action_label)
-		if found != null:
-			return found
-	return null
-
-
-func _push_viewport_click(position: Vector2) -> void:
-	var motion := InputEventMouseMotion.new()
-	motion.position = position
-	motion.global_position = position
-	root.push_input(motion, true)
-	await process_frame
-	var press := InputEventMouseButton.new()
-	press.position = position
-	press.global_position = position
-	press.button_index = MOUSE_BUTTON_LEFT
-	press.pressed = true
-	root.push_input(press, true)
-	await process_frame
-	var release := InputEventMouseButton.new()
-	release.position = position
-	release.global_position = position
-	release.button_index = MOUSE_BUTTON_LEFT
-	release.pressed = false
-	root.push_input(release, true)
-	await process_frame
-
-
-func _scroll_control_into_view(control: Control) -> void:
-	var page_scroll := main_view.get("page_scroll_container") as ScrollContainer
-	if page_scroll == null:
-		return
-	await process_frame
-	var visible_rect := page_scroll.get_global_rect().grow(-8.0)
-	var control_rect := control.get_global_rect()
-	if visible_rect.has_point(control_rect.get_center()):
-		return
-	var delta_y := control_rect.get_center().y - visible_rect.get_center().y
-	page_scroll.scroll_vertical = maxi(0, page_scroll.scroll_vertical + int(delta_y))
-	for _index in range(6):
-		await process_frame
 
 
 func _write_target(free_click: Vector2, paid_click: Vector2) -> void:

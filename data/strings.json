@@ -20,6 +20,8 @@
     "facility": "设施",
     "building_permit": "建筑许可",
     "material": "材料",
+    "resident": "居民",
+    "resource_node": "资源点",
     "problem": "问题",
     "support": "支援"
   },
@@ -57,7 +59,11 @@
     "notice": "公告",
     "rain": "雨天",
     "access": "通行",
-    "night": "夜间"
+    "night": "夜间",
+    "resident": "居民",
+    "worker": "劳动力",
+    "wood": "木料",
+    "resource_node": "资源点"
   },
   "locations": {
     "home": "家中",
@@ -70,6 +76,23 @@
   },
   "general": {
     "none": "暂无"
+  },
+  "app": {
+    "title": "看得见的一公里"
+  },
+  "tasks": {
+    "buy_pack_title": "购买首个卡包",
+    "buy_pack_detail": "在顶部卡包栏打开入门卡包。",
+    "assign_resident_title": "安排居民",
+    "assign_resident_detail": "把居民叠到资源点或设施上。",
+    "collect_funds_title": "收取资金",
+    "collect_funds_detail": "把社区资金卡收进顶栏资金。",
+    "buy_next_pack_title": "购买下一个卡包",
+    "buy_next_pack_detail": "用收到的资金再开一个卡包。",
+    "build_facility_title": "建造设施",
+    "build_facility_detail": "新建或落地一处社区设施。",
+    "handle_resident_need_title": "回应居民需求",
+    "handle_resident_need_detail": "用对应服务化解一个居民需求。"
   },
   "ai_modes": {
     "local": "本地模拟",

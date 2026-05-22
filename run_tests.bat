@@ -29,12 +29,21 @@ if not defined GODOT_EXE_RESOLVED (
   echo - Add godot_console.exe or godot.exe to PATH.
   exit /b 1
 )
+set "RFT_DISABLE_AUTOMATION_SERVERS=1"
 "%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/run_tests.gd --quit
+if errorlevel 1 exit /b %errorlevel%
+"%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/license_manager_smoke.gd --quit
 if errorlevel 1 exit /b %errorlevel%
 set "RFT_AUTO_PUSH_CLICK=1"
 "%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/drag_to_board_smoke.gd
 if errorlevel 1 exit /b %errorlevel%
+"%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/tabletop_reduce_motion_smoke.gd
+if errorlevel 1 exit /b %errorlevel%
 "%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/board_land_unlock_os_click_smoke.gd
 if errorlevel 1 exit /b %errorlevel%
 "%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/bulletin_paid_purchase_os_click_smoke.gd
+if errorlevel 1 exit /b %errorlevel%
+"%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/first_10_minutes_smoke.gd
+if errorlevel 1 exit /b %errorlevel%
+"%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/full_game_smoke.gd
 endlocal

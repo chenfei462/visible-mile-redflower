@@ -12,7 +12,7 @@ const REQUIRED_RESIDENT_KEYS := [
 	"specialty_resource", "specialty_amount", "portrait_key", "bio", "event_affinity_tags"
 ]
 const RESOURCE_KEYS := ["flowers", "funds", "manpower", "moral"]
-const CARD_TYPES := ["facility", "building_permit", "material"]
+const CARD_TYPES := ["facility", "building_permit", "material", "resident", "resource_node"]
 const LIVE_UNLOCK_DAYS := [1, 6, 11]
 
 var cards_by_id: Dictionary = {}
@@ -114,18 +114,17 @@ func _filter_recipes_for_current_rules(raw_recipes: Array[Dictionary]) -> Array[
 	var filtered: Array[Dictionary] = []
 	for recipe: Dictionary in raw_recipes:
 		var normalized_recipe := _normalize_live_recipe_schema(recipe)
-		var result_card_id := str(recipe.get("result_card_id", ""))
-		if result_card_id.is_empty() or not cards_by_id.has(result_card_id):
-			continue
-		if str(cards_by_id.get(result_card_id, {}).get("type", "")) != "facility":
-			continue
-		if not _is_direct_build_recipe(normalized_recipe):
-			continue
-		filtered.append(normalized_recipe)
+		if _is_direct_build_recipe(normalized_recipe) or _is_tabletop_production_recipe(normalized_recipe):
+			filtered.append(normalized_recipe)
 	return filtered
 
 
 func _is_direct_build_recipe(recipe: Dictionary) -> bool:
+	var result_card_id := str(recipe.get("result_card_id", ""))
+	if result_card_id.is_empty() or not cards_by_id.has(result_card_id):
+		return false
+	if str(cards_by_id.get(result_card_id, {}).get("type", "")) != "facility":
+		return false
 	if not recipe.get("ingredient_tags", []).is_empty():
 		return false
 	if str(recipe.get("recipe_id", "")).contains("upgrade"):
@@ -145,6 +144,31 @@ func _is_direct_build_recipe(recipe: Dictionary) -> bool:
 			return false
 		type_counts[ingredient_type] = int(type_counts.get(ingredient_type, 0)) + 1
 	return int(type_counts.get("building_permit", 0)) == 1 and int(type_counts.get("material", 0)) == 1
+
+
+func _is_tabletop_production_recipe(recipe: Dictionary) -> bool:
+	if not recipe.get("ingredient_tags", []).is_empty():
+		return false
+	var ingredients: Array = recipe.get("ingredient_card_ids", [])
+	if ingredients.size() < 2 or ingredients.size() > 4:
+		return false
+	var has_resident := false
+	var has_work_target := false
+	for ingredient_variant in ingredients:
+		var ingredient_id := str(ingredient_variant)
+		if not cards_by_id.has(ingredient_id):
+			return false
+		var ingredient_type := str(cards_by_id.get(ingredient_id, {}).get("type", ""))
+		if ingredient_type == "resident":
+			has_resident = true
+		if ingredient_type == "resource_node" or ingredient_type == "facility":
+			has_work_target = true
+	if not has_resident or not has_work_target:
+		return false
+	var result_card_id := str(recipe.get("result_card_id", ""))
+	var has_result_card := not result_card_id.is_empty() and cards_by_id.has(result_card_id)
+	var has_resource_delta := typeof(recipe.get("resource_delta", {})) == TYPE_DICTIONARY and not Dictionary(recipe.get("resource_delta", {})).is_empty()
+	return has_result_card or has_resource_delta
 
 
 func _normalize_live_card_schema(card: Dictionary) -> Dictionary:
@@ -431,8 +455,25 @@ func _validate_recipes() -> void:
 			validation_errors.append("recipe %s first_discovery_reward should be a dictionary when present" % recipe_id)
 		_validate_resource_bundle("recipe %s first_discovery_reward" % recipe_id, recipe.get("first_discovery_reward", {}))
 		var result_card_id: String = str(recipe.get("result_card_id", ""))
-		if not cards_by_id.has(result_card_id):
+		var result_card_ids: Array = []
+		if recipe.has("result_card_ids"):
+			if typeof(recipe.get("result_card_ids", [])) != TYPE_ARRAY:
+				validation_errors.append("recipe %s result_card_ids should be an array when present" % recipe_id)
+			else:
+				result_card_ids = recipe.get("result_card_ids", [])
+		var resource_delta: Dictionary = recipe.get("resource_delta", {})
+		var has_resource_delta := not resource_delta.is_empty()
+		if result_card_id.is_empty() and result_card_ids.is_empty() and not has_resource_delta:
+			validation_errors.append("recipe %s should define a result card or resource_delta" % recipe_id)
+		elif not result_card_id.is_empty() and not cards_by_id.has(result_card_id):
 			validation_errors.append("recipe %s references missing result %s" % [recipe_id, result_card_id])
+		for result_id_variant in result_card_ids:
+			var multi_result_card_id := str(result_id_variant)
+			if multi_result_card_id.is_empty() or not cards_by_id.has(multi_result_card_id):
+				validation_errors.append("recipe %s references missing result %s" % [recipe_id, multi_result_card_id])
+		if recipe.has("resource_delta") and typeof(recipe.get("resource_delta", {})) != TYPE_DICTIONARY:
+			validation_errors.append("recipe %s resource_delta should be a dictionary when present" % recipe_id)
+		_validate_resource_bundle("recipe %s resource_delta" % recipe_id, resource_delta)
 
 
 func _validate_residents() -> void:

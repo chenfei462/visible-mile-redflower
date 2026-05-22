@@ -1,6 +1,7 @@
 extends SceneTree
 
 const BOARD_RULES := preload("res://scripts/core/BoardRules.gd")
+const OS_CLICK_HELPERS := preload("res://tests/helpers/os_click_helpers.gd")
 const TARGET_PATH := "res://tmp_board_land_unlock_target.json"
 const RESULT_PATH := "res://tmp_board_land_unlock_result.json"
 
@@ -8,6 +9,7 @@ var main_view: Control
 var game_state: Node
 var data_repository: Node
 var resource_manager: Node
+var os_click_helpers: RefCounted = OS_CLICK_HELPERS.new()
 var target_index := -1
 
 
@@ -52,7 +54,7 @@ func _run() -> void:
 	main_view.set("selected_board_index", -1)
 	main_view.call("_sync_iso_board_selection")
 	if OS.get_environment("RFT_AUTO_PUSH_CLICK") == "1":
-		await _push_viewport_click(map_click)
+		await os_click_helpers.call("push_viewport_click", self, map_click)
 
 	var selection_deadline := Time.get_ticks_msec() + 8000
 	while Time.get_ticks_msec() < selection_deadline:
@@ -75,16 +77,24 @@ func _run() -> void:
 		quit(1)
 		return
 
-	var unlock_button := _find_visible_button_containing(main_view, "扩建至 8x8")
+	if main_view.has_method("open_tabletop_drawer"):
+		main_view.call("open_tabletop_drawer", "board")
+		for _index in range(3):
+			await process_frame
+
+	var action_state: Dictionary = main_view.call("get_board_land_unlock_action_state")
+	var unlock_button: Button = os_click_helpers.call("find_visible_button_with_text", main_view, str(action_state.get("button_text", "")))
 	if unlock_button == null:
-		_write_result(false, "unlock button not found; state=%s buttons=%s" % [str(main_view.call("get_board_land_unlock_action_state")), str(_visible_button_texts(main_view))])
+		unlock_button = os_click_helpers.call("find_visible_button_containing", main_view, "8x8")
+	if unlock_button == null:
+		_write_result(false, "unlock button not found; state=%s buttons=%s" % [str(action_state), str(os_click_helpers.call("visible_button_texts", main_view))])
 		quit(1)
 		return
-	await _scroll_control_into_view(unlock_button)
+	await os_click_helpers.call("scroll_control_into_view", self, unlock_button, main_view.get("page_scroll_container") as ScrollContainer)
 	var button_click := unlock_button.get_global_rect().get_center()
 	_write_target(map_click, button_click, target_index)
 	if OS.get_environment("RFT_AUTO_PUSH_CLICK") == "1":
-		await _push_viewport_click(button_click)
+		await os_click_helpers.call("push_viewport_click", self, button_click)
 
 	var deadline_msec := Time.get_ticks_msec() + 8000
 	while Time.get_ticks_msec() < deadline_msec:
@@ -98,64 +108,8 @@ func _run() -> void:
 			quit(0 if bool(cell.get("unlocked", false)) else 1)
 			return
 
-	_write_result(false, "timeout state=%s buttons=%s" % [str(game_state.get_state()), str(_visible_button_texts(main_view))])
+	_write_result(false, "timeout state=%s buttons=%s" % [str(game_state.get_state()), str(os_click_helpers.call("visible_button_texts", main_view))])
 	quit(1)
-
-
-func _find_visible_button_containing(node: Node, fragment: String) -> Button:
-	if node is Button and (node as Button).visible and str((node as Button).text).contains(fragment):
-		return node as Button
-	for child: Node in node.get_children():
-		var found := _find_visible_button_containing(child, fragment)
-		if found != null:
-			return found
-	return null
-
-
-func _visible_button_texts(node: Node) -> Array[String]:
-	var texts: Array[String] = []
-	if node is Button and (node as Button).visible:
-		texts.append(str((node as Button).text))
-	for child: Node in node.get_children():
-		texts.append_array(_visible_button_texts(child))
-	return texts
-
-
-func _push_viewport_click(position: Vector2) -> void:
-	var motion := InputEventMouseMotion.new()
-	motion.position = position
-	motion.global_position = position
-	root.push_input(motion, true)
-	await process_frame
-	var press := InputEventMouseButton.new()
-	press.position = position
-	press.global_position = position
-	press.button_index = MOUSE_BUTTON_LEFT
-	press.pressed = true
-	root.push_input(press, true)
-	await process_frame
-	var release := InputEventMouseButton.new()
-	release.position = position
-	release.global_position = position
-	release.button_index = MOUSE_BUTTON_LEFT
-	release.pressed = false
-	root.push_input(release, true)
-	await process_frame
-
-
-func _scroll_control_into_view(control: Control) -> void:
-	var page_scroll := main_view.get("page_scroll_container") as ScrollContainer
-	if page_scroll == null:
-		return
-	await process_frame
-	var visible_rect := page_scroll.get_global_rect().grow(-8.0)
-	var control_rect := control.get_global_rect()
-	if visible_rect.has_point(control_rect.get_center()):
-		return
-	var delta_y := control_rect.get_center().y - visible_rect.get_center().y
-	page_scroll.scroll_vertical = maxi(0, page_scroll.scroll_vertical + int(delta_y))
-	for _index in range(6):
-		await process_frame
 
 
 func _write_target(map_click: Vector2, button_click: Vector2, index: int) -> void:

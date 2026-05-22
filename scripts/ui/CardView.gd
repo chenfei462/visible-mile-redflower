@@ -207,6 +207,7 @@ func _ensure_ui() -> void:
 	if _title_label != null:
 		return
 	_apply_compact_size()
+	clip_contents = true
 	var margin := MarginContainer.new()
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -301,7 +302,8 @@ func _ensure_ui() -> void:
 	_body_label = Label.new()
 	_body_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_body_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_body_label.size_flags_vertical = Control.SIZE_FILL
+	_body_label.clip_text = true
 	layout.add_child(_body_label)
 
 	var button_row := HBoxContainer.new()

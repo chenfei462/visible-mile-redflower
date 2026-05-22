@@ -1,0 +1,125 @@
+{
+    "components": [
+        {
+            "category": "Editor Plugins",
+            "contact": "",
+            "copyright": [
+                "Marcus Hale"
+            ],
+            "description": "External TCP control plugin for AI agents, automation, and CI pipelines. The local copy does not include a license file; verify the source license before shipping.",
+            "id": "godot_ai_playtest",
+            "licenses": [
+                {
+                    "file": "",
+                    "identifier": "",
+                    "name": "License not recorded yet",
+                    "text": "The local plugin folder does not include a license file. Verify the upstream/source license before distributing a Steam or competition package.",
+                    "web": ""
+                }
+            ],
+            "name": "Godot AI Playtest",
+            "paths": [
+                "res://addons/godot_ai_playtest"
+            ],
+            "version": "0.3.0",
+            "web": ""
+        },
+        {
+            "category": "Editor Plugins",
+            "contact": "",
+            "copyright": [
+                "2025 codevogel (Kamiel de Visser)"
+            ],
+            "description": "Godot editor and CLI validation plugin used during development.",
+            "id": "godot_doctor",
+            "licenses": [
+                {
+                    "file": "res://addons/godot_doctor/LICENSE",
+                    "identifier": "MIT",
+                    "name": "MIT License",
+                    "text": "",
+                    "web": "https://github.com/codevogel/godot_doctor"
+                }
+            ],
+            "name": "Godot Doctor",
+            "paths": [
+                "res://addons/godot_doctor"
+            ],
+            "version": "2.1.3",
+            "web": "https://github.com/codevogel/godot_doctor"
+        },
+        {
+            "category": "Editor Plugins",
+            "contact": "iceflower@gmx.de",
+            "copyright": [
+                "2022-present Iceflower S (iceflower@gmx.de)"
+            ],
+            "description": "Godot editor plugin used to track third-party licenses and export the license data with release builds.",
+            "id": "license_manager",
+            "licenses": [
+                {
+                    "file": "res://addons/licenses/LICENSE.md",
+                    "identifier": "MIT",
+                    "name": "MIT License",
+                    "text": "",
+                    "web": "https://github.com/kenyoni-software/godot-addons"
+                }
+            ],
+            "name": "License Manager",
+            "paths": [
+                "res://addons/licenses"
+            ],
+            "version": "1.11.0",
+            "web": "https://github.com/kenyoni-software/godot-addons"
+        },
+        {
+            "category": "Editor Plugins",
+            "contact": "",
+            "copyright": [
+                "sl"
+            ],
+            "description": "Local TCP bridge for editor automation. The local copy does not include a license file; verify the source license before shipping.",
+            "id": "mcp_bridge",
+            "licenses": [
+                {
+                    "file": "",
+                    "identifier": "",
+                    "name": "License not recorded yet",
+                    "text": "The local plugin folder does not include a license file. Verify the upstream/source license before distributing a Steam or competition package.",
+                    "web": ""
+                }
+            ],
+            "name": "MCP Bridge",
+            "paths": [
+                "res://addons/mcp_bridge"
+            ],
+            "version": "0.1.0",
+            "web": ""
+        },
+        {
+            "category": "Engine",
+            "contact": "",
+            "copyright": [
+                "2014-present Godot Engine contributors",
+                "2007-2014 Juan Linietsky, Ariel Manzur"
+            ],
+            "description": "Runtime engine used to build and export the game.",
+            "id": "godot_engine",
+            "licenses": [
+                {
+                    "file": "res://licenses/godot_engine_LICENSE.txt",
+                    "identifier": "MIT",
+                    "name": "MIT License",
+                    "text": "",
+                    "web": "https://godotengine.org/license"
+                }
+            ],
+            "name": "Godot Engine",
+            "paths": [
+                "res://project.godot"
+            ],
+            "version": "4.6.2",
+            "web": "https://godotengine.org/"
+        }
+    ]
+}

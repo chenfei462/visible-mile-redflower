@@ -40,7 +40,7 @@ window/stretch/mode="canvas_items"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/mcp_bridge/plugin.cfg", "res://addons/godot_ai_playtest/plugin.cfg")
+enabled=PackedStringArray("res://addons/mcp_bridge/plugin.cfg", "res://addons/godot_ai_playtest/plugin.cfg", "res://addons/godot_doctor/plugin.cfg", "res://addons/licenses/plugin.cfg")
 
 [input]
 
@@ -49,3 +49,8 @@ toggle_debug_panel={
 "events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":120,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
 ]
 }
+
+[plugins]
+
+licenses/data_file="res://licenses.json"
+licenses/indentation=1

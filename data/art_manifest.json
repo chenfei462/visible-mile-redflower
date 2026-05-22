@@ -1181,6 +1181,90 @@
     },
     "icon_care_kit_pack": {
       "placeholder_path": "res://icon.svg"
+    },
+    "card_neighbor_helper": {
+      "kind": "card",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "热心邻居"
+    },
+    "icon_neighbor_helper": {
+      "kind": "icon",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "热心邻居"
+    },
+    "card_scrap_wood_pile": {
+      "kind": "card",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "废木料堆"
+    },
+    "icon_scrap_wood_pile": {
+      "kind": "icon",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "废木料堆"
+    },
+    "card_volunteer_captain": {
+      "kind": "card",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "志愿者骨干"
+    },
+    "icon_volunteer_captain": {
+      "kind": "icon",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "志愿者骨干"
+    },
+    "card_donation_supply_box": {
+      "kind": "card",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "捐赠物资箱"
+    },
+    "icon_donation_supply_box": {
+      "kind": "icon",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "捐赠物资箱"
+    },
+    "card_community_clue_board": {
+      "kind": "card",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "社区线索板"
+    },
+    "icon_community_clue_board": {
+      "kind": "icon",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "社区线索板"
+    },
+    "card_convenience_supplies": {
+      "kind": "card",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "便民物资"
+    },
+    "icon_convenience_supplies": {
+      "kind": "icon",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "便民物资"
+    },
+    "card_community_funds": {
+      "kind": "card",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "社区资金"
+    },
+    "icon_community_funds": {
+      "kind": "icon",
+      "path": "",
+      "placeholder_path": "res://icon.svg",
+      "fallback_label": "社区资金"
     }
   }
 }

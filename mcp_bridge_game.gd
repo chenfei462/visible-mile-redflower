@@ -21,6 +21,9 @@ var _last_drag_summary := {
 
 
 func _ready() -> void:
+	if OS.get_environment("RFT_DISABLE_AUTOMATION_SERVERS") == "1":
+		set_process(false)
+		return
 	var config := ConfigFile.new()
 	if config.load("res://mcp_ports.cfg") == OK:
 		port = config.get_value("mcp", "game_port", DEFAULT_PORT)

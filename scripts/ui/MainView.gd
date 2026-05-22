@@ -11,8 +11,14 @@ const PROTOTYPE_RULES := preload("res://scripts/core/PrototypeRules.gd")
 const RECIPE_RULES := preload("res://scripts/core/RecipeRules.gd")
 const RESIDENT_SYSTEM := preload("res://scripts/core/ResidentSystem.gd")
 const CARD_PACK_SYSTEM := preload("res://scripts/core/CardPackSystem.gd")
+const TABLETOP_ECONOMY_RULES := preload("res://scripts/core/TabletopEconomyRules.gd")
 const WEATHER_SYSTEM := preload("res://scripts/core/WeatherSystem.gd")
 const PLAYABILITY_DIRECTOR := preload("res://scripts/core/PlayabilityDirector.gd")
+const TABLETOP_CONTROLLER_SCRIPT := preload("res://scripts/ui/controllers/TabletopController.gd")
+const STACK_ACTION_CONTROLLER_SCRIPT := preload("res://scripts/ui/controllers/StackActionController.gd")
+const CARD_PACK_SHOP_SCRIPT := preload("res://scripts/ui/modules/CardPackShop.gd")
+const TABLETOP_DRAWER_SCRIPT := preload("res://scripts/ui/modules/TabletopDrawer.gd")
+const TABLETOP_CARD_METRICS := preload("res://scripts/ui/TabletopCardMetrics.gd")
 
 const UI_TEXT_COLOR := Color(0.27, 0.18, 0.10)
 const UI_MUTED_TEXT_COLOR := Color(0.48, 0.36, 0.22)
@@ -56,12 +62,22 @@ const TUTORIAL_BUBBLE_MUTED_TEXT_COLOR := Color(0.4196078431372549, 0.2784313725
 const TUTORIAL_ARROW_COLOR := Color(0.80, 0.26, 0.10)
 const TUTORIAL_ARROW_FONT_SIZE := 44
 const TUTORIAL_BUBBLE_SIZE := Vector2(248, 64)
+const PRIMARY_CARD_PACK_IDS := ["starter_pack", "material_pack", "resident_pack", "permit_pack", "service_pack", "governance_pack"]
+const FIRST_SCREEN_SIZE := Vector2(1280, 720)
+const FIRST_SCREEN_HUD_RECT := Rect2(Vector2(18, 12), Vector2(1244, 56))
+const FIRST_SCREEN_PACK_RECT := Rect2(Vector2(260, 84), Vector2(978, 92))
+const FIRST_SCREEN_TASKS_RECT := Rect2(Vector2(18, 184), Vector2(224, 520))
+const FIRST_SCREEN_PLAYMAT_RECT := Rect2(Vector2(260, 184), Vector2(978, 520))
+const FIRST_SCREEN_TOOLBAR_RECT := Rect2(Vector2(456, 652), Vector2(368, 54))
+const FIRST_SCREEN_SELL_RECT := Rect2(Vector2(270, 194), Vector2(84, 30))
+const TABLETOP_DRAWER_IDS := ["quick_options", "residents", "status", "end_day", "board", "settings", "codex"]
 
 var resource_bar: Label
 var resource_chip_flowers: Label
 var resource_chip_funds: Label
 var resource_chip_manpower: Label
 var resource_chip_moral: Label
+var resource_chip_cards: Label
 var phase_label: Label
 var bulletin_status_label: Label
 var craft_status_label: Label
@@ -107,6 +123,8 @@ var page_scroll_container: ScrollContainer
 var board_scroll_container: ScrollContainer
 var iso_grid_painter: Control
 var tabletop_layer: Control
+var sell_drop_zone: PanelContainer
+var tabletop_card_count_label: Label
 
 var bulletin_container: HFlowContainer
 var hand_container: HFlowContainer
@@ -149,6 +167,8 @@ var _tutorial_pointer_reposition_queued := false
 @export var tabletop_card_positions: Dictionary = {}
 @export var tabletop_card_z: Dictionary = {}
 var _tabletop_next_z: int = 1
+var _highlighted_recipe_card_ids: Dictionary = {}
+var _active_facility_highlight_id: String = ""
 var current_day_summary: PackedStringArray = []
 var current_bulletin_offset: int = 0
 var active_announcement: Dictionary = {}
@@ -168,10 +188,21 @@ var problem_card_views: Array[Control] = []
 var day_minus_one_view: Control
 var previously_unlocked_cells: PackedInt32Array = []
 var main_content_root: Control
+var drawer_layer: PanelContainer
+var drawer_scroll_container: ScrollContainer
+var drawer_content_stack: VBoxContainer
+var active_tabletop_drawer := ""
+var tabletop_drag_feedback_state: Dictionary = {}
+var sell_zone_feedback_state: Dictionary = {}
+var tabletop_controller: RefCounted
+var stack_action_controller: RefCounted
+var card_pack_shop: Control
+var _refresh_counters: Dictionary = {"full": 0, "tabletop": 0, "drawer": 0, "resources": 0}
 var floating_notifiers: Array[Control] = []
 var craft_slot_guidance_tween: Tween
 var craft_slot_guidance_active := false
 var last_craft_failure_feedback: Dictionary = {}
+var last_tabletop_craft_feedback: Dictionary = {}
 var report_history := PackedStringArray()
 var _bulletin_price_rng := RandomNumberGenerator.new()
 var _last_resource_snapshot: Dictionary = {}
@@ -190,6 +221,8 @@ var _stack_sources: Array[String] = []
 var _stack_prices: Array[int] = []
 var _stack_crafting_recipe_id: String = ""
 var _stack_crafting_tween: Tween
+var _tabletop_crafting_tween: Tween
+var _tabletop_pending_craft: Dictionary = {}
 const STACK_MAX_SLOTS := 4
 
 
@@ -281,6 +314,18 @@ func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_debug_panel") and debug_panel != null:
 		debug_panel.visible = not debug_panel.visible
 
+	if event is InputEventKey and event.pressed and not event.echo and not is_dragging:
+		var key_event := event as InputEventKey
+		match key_event.keycode:
+			KEY_O:
+				organize_tabletop_cards_basic()
+				get_viewport().set_input_as_handled()
+				return
+			KEY_ESCAPE:
+				_toggle_settings_panel()
+				get_viewport().set_input_as_handled()
+				return
+
 	if not is_dragging:
 		if _handle_iso_board_click_input(event):
 			return
@@ -365,39 +410,502 @@ func is_grid_primary_placement_enabled() -> bool:
 
 
 func get_tabletop_card_positions() -> Dictionary:
+	_sync_tabletop_controller_from_facade()
+	_sync_tabletop_facade_from_controller()
 	return tabletop_card_positions.duplicate(true)
 
 
 func get_tabletop_card_z_order() -> Dictionary:
+	_sync_tabletop_controller_from_facade()
+	_sync_tabletop_facade_from_controller()
 	return tabletop_card_z.duplicate(true)
 
 
 func get_tabletop_card_ids() -> Dictionary:
+	_sync_tabletop_controller_from_facade()
+	_sync_tabletop_facade_from_controller()
 	return tabletop_card_ids.duplicate(true)
 
 
-func bring_tabletop_card_to_front(instance_id: String) -> int:
+func get_tabletop_economy_state() -> Dictionary:
+	_sync_tabletop_controller_from_facade()
+	_sync_tabletop_facade_from_controller()
+	return TABLETOP_ECONOMY_RULES.economy_state(GameState.get_state(), tabletop_card_ids.size())
+
+
+func get_sell_zone_contract() -> Dictionary:
+	return {
+		"type": "sell_zone",
+		"fixed": true,
+		"rect": _first_screen_region_rect("SellDropZone"),
+		"accepts": "tabletop_card",
+		"resource": "funds"
+	}
+
+
+func preview_sell_zone_drop(instance_id: String, pointer_global_position: Vector2) -> Dictionary:
+	var visible := sell_drop_zone != null and sell_drop_zone.get_global_rect().has_point(pointer_global_position)
+	var card_id := str(tabletop_card_ids.get(instance_id, ""))
+	var card_def := _tabletop_card_def_for_id(card_id)
+	var value: Dictionary = TABLETOP_ECONOMY_RULES.sell_value_for_card(card_def)
+	sell_zone_feedback_state = {
+		"visible": visible,
+		"target": "sell_zone",
+		"instance_id": instance_id,
+		"card_id": card_id,
+		"can_sell": visible and bool(value.get("can_sell", false)),
+		"feedback": "sell_zone_highlight" if visible else "",
+		"reason": str(value.get("reason", ""))
+	}
+	if sell_drop_zone != null:
+		sell_drop_zone.add_theme_stylebox_override("panel", _sell_zone_style(bool(sell_zone_feedback_state.get("can_sell", false))))
+	return sell_zone_feedback_state.duplicate(true)
+
+
+func get_sell_zone_feedback_state() -> Dictionary:
+	return sell_zone_feedback_state.duplicate(true)
+
+
+func sell_tabletop_card_instance(instance_id: String) -> Dictionary:
+	_sync_tabletop_controller_from_facade()
+	_sync_tabletop_facade_from_controller()
 	if instance_id.is_empty() or not tabletop_card_ids.has(instance_id):
-		return 0
-	_tabletop_next_z = maxi(_tabletop_next_z, _max_tabletop_z() + 1)
+		return {"success": false, "message": "tabletop_card_missing", "reason": "tabletop_card_missing", "instance_id": instance_id}
+	if _is_tabletop_instance_busy(instance_id):
+		return {"success": false, "message": "tabletop_card_busy", "reason": "tabletop_card_busy", "instance_id": instance_id}
+	var card_id := str(tabletop_card_ids.get(instance_id, ""))
+	if _is_community_funds_card_id(card_id):
+		return {"success": false, "message": "community_funds_collect_only", "reason": "community_funds_collect_only", "instance_id": instance_id, "card_id": card_id}
+	var card_def: Dictionary = _tabletop_card_def_for_id(card_id)
+	if card_def.is_empty():
+		return {"success": false, "message": "card_missing", "reason": "card_missing", "instance_id": instance_id, "card_id": card_id}
+	var result: Dictionary = TABLETOP_ECONOMY_RULES.sell_result_for_card(card_def, instance_id)
+	if not bool(result.get("success", false)):
+		return result
+	var delta := {
+		"funds": int(result.get("funds", 0)),
+		"flowers": int(result.get("flowers", 0))
+	}
+	ResourceManager.apply_resource_delta(GameState.get_state(), delta, "sell:%s" % card_id)
+	tabletop_card_ids.erase(instance_id)
+	tabletop_card_positions.erase(instance_id)
+	tabletop_card_z.erase(instance_id)
+	_sync_tabletop_controller_from_facade()
+	_append_report_line("Sold tabletop card: %s +%d funds +%d flowers" % [_card_name(card_id), int(delta.get("funds", 0)), int(delta.get("flowers", 0))])
+	_drag_finish_refresh_mode = "card_zone"
+	refresh_tabletop_only()
+	refresh_resources_only()
+	return result
+
+
+func collect_tabletop_funds_card(instance_id: String) -> Dictionary:
+	_sync_tabletop_controller_from_facade()
+	_sync_tabletop_facade_from_controller()
+	if instance_id.is_empty() or not tabletop_card_ids.has(instance_id):
+		return {"success": false, "message": "tabletop_card_missing", "reason": "tabletop_card_missing", "instance_id": instance_id}
+	if _is_tabletop_instance_busy(instance_id):
+		return {"success": false, "message": "tabletop_card_busy", "reason": "tabletop_card_busy", "instance_id": instance_id}
+	var card_id := str(tabletop_card_ids.get(instance_id, ""))
+	if not _is_community_funds_card_id(card_id):
+		return {"success": false, "message": "not_collectable_funds", "reason": "not_collectable_funds", "instance_id": instance_id, "card_id": card_id}
+	var state := GameState.get_state()
+	ResourceManager.apply_resource_delta(state, {"funds": 1}, "collect:%s" % card_id)
+	state["collected_tabletop_funds"] = int(state.get("collected_tabletop_funds", 0)) + 1
+	tabletop_card_ids.erase(instance_id)
+	tabletop_card_positions.erase(instance_id)
+	tabletop_card_z.erase(instance_id)
+	_sync_tabletop_controller_from_facade()
+	_append_report_line("收取社区资金：+1 资金")
+	_drag_finish_refresh_mode = "card_zone"
+	refresh_tabletop_only()
+	refresh_resources_only()
+	return {
+		"success": true,
+		"message": "tabletop_funds_collected",
+		"reason": "",
+		"instance_id": instance_id,
+		"card_id": card_id,
+		"funds": 1
+	}
+
+
+func get_last_tabletop_craft_feedback() -> Dictionary:
+	_sync_stack_controller_from_facade()
+	_sync_stack_facade_from_controller()
+	return last_tabletop_craft_feedback.duplicate(true)
+
+
+func get_tabletop_controller_state() -> Dictionary:
+	_sync_tabletop_controller_from_facade()
+	return tabletop_controller.call("get_state").duplicate(true)
+
+
+func get_stack_action_controller_state() -> Dictionary:
+	_sync_stack_controller_from_facade()
+	return stack_action_controller.call("get_state").duplicate(true)
+
+
+func get_card_pack_shop_layout_contract() -> Dictionary:
+	var pack_ids: Array[String] = _primary_card_pack_ids()
+	return {
+		"region": "TopPackShop",
+		"opens_to": "tabletop",
+		"pack_ids": pack_ids,
+		"button_count": _card_pack_buttons.size(),
+		"status_text": _card_pack_status_label.text if _card_pack_status_label != null else ""
+	}
+
+
+func get_tabletop_first_screen_layout_contract() -> Dictionary:
+	return {
+		"mode": "fixed_stacklands",
+		"uses_primary_scroll": false,
+		"board_role": "desktop_record_drawer",
+		"hud_rect": _first_screen_region_rect("ResourceHud"),
+		"top_pack_shop_rect": _first_screen_region_rect("TopPackShop"),
+		"left_sidebar_rect": _first_screen_region_rect("TasksPanel"),
+		"playmat_rect": _first_screen_region_rect("PlaymatPanel"),
+		"toolbar_rect": _first_screen_region_rect("ToolbarStrip"),
+		"sell_zone_rect": _first_screen_region_rect("SellDropZone"),
+		"default_hidden_panels": ["quick_options", "residents", "status", "end_day", "board"]
+	}
+
+
+func get_tabletop_drawer_state() -> Dictionary:
+	return {
+		"active_drawer": active_tabletop_drawer,
+		"visible": drawer_layer != null and drawer_layer.visible,
+		"uses_drawer_scroll": drawer_scroll_container != null,
+		"viewport_rect": drawer_scroll_container.get_global_rect() if drawer_scroll_container != null else Rect2()
+	}
+
+
+func open_tabletop_drawer(drawer_id: String) -> Dictionary:
+	if not TABLETOP_DRAWER_IDS.has(drawer_id):
+		return {"success": false, "message": "drawer_unknown", "drawer_id": drawer_id}
+	active_tabletop_drawer = drawer_id
+	if drawer_layer != null:
+		drawer_layer.visible = true
+		_set_tabletop_drawer_content_visibility(drawer_id)
+		if drawer_scroll_container != null:
+			drawer_scroll_container.scroll_vertical = 0
+	if drawer_id == "settings" and settings_panel != null:
+		settings_panel.visible = true
+	return {"success": true, "drawer_id": drawer_id}
+
+
+func close_tabletop_drawer() -> Dictionary:
+	active_tabletop_drawer = ""
+	if drawer_layer != null:
+		drawer_layer.visible = false
+	if settings_panel != null:
+		settings_panel.visible = false
+	return {"success": true}
+
+
+func organize_tabletop_cards_basic() -> Dictionary:
+	_sync_tabletop_controller_from_facade()
+	var result: Dictionary = tabletop_controller.call("organize_basic", DataRepository.cards_by_id, _tabletop_busy_instance_ids())
+	_sync_tabletop_facade_from_controller()
+	_refresh_tabletop_layer()
+	return result
+
+
+func preview_tabletop_stack_snap(source_instance_id: String, position: Vector2) -> Dictionary:
+	_sync_tabletop_controller_from_facade()
+	tabletop_drag_feedback_state = tabletop_controller.call("preview_stack_snap", source_instance_id, position)
+	_sync_tabletop_facade_from_controller()
+	return tabletop_drag_feedback_state.duplicate(true)
+
+
+func get_tabletop_drag_feedback_state() -> Dictionary:
+	return tabletop_drag_feedback_state.duplicate(true)
+
+
+func get_tabletop_stack_progress_state() -> Dictionary:
+	if _tabletop_pending_craft.is_empty():
+		return {"pending": false, "progress": 0.0}
+	var recipe: Dictionary = _tabletop_pending_craft.get("recipe", {})
+	return {
+		"pending": true,
+		"recipe_id": str(recipe.get("recipe_id", "")),
+		"result_card_id": str(recipe.get("result_card_id", "")),
+		"input_instance_ids": Array(_tabletop_pending_craft.get("instance_ids", [])).duplicate(),
+		"time_cost_sec": float(recipe.get("time_cost_sec", 0.0)),
+		"progress": 0.0,
+		"message": "tabletop_craft_in_progress"
+	}
+
+
+func purchase_card_pack_to_tabletop(pack_id: String) -> Dictionary:
+	var state: Dictionary = GameState.get_state()
+	var economy: Dictionary = get_tabletop_economy_state()
+	if not bool(economy.get("can_open_card_pack", true)):
+		return {
+			"success": false,
+			"reason": str(economy.get("pack_limit_reason", "tabletop_card_limit_reached")),
+			"message": str(economy.get("pack_limit_reason", "tabletop_card_limit_reached")),
+			"card_count": int(economy.get("card_count", 0)),
+			"card_limit": int(economy.get("card_limit", 0))
+		}
+	if _card_pack_rng == null:
+		_card_pack_rng = RandomNumberGenerator.new()
+		_card_pack_rng.randomize()
+	var result: Dictionary = CARD_PACK_SYSTEM.open_pack(state, pack_id, DataRepository.cards_by_id, _card_pack_rng)
+	if not bool(result.get("success", false)):
+		return result
+	var drawn: Array = result.get("drawn_card_ids", [])
+	var placed_instance_ids := _place_card_pack_draws_on_tabletop(drawn)
+	result["opens_to"] = "tabletop"
+	result["placed_instance_ids"] = placed_instance_ids
+	_append_report_line("Pack opened %s: %s" % [str(result.get("pack_name", pack_id)), _format_card_id_list(drawn)])
+	_drag_finish_refresh_mode = "card_zone"
+	refresh_tabletop_only()
+	refresh_resources_only()
+	return result
+
+
+func _primary_card_pack_ids() -> Array[String]:
+	var packs: Dictionary = CARD_PACK_SYSTEM.get_pack_definitions()
+	var ids: Array[String] = []
+	for pack_id_variant in PRIMARY_CARD_PACK_IDS:
+		var pack_id := str(pack_id_variant)
+		if packs.has(pack_id):
+			ids.append(pack_id)
+	return ids
+
+
+func _place_card_pack_draws_on_tabletop(drawn_card_ids: Array) -> Array[String]:
+	var placed_instance_ids: Array[String] = []
+	var state: Dictionary = GameState.get_state()
+	var occupied_rects := _tabletop_pack_open_occupied_rects()
+	for index in range(drawn_card_ids.size()):
+		var card_id := str(drawn_card_ids[index])
+		var card_def: Dictionary = _tabletop_card_def_for_id(card_id)
+		if not _is_tabletop_eligible_card_def(card_def):
+			continue
+		var instance_id := _next_tabletop_instance_id(state, card_id)
+		var spawn_position := _find_pack_open_tabletop_position(index, occupied_rects)
+		tabletop_card_ids[instance_id] = card_id
+		tabletop_card_positions[instance_id] = spawn_position
+		tabletop_card_z[instance_id] = _tabletop_next_z
+		_tabletop_next_z += 1
+		placed_instance_ids.append(instance_id)
+		occupied_rects.append(Rect2(spawn_position, _tabletop_card_size()))
+	_sync_tabletop_controller_from_facade()
+	_refresh_tabletop_layer()
+	return placed_instance_ids
+
+
+func _find_free_tabletop_position(fallback_index: int) -> Vector2:
+	var card_size := _tabletop_card_size()
+	var spacing := _tabletop_card_spacing()
+	var margin := _tabletop_card_margin() + 16.0
+	var play_area := _tabletop_play_area_size()
+	var occupied_rects: Array[Rect2] = []
+	for pos_variant in tabletop_card_positions.values():
+		occupied_rects.append(Rect2(_vector2_from_variant(pos_variant), card_size))
+	var step_x := card_size.x + spacing.x
+	var step_y := card_size.y + spacing.y
+	var cols := maxi(1, int(floor((play_area.x - margin * 2.0) / step_x)) + 1)
+	var rows := maxi(1, int(floor((play_area.y - margin * 2.0) / step_y)) + 1)
+	for row in range(rows):
+		for column in range(cols):
+			var candidate := _clamp_tabletop_position(Vector2(margin + float(column) * step_x, margin + float(row) * step_y))
+			var candidate_rect := Rect2(candidate, card_size)
+			var collides := false
+			for rect in occupied_rects:
+				if rect.intersects(candidate_rect):
+					collides = true
+					break
+			if not collides:
+				return candidate
+	var jitter := fallback_index * 12
+	return _clamp_tabletop_position(Vector2(margin + float(jitter), margin + float(jitter)))
+
+
+func _find_pack_open_tabletop_position(fallback_index: int, occupied_rects: Array[Rect2]) -> Vector2:
+	var play_area := _tabletop_play_area_size()
+	var margin := _tabletop_card_margin()
+	var card_size := _tabletop_card_size()
+	var spacing := _tabletop_card_spacing()
+	var lower_guard := _pack_open_lower_guard_y()
+	var upper_zone := Rect2(
+		Vector2(margin, margin),
+		Vector2(
+			maxf(card_size.x, play_area.x - margin * 2.0),
+			maxf(card_size.y, minf(lower_guard, play_area.y * 0.55) - margin)
+		)
+	)
+	var middle_start_y := upper_zone.position.y + upper_zone.size.y + spacing.y
+	var middle_zone := Rect2(
+		Vector2(margin, middle_start_y),
+		Vector2(
+			maxf(card_size.x, play_area.x - margin * 2.0),
+			maxf(0.0, lower_guard - middle_start_y)
+		)
+	)
+	for zone in [upper_zone, middle_zone]:
+		var candidate := _find_tabletop_grid_position_in_zone(zone, occupied_rects)
+		if candidate != _invalid_tabletop_position():
+			return candidate
+	return _find_free_tabletop_position(fallback_index + tabletop_card_positions.size())
+
+
+func _find_tabletop_grid_position_in_zone(zone: Rect2, occupied_rects: Array[Rect2]) -> Vector2:
+	if zone.size == Vector2.ZERO:
+		return _invalid_tabletop_position()
+	var card_size := _tabletop_card_size()
+	if zone.size.x < card_size.x or zone.size.y < card_size.y:
+		return _invalid_tabletop_position()
+	var spacing := _tabletop_card_spacing()
+	var step_x := card_size.x + spacing.x
+	var step_y := card_size.y + spacing.y
+	var max_x := zone.end.x - card_size.x
+	var max_y := zone.end.y - card_size.y
+	var row := 0
+	while true:
+		var y := zone.position.y + float(row) * step_y
+		if y > max_y + 0.001:
+			break
+		var column := 0
+		while true:
+			var x := zone.position.x + float(column) * step_x
+			if x > max_x + 0.001:
+				break
+			var candidate := _clamp_tabletop_position(Vector2(x, y))
+			var candidate_rect := Rect2(candidate, card_size)
+			if zone.encloses(candidate_rect) and not _rect_intersects_any(candidate_rect, occupied_rects):
+				return candidate
+			column += 1
+		row += 1
+	return _invalid_tabletop_position()
+
+
+func _tabletop_pack_open_occupied_rects() -> Array[Rect2]:
+	var rects: Array[Rect2] = []
+	for pos_variant in tabletop_card_positions.values():
+		rects.append(Rect2(_vector2_from_variant(pos_variant), _tabletop_card_size()))
+	for reserved_rect in _tabletop_pack_open_reserved_rects():
+		rects.append(reserved_rect)
+	return rects
+
+
+func _tabletop_pack_open_reserved_rects() -> Array[Rect2]:
+	var reserved_rects: Array[Rect2] = []
+	if sell_drop_zone != null:
+		var sell_rect := _tabletop_local_rect(sell_drop_zone.get_global_rect())
+		if sell_rect.size != Vector2.ZERO:
+			reserved_rects.append(sell_rect.grow(6.0))
+	var tutorial_rect := _tabletop_pack_open_tutorial_bubble_rect()
+	if tutorial_rect.size != Vector2.ZERO:
+		reserved_rects.append(tutorial_rect.grow(6.0))
+	var demand_rect := _tabletop_pack_open_demand_rect()
+	if demand_rect.size != Vector2.ZERO:
+		reserved_rects.append(demand_rect.grow(6.0))
+	return reserved_rects
+
+
+func _tabletop_pack_open_tutorial_bubble_rect() -> Rect2:
+	var coachmark := get_active_tutorial_coachmark()
+	if coachmark.is_empty():
+		return Rect2()
+	var target_rect := _tutorial_target_rect(str(coachmark.get("target", "")))
+	var bubble_size: Vector2 = Dictionary(get_tutorial_pointer_visual_spec()).get("bubble_size", Vector2.ZERO)
+	if target_rect.size == Vector2.ZERO or bubble_size == Vector2.ZERO:
+		return Rect2()
+	return _tabletop_local_rect(Rect2(_tutorial_bubble_position(target_rect, bubble_size), bubble_size))
+
+
+func _tabletop_pack_open_demand_rect() -> Rect2:
+	if _pending_resident_need_entities().is_empty():
+		return Rect2()
+	if problems_container != null:
+		var problem_zone_rect := _tabletop_local_rect(problems_container.get_global_rect())
+		if problem_zone_rect.size != Vector2.ZERO:
+			return problem_zone_rect
+	var play_area := _tabletop_play_area_size()
+	var margin := _tabletop_card_margin()
+	var card_size := _tabletop_card_size()
+	var spacing := _tabletop_card_spacing()
+	return Rect2(
+		Vector2(margin, maxf(margin, play_area.y - card_size.y - spacing.y - margin)),
+		Vector2(card_size.x * 3.0 + spacing.x * 2.0, card_size.y + spacing.y + margin)
+	)
+
+
+func _pack_open_lower_guard_y() -> float:
+	var play_area := _tabletop_play_area_size()
+	var guard_y := play_area.y * 0.66
+	var demand_rect := _tabletop_pack_open_demand_rect()
+	if demand_rect.size != Vector2.ZERO:
+		guard_y = minf(guard_y, demand_rect.position.y - _tabletop_card_spacing().y)
+	return maxf(_tabletop_card_margin() + _tabletop_card_size().y, guard_y)
+
+
+func _tabletop_local_rect(global_rect: Rect2) -> Rect2:
+	if global_rect.size == Vector2.ZERO or tabletop_layer == null:
+		return Rect2()
+	var local_position: Vector2 = tabletop_layer.get_global_transform_with_canvas().affine_inverse() * global_rect.position
+	return Rect2(local_position, global_rect.size)
+
+
+func _rect_intersects_any(candidate_rect: Rect2, occupied_rects: Array[Rect2]) -> bool:
+	for rect in occupied_rects:
+		if rect.intersects(candidate_rect):
+			return true
+	return false
+
+
+func _invalid_tabletop_position() -> Vector2:
+	return Vector2(-1000000.0, -1000000.0)
+
+
+func place_resident_need_on_tabletop(need_id: String, position: Vector2) -> Dictionary:
+	var need_entity := _pending_need_entity_for_id(need_id)
+	if need_entity.is_empty():
+		return {"success": false, "message": "need_not_found"}
+	var state: Dictionary = GameState.get_state()
+	var card_id := _demand_card_id_for_need_id(need_id)
+	var instance_id := _next_tabletop_instance_id(state, card_id)
+	tabletop_card_ids[instance_id] = card_id
+	tabletop_card_positions[instance_id] = _clamp_tabletop_position(position)
 	tabletop_card_z[instance_id] = _tabletop_next_z
 	_tabletop_next_z += 1
-	_refresh_tabletop_layer()
-	return int(tabletop_card_z.get(instance_id, 0))
-
-
-func set_tabletop_card_position(instance_id: String, position: Vector2) -> Dictionary:
-	if instance_id.is_empty() or not tabletop_card_ids.has(instance_id):
-		return {"success": false, "message": "tabletop_card_missing"}
-	tabletop_card_positions[instance_id] = _clamp_tabletop_position(position)
-	bring_tabletop_card_to_front(instance_id)
+	_sync_tabletop_controller_from_facade()
 	_refresh_tabletop_layer()
 	return {
 		"success": true,
+		"card_id": card_id,
 		"instance_id": instance_id,
+		"need_id": need_id,
 		"position": tabletop_card_positions.get(instance_id, position),
-		"z": int(tabletop_card_z.get(instance_id, 0))
+		"z": int(tabletop_card_z.get(instance_id, 0)),
+		"message": "resident_need_placed"
 	}
+
+
+func finish_tabletop_timed_craft_now() -> Dictionary:
+	return _finish_tabletop_timed_craft()
+
+
+func bring_tabletop_card_to_front(instance_id: String) -> int:
+	_sync_tabletop_controller_from_facade()
+	var controller_ids: Dictionary = tabletop_controller.call("get_card_ids")
+	if instance_id.is_empty() or not controller_ids.has(instance_id):
+		return 0
+	var z := int(tabletop_controller.call("bring_to_front", instance_id))
+	_sync_tabletop_facade_from_controller()
+	_refresh_tabletop_layer()
+	return z
+
+
+func set_tabletop_card_position(instance_id: String, position: Vector2) -> Dictionary:
+	_sync_tabletop_controller_from_facade()
+	var result: Dictionary = tabletop_controller.call("set_card_position", instance_id, position)
+	_sync_tabletop_facade_from_controller()
+	_refresh_tabletop_layer()
+	return result
 
 
 func move_tabletop_card(instance_id: String, position: Vector2) -> Dictionary:
@@ -407,6 +915,10 @@ func move_tabletop_card(instance_id: String, position: Vector2) -> Dictionary:
 const STACKLANDS_PEEK_HEIGHT := 20
 
 func get_tabletop_stack_groups() -> Dictionary:
+	_sync_tabletop_controller_from_facade()
+	var controller_groups: Dictionary = tabletop_controller.call("stack_groups")
+	_sync_tabletop_facade_from_controller()
+	return controller_groups
 	# instance_id → group_root_instance_id; lazily computed from positions
 	var groups: Dictionary = {}
 	var ids: Array = tabletop_card_ids.keys()
@@ -467,39 +979,15 @@ func drop_tabletop_card_on(top_card_id: String, bottom_card_id: String) -> Dicti
 			bottom_instance = iid
 	if top_instance.is_empty() or bottom_instance.is_empty():
 		return {"success": false, "message": "missing_card_on_tabletop"}
-	var entries := [
-		{"card_id": top_card_id, "type": "tabletop"},
-		{"card_id": bottom_card_id, "type": "tabletop"}
-	]
-	var recipe: Dictionary = RECIPE_RULES.find_matching_recipe_entries(
-		entries, DataRepository.recipes, int(GameState.get_state().get("day_count", 1)),
-		DataRepository.cards_by_id, BOARD_RULES.create_default_inventory())
-	if recipe.is_empty():
-		return {"success": false, "message": "no_recipe"}
-	var result_card_id := str(recipe.get("result_card_id", ""))
-	var position: Vector2 = _vector2_from_variant(tabletop_card_positions.get(bottom_instance, Vector2.ZERO))
-	tabletop_card_ids.erase(top_instance)
-	tabletop_card_positions.erase(top_instance)
-	tabletop_card_z.erase(top_instance)
-	tabletop_card_ids.erase(bottom_instance)
-	tabletop_card_positions.erase(bottom_instance)
-	tabletop_card_z.erase(bottom_instance)
-	var new_instance := "%s:%d" % [result_card_id, _tabletop_next_z]
-	tabletop_card_ids[new_instance] = result_card_id
-	tabletop_card_positions[new_instance] = position
-	tabletop_card_z[new_instance] = _tabletop_next_z
-	_tabletop_next_z += 1
-	var state := GameState.get_state()
-	var built: Array = state.get("built_facilities", [])
-	built.append({
-		"card_id": result_card_id,
-		"instance_id": new_instance,
-		"cell_index": -1,
-		"source": "tabletop_autocraft"
-	})
-	state["built_facilities"] = built
-	_refresh_tabletop_layer()
-	return {"success": true, "recipe_id": str(recipe.get("recipe_id", "")), "result_card_id": result_card_id}
+	return drop_tabletop_card_instances_on(top_instance, bottom_instance)
+
+
+func drop_tabletop_card_instances_on(top_instance_id: String, bottom_instance_id: String) -> Dictionary:
+	if top_instance_id.is_empty() or bottom_instance_id.is_empty() or top_instance_id == bottom_instance_id:
+		return _record_tabletop_craft_feedback(false, [], {}, "", "missing_card_on_tabletop")
+	if not tabletop_card_ids.has(top_instance_id) or not tabletop_card_ids.has(bottom_instance_id):
+		return _record_tabletop_craft_feedback(false, [top_instance_id, bottom_instance_id], {}, "", "missing_card_on_tabletop")
+	return _try_auto_craft_tabletop_stack([bottom_instance_id, top_instance_id], bottom_instance_id)
 
 
 func place_hand_card_on_tabletop(hand_index: int, position: Vector2) -> Dictionary:
@@ -507,22 +995,27 @@ func place_hand_card_on_tabletop(hand_index: int, position: Vector2) -> Dictiona
 		return {"success": false, "message": "hand_index_invalid"}
 	var card_id := str(hand_cards[hand_index])
 	var card_def: Dictionary = DataRepository.cards_by_id.get(card_id, {})
-	if card_def.is_empty() or not bool(card_def.get("board_placeable", false)):
-		return {"success": false, "message": "only_facilities_can_use_tabletop"}
-	var board_result := _sync_tabletop_facility_to_board(card_id)
-	if not bool(board_result.get("success", false)):
-		return board_result
+	if not _is_tabletop_eligible_card_def(card_def):
+		return {"success": false, "message": "only_tabletop_cards_can_use_tabletop"}
+	var board_result := {}
+	if bool(card_def.get("board_placeable", false)):
+		board_result = _sync_tabletop_facility_to_board(card_id)
+		if not bool(board_result.get("success", false)):
+			return board_result
 	hand_cards.remove_at(hand_index)
 	if hand_index < hand_card_sources.size():
 		hand_card_sources.remove_at(hand_index)
 	if hand_index < hand_card_prices.size():
 		hand_card_prices.remove_at(hand_index)
 	var instance_id := str(board_result.get("instance_id", ""))
+	if instance_id.is_empty():
+		instance_id = _next_tabletop_instance_id(GameState.get_state(), card_id)
 	tabletop_card_ids[instance_id] = card_id
 	tabletop_card_positions[instance_id] = _clamp_tabletop_position(position)
 	tabletop_card_z[instance_id] = _tabletop_next_z
 	_tabletop_next_z += 1
 	_drag_finish_refresh_mode = "card_zone"
+	_sync_tabletop_controller_from_facade()
 	_refresh_tabletop_layer()
 	return {
 		"success": true,
@@ -575,6 +1068,16 @@ func format_day_timer_text(state: Dictionary = {}) -> String:
 	if is_day_timer_paused():
 		return "今日剩余 %d/%d 秒（已暂停）" % [remaining, total]
 	return "今日剩余 %d/%d 秒，时间到会自动结算" % [remaining, total]
+
+
+func _format_compact_day_timer(state: Dictionary = {}) -> String:
+	var source_state := state if not state.is_empty() else GameState.get_state()
+	if _run_finished:
+		return "结束"
+	var remaining := get_day_timer_remaining_seconds(source_state)
+	if is_day_timer_paused():
+		return "剩%ds(停)" % remaining
+	return "剩%ds" % remaining
 
 
 func advance_runtime_clock(delta_seconds: float) -> Dictionary:
@@ -738,6 +1241,8 @@ func _handle_iso_board_click_input(event: InputEvent) -> bool:
 	var mouse_event := event as InputEventMouseButton
 	if mouse_event.button_index != MOUSE_BUTTON_LEFT or not mouse_event.pressed:
 		return false
+	if _hovered_control_blocks_board_click():
+		return false
 	var click_position := mouse_event.global_position
 	if click_position == Vector2.ZERO:
 		click_position = mouse_event.position
@@ -751,13 +1256,17 @@ func _handle_iso_board_click_input(event: InputEvent) -> bool:
 	return true
 
 
-func _can_start_page_scroll_drag() -> bool:
+func _hovered_control_blocks_board_click() -> bool:
 	var hovered := get_viewport().gui_get_hovered_control()
 	while hovered != null:
 		if hovered is Button or hovered is Range or hovered.has_signal("drag_requested"):
-			return false
+			return true
 		hovered = hovered.get_parent_control()
-	return true
+	return false
+
+
+func _can_start_page_scroll_drag() -> bool:
+	return not _hovered_control_blocks_board_click()
 
 
 func _on_page_scroll_changed(_value: float) -> void:
@@ -792,6 +1301,54 @@ func get_pending_build_rotation() -> int:
 
 func get_drag_finish_refresh_mode() -> String:
 	return _drag_finish_refresh_mode
+
+
+func get_refresh_counters() -> Dictionary:
+	return _refresh_counters.duplicate(true)
+
+
+func refresh_tabletop_only() -> void:
+	_refresh_counters["tabletop"] = int(_refresh_counters.get("tabletop", 0)) + 1
+	_normalize_card_metadata()
+	_refresh_tabletop_layer()
+
+
+func refresh_resources_only() -> void:
+	_refresh_counters["resources"] = int(_refresh_counters.get("resources", 0)) + 1
+	if main_content_root == null:
+		_build_ui()
+	_refresh_status_header_ui(GameState.get_state())
+	_refresh_card_pack_buttons()
+	_refresh_tasks_panel_ui()
+
+
+func refresh_drawer_only(drawer_id: String) -> void:
+	_refresh_counters["drawer"] = int(_refresh_counters.get("drawer", 0)) + 1
+	if main_content_root == null:
+		_build_ui()
+	if drawer_layer != null and drawer_layer.has_method("mark_drawer_refreshed"):
+		drawer_layer.call("mark_drawer_refreshed", drawer_id)
+	if drawer_id.is_empty() or drawer_id != active_tabletop_drawer:
+		return
+	var state: Dictionary = GameState.get_state()
+	match drawer_id:
+		"quick_options":
+			_refresh_event_preview_panel()
+			_update_problem_cards()
+		"residents":
+			_update_resident_cards(state.get("resident_states", []))
+		"status":
+			residents_label.text = _format_residents(Array(state.get("resident_states", [])))
+			_update_problem_cards()
+		"codex":
+			_rebuild_card_zones()
+			_update_recipe_codex_ui()
+		"board":
+			_update_board_detail_ui(state.get("board_cells", []))
+		"end_day":
+			_refresh_runtime_timer_ui_if_needed()
+		"settings":
+			_load_ai_settings_into_controls()
 
 
 func _is_dragging_board_placeable_card() -> bool:
@@ -883,6 +1440,12 @@ func get_active_tutorial_coachmark() -> Dictionary:
 			"body": "这里会按顺序演示选卡、合成、放置，以及怎样照看居民需求。"
 		}
 	var progress: Dictionary = GameState.get_tutorial_progress()
+	if int(GameState.get_state().get("card_pack_open_count", 0)) <= 0:
+		return {
+			"target": "card_pack",
+			"title": "第一步：打开起手卡包",
+			"body": "在顶部卡包栏点 “Starter Pack” 拿到 4 张入门卡，桌面才会有牌可玩。"
+		}
 	if not bool(progress.get("first_pick_done", false)):
 		return {
 			"target": "bulletin",
@@ -1247,6 +1810,61 @@ func _normalize_card_metadata() -> void:
 	_tabletop_next_z = maxi(_tabletop_next_z, _max_tabletop_z() + 1)
 
 
+func _ensure_tabletop_controller() -> void:
+	if tabletop_controller == null:
+		tabletop_controller = TABLETOP_CONTROLLER_SCRIPT.new()
+	tabletop_controller.call("configure_play_area_size", _tabletop_play_area_size())
+
+
+func _sync_tabletop_controller_from_facade() -> void:
+	_ensure_tabletop_controller()
+	tabletop_controller.call("apply_state", {
+		"tabletop_card_ids": tabletop_card_ids,
+		"tabletop_card_positions": tabletop_card_positions,
+		"tabletop_card_z": tabletop_card_z,
+		"tabletop_next_z": _tabletop_next_z,
+		"play_area_size": _tabletop_play_area_size(),
+		"drag_feedback_state": tabletop_drag_feedback_state
+	})
+
+
+func _sync_tabletop_facade_from_controller() -> void:
+	if tabletop_controller == null:
+		return
+	var state: Dictionary = tabletop_controller.call("get_state")
+	tabletop_card_ids = _string_dictionary(state.get("tabletop_card_ids", {}))
+	tabletop_card_positions = _vector2_dictionary(state.get("tabletop_card_positions", {}))
+	tabletop_card_z = _int_dictionary(state.get("tabletop_card_z", {}))
+	_tabletop_next_z = maxi(int(state.get("tabletop_next_z", 1)), _max_tabletop_z() + 1)
+	tabletop_drag_feedback_state = state.get("drag_feedback_state", {}).duplicate(true)
+
+
+func _ensure_stack_action_controller() -> void:
+	if stack_action_controller == null:
+		stack_action_controller = STACK_ACTION_CONTROLLER_SCRIPT.new()
+
+
+func _sync_stack_controller_from_facade() -> void:
+	_ensure_stack_action_controller()
+	stack_action_controller.call("apply_state", {
+		"pending_craft": _tabletop_pending_craft,
+		"last_feedback": last_tabletop_craft_feedback
+	})
+
+
+func _sync_stack_facade_from_controller() -> void:
+	if stack_action_controller == null:
+		return
+	var state: Dictionary = stack_action_controller.call("get_state")
+	_tabletop_pending_craft = state.get("pending_craft", {}).duplicate(true)
+	last_tabletop_craft_feedback = state.get("last_feedback", {}).duplicate(true)
+
+
+func _tabletop_busy_instance_ids() -> Array:
+	_sync_stack_controller_from_facade()
+	return Array(stack_action_controller.call("pending_instance_ids"))
+
+
 func _string_dictionary(source: Variant) -> Dictionary:
 	var result := {}
 	if typeof(source) != TYPE_DICTIONARY:
@@ -1312,9 +1930,21 @@ func _max_tabletop_z() -> int:
 	return max_z
 
 
+func _tabletop_card_size() -> Vector2:
+	return TABLETOP_CARD_METRICS.TABLETOP_CARD_SIZE
+
+
+func _tabletop_card_margin() -> float:
+	return float(TABLETOP_CARD_METRICS.TABLETOP_CARD_MARGIN)
+
+
+func _tabletop_card_spacing() -> Vector2:
+	return TABLETOP_CARD_METRICS.TABLETOP_CARD_SPACING
+
+
 func _clamp_tabletop_position(position: Vector2) -> Vector2:
 	var play_area := _tabletop_play_area_size()
-	var card_size := Vector2(66, 104)
+	var card_size := _tabletop_card_size()
 	return Vector2(
 		clampf(position.x, 8.0, maxf(8.0, play_area.x - card_size.x - 8.0)),
 		clampf(position.y, 8.0, maxf(8.0, play_area.y - card_size.y - 8.0))
@@ -1329,6 +1959,417 @@ func _tabletop_play_area_size() -> Vector2:
 	if board_panel != null and board_panel.size.x > 0.0 and board_panel.size.y > 0.0:
 		return board_panel.size
 	return Vector2(520, 320)
+
+
+func _is_tabletop_eligible_card_def(card_def: Dictionary) -> bool:
+	if card_def.is_empty():
+		return false
+	var card_type := str(card_def.get("type", ""))
+	return bool(card_def.get("board_placeable", false)) \
+		or card_type == "building_permit" \
+		or card_type == "material" \
+		or card_type == "facility" \
+		or card_type == "resident" \
+		or card_type == "resource_node" \
+		or card_type == "demand"
+
+
+func _is_tabletop_eligible_card_id(card_id: String) -> bool:
+	if card_id.is_empty():
+		return false
+	return _is_tabletop_eligible_card_def(_tabletop_card_def_for_id(card_id))
+
+
+func _tabletop_card_def_for_id(card_id: String) -> Dictionary:
+	if card_id.is_empty():
+		return {}
+	var card_def: Dictionary = DataRepository.cards_by_id.get(card_id, {})
+	if not card_def.is_empty():
+		return card_def
+	if _is_demand_card_id(card_id):
+		var need_entity := _need_entity_for_demand_card_id(card_id)
+		if not need_entity.is_empty():
+			return _build_demand_card_def(need_entity)
+	return {}
+
+
+func _is_community_funds_card_id(card_id: String) -> bool:
+	if card_id == "community_funds":
+		return true
+	var card_def := _tabletop_card_def_for_id(card_id)
+	if card_def.is_empty():
+		return false
+	var tags: Array = card_def.get("tags", [])
+	return tags.has("currency") and tags.has("funds")
+
+
+func _tabletop_card_visual_rect(instance_id: String) -> Rect2:
+	var position := _vector2_from_variant(tabletop_card_positions.get(instance_id, Vector2.ZERO))
+	return Rect2(position, _tabletop_card_size())
+
+
+func _tabletop_instance_at_local_position(local_position: Vector2, exclude_instance_id: String = "") -> String:
+	_sync_tabletop_controller_from_facade()
+	var controller_hit := str(tabletop_controller.call("instance_at_position", local_position, exclude_instance_id))
+	_sync_tabletop_facade_from_controller()
+	return controller_hit
+	var best_instance := ""
+	var best_z := -2147483648
+	for instance_id_variant in tabletop_card_ids.keys():
+		var instance_id := str(instance_id_variant)
+		if instance_id == exclude_instance_id:
+			continue
+		if not _tabletop_card_visual_rect(instance_id).has_point(local_position):
+			continue
+		var z := int(tabletop_card_z.get(instance_id, 0))
+		if best_instance.is_empty() or z >= best_z:
+			best_instance = instance_id
+			best_z = z
+	return best_instance
+
+
+func _tabletop_stack_members_for_root(root_instance_id: String) -> Array[String]:
+	_sync_tabletop_controller_from_facade()
+	var controller_members: Array[String] = []
+	for member_variant in Array(tabletop_controller.call("stack_members_for_root", root_instance_id)):
+		controller_members.append(str(member_variant))
+	_sync_tabletop_facade_from_controller()
+	return controller_members
+	var members: Array[String] = []
+	if root_instance_id.is_empty() or not tabletop_card_ids.has(root_instance_id):
+		return members
+	var groups := get_tabletop_stack_groups()
+	for instance_id_variant in tabletop_card_ids.keys():
+		var instance_id := str(instance_id_variant)
+		if instance_id == root_instance_id or str(groups.get(instance_id, instance_id)) == root_instance_id:
+			members.append(instance_id)
+	members.sort_custom(func(left: String, right: String) -> bool:
+		return int(tabletop_card_z.get(left, 0)) < int(tabletop_card_z.get(right, 0))
+	)
+	return members
+
+
+func _place_tabletop_instance_from_hand(hand_index: int, position: Vector2) -> Dictionary:
+	return place_hand_card_on_tabletop(hand_index, position)
+
+
+func _stack_hand_card_on_tabletop(hand_index: int, target_instance_id: String, position: Vector2) -> Dictionary:
+	if hand_index < 0 or hand_index >= hand_cards.size():
+		return {"success": false, "message": "hand_index_invalid"}
+	if target_instance_id.is_empty() or not tabletop_card_ids.has(target_instance_id):
+		return {"success": false, "message": "tabletop_card_missing"}
+	var placed := _place_tabletop_instance_from_hand(hand_index, _stacked_tabletop_position(target_instance_id, position))
+	if not bool(placed.get("success", false)):
+		return placed
+	var new_instance_id := str(placed.get("instance_id", ""))
+	var stack_members := _tabletop_stack_members_for_root(target_instance_id)
+	if not stack_members.has(new_instance_id):
+		stack_members.append(new_instance_id)
+	return _try_auto_craft_tabletop_stack(stack_members, target_instance_id)
+
+
+func _stack_tabletop_instance_on_tabletop(source_instance_id: String, target_instance_id: String, position: Vector2) -> Dictionary:
+	if source_instance_id.is_empty() or not tabletop_card_ids.has(source_instance_id):
+		return {"success": false, "message": "tabletop_card_missing"}
+	if target_instance_id.is_empty() or not tabletop_card_ids.has(target_instance_id):
+		return {"success": false, "message": "tabletop_card_missing"}
+	var moved := set_tabletop_card_position(source_instance_id, _stacked_tabletop_position(target_instance_id, position))
+	if not bool(moved.get("success", false)):
+		return moved
+	var stack_members := _tabletop_stack_members_for_root(target_instance_id)
+	if not stack_members.has(source_instance_id):
+		stack_members.append(source_instance_id)
+	return _try_auto_craft_tabletop_stack(stack_members, target_instance_id)
+
+
+func _stacked_tabletop_position(target_instance_id: String, fallback_position: Vector2) -> Vector2:
+	_sync_tabletop_controller_from_facade()
+	var stacked_position: Vector2 = tabletop_controller.call("stacked_position", target_instance_id, fallback_position)
+	_sync_tabletop_facade_from_controller()
+	return stacked_position
+
+
+func _try_auto_craft_tabletop_stack(instance_ids: Array[String], anchor_instance_id: String) -> Dictionary:
+	if not _tabletop_pending_craft.is_empty():
+		var pending_ids := Array(_tabletop_pending_craft.get("instance_ids", []))
+		for instance_id in instance_ids:
+			if pending_ids.has(instance_id):
+				return _record_tabletop_craft_feedback(false, instance_ids, {}, "", "tabletop_card_busy")
+		return _record_tabletop_craft_feedback(false, instance_ids, {}, "", "tabletop_craft_in_progress")
+	var unique_ids: Array[String] = []
+	for instance_id in instance_ids:
+		if not instance_id.is_empty() and tabletop_card_ids.has(instance_id) and not unique_ids.has(instance_id):
+			unique_ids.append(instance_id)
+	unique_ids.sort_custom(func(left: String, right: String) -> bool:
+		return int(tabletop_card_z.get(left, 0)) < int(tabletop_card_z.get(right, 0))
+	)
+	if unique_ids.size() < 2 or unique_ids.size() > STACK_MAX_SLOTS:
+		return _record_tabletop_craft_feedback(false, unique_ids, {}, "", "tabletop_stack_needs_2_to_4_cards")
+	var need_stack_result := _try_resolve_tabletop_resident_need_stack(unique_ids)
+	if not need_stack_result.is_empty():
+		return need_stack_result
+	var entries: Array = []
+	var card_ids: Array[String] = []
+	for instance_id in unique_ids:
+		var cid := str(tabletop_card_ids.get(instance_id, ""))
+		card_ids.append(cid)
+		entries.append({"card_id": cid, "type": "tabletop"})
+	var state := GameState.get_state()
+	var inventory := BOARD_RULES.ensure_inventory(state)
+	var recipe: Dictionary = RECIPE_RULES.find_matching_recipe_entries(
+		entries,
+		DataRepository.recipes,
+		_recipe_unlock_progress(state),
+		DataRepository.cards_by_id,
+		inventory
+	)
+	if recipe.is_empty():
+		AudioManager.play_sfx(audio_sfx_id_for_action("craft_fail"))
+		var failure_message := "当前桌面堆叠暂无可用配方：%s" % _format_card_id_list(card_ids)
+		_show_floating_error(failure_message, 1.6)
+		return _record_tabletop_craft_feedback(false, unique_ids, {}, "", failure_message)
+	var time_cost := float(recipe.get("time_cost_sec", 0.0))
+	if time_cost > 0.0:
+		return _start_tabletop_timed_craft(unique_ids, recipe, anchor_instance_id, time_cost)
+	return _finalize_tabletop_craft(unique_ids, recipe, anchor_instance_id)
+
+
+func _start_tabletop_timed_craft(instance_ids: Array[String], recipe: Dictionary, anchor_instance_id: String, time_cost: float) -> Dictionary:
+	if _tabletop_crafting_tween != null and _tabletop_crafting_tween.is_valid():
+		_tabletop_crafting_tween.kill()
+	var copied_ids := Array(instance_ids)
+	_tabletop_pending_craft = {
+		"instance_ids": copied_ids.duplicate(),
+		"recipe": recipe.duplicate(true),
+		"anchor_instance_id": anchor_instance_id
+	}
+	AudioManager.play_sfx(audio_sfx_id_for_action("craft_start"))
+	_append_report_line("桌面合成进行中：%s" % _format_card_id_list(_card_ids_for_tabletop_instances(copied_ids)))
+	_record_tabletop_craft_feedback(false, copied_ids, recipe, str(recipe.get("result_card_id", "")), "tabletop_craft_in_progress")
+	if not is_inside_tree():
+		return last_tabletop_craft_feedback.duplicate(true)
+	if bool(SettingsManager.get_value("reduce_motion")) or time_cost <= 0.0:
+		return _finish_tabletop_timed_craft()
+	_tabletop_crafting_tween = create_tween()
+	_tabletop_crafting_tween.tween_interval(time_cost)
+	_tabletop_crafting_tween.tween_callback(Callable(self, "_finish_tabletop_timed_craft"))
+	return last_tabletop_craft_feedback.duplicate(true)
+
+
+func _finish_tabletop_timed_craft() -> Dictionary:
+	_sync_stack_controller_from_facade()
+	_sync_stack_facade_from_controller()
+	if _tabletop_pending_craft.is_empty():
+		return _record_tabletop_craft_feedback(false, [], {}, "", "no_tabletop_craft_in_progress")
+	if _tabletop_crafting_tween != null and _tabletop_crafting_tween.is_valid():
+		_tabletop_crafting_tween.kill()
+	_tabletop_crafting_tween = null
+	var pending := _tabletop_pending_craft.duplicate(true)
+	_tabletop_pending_craft.clear()
+	var ids: Array[String] = []
+	for instance_id_variant in Array(pending.get("instance_ids", [])):
+		ids.append(str(instance_id_variant))
+	var recipe: Dictionary = pending.get("recipe", {})
+	return _finalize_tabletop_craft(ids, recipe, str(pending.get("anchor_instance_id", "")))
+
+
+func _finalize_tabletop_craft(instance_ids: Array[String], recipe: Dictionary, anchor_instance_id: String) -> Dictionary:
+	var unique_ids: Array[String] = []
+	for instance_id in instance_ids:
+		if not instance_id.is_empty() and tabletop_card_ids.has(instance_id) and not unique_ids.has(instance_id):
+			unique_ids.append(instance_id)
+	if unique_ids.size() < 2:
+		return _record_tabletop_craft_feedback(false, unique_ids, recipe, "", "missing_card_on_tabletop")
+	unique_ids.sort_custom(func(left: String, right: String) -> bool:
+		return int(tabletop_card_z.get(left, 0)) < int(tabletop_card_z.get(right, 0))
+	)
+	var card_ids: Array[String] = _card_ids_for_tabletop_instances(unique_ids)
+	var state := GameState.get_state()
+	var inventory := BOARD_RULES.ensure_inventory(state)
+	RECIPE_RULES.spend_recipe_material_costs(inventory, recipe)
+	var discovery_info: Dictionary = RECIPE_RULES.record_recipe_discovery(state, recipe)
+	if bool(discovery_info.get("first_discovery", false)) and not Dictionary(discovery_info.get("reward", {})).is_empty():
+		ResourceManager.apply_resource_delta(state, discovery_info.get("reward", {}), "first_discovery:%s" % str(discovery_info.get("recipe_id", "")))
+	var result_card_ids := _result_card_ids_for_recipe(recipe)
+	var result_card_id := str(result_card_ids[0]) if not result_card_ids.is_empty() else ""
+	var result_position := _vector2_from_variant(tabletop_card_positions.get(anchor_instance_id, Vector2.ZERO))
+	var preserved_ids := _preserved_tabletop_ingredient_ids(unique_ids, recipe)
+	for instance_id in unique_ids:
+		if preserved_ids.has(instance_id):
+			continue
+		tabletop_card_ids.erase(instance_id)
+		tabletop_card_positions.erase(instance_id)
+		tabletop_card_z.erase(instance_id)
+	var resource_delta: Dictionary = recipe.get("resource_delta", {})
+	if not resource_delta.is_empty():
+		ResourceManager.apply_resource_delta(state, resource_delta, "tabletop_production:%s" % str(recipe.get("recipe_id", "")))
+	var result_instance_id := ""
+	var result_instance_ids: Array[String] = []
+	for result_index: int in range(result_card_ids.size()):
+		var produced_card_id := str(result_card_ids[result_index])
+		if produced_card_id.is_empty():
+			continue
+		var produced_instance_id := _next_tabletop_instance_id(state, produced_card_id)
+		if result_instance_id.is_empty():
+			result_instance_id = produced_instance_id
+		tabletop_card_ids[produced_instance_id] = produced_card_id
+		tabletop_card_positions[produced_instance_id] = _clamp_tabletop_position(result_position + Vector2(16.0 * float(result_index), 18.0 * float(result_index)))
+		tabletop_card_z[produced_instance_id] = _tabletop_next_z
+		_tabletop_next_z += 1
+		result_instance_ids.append(produced_instance_id)
+		_register_tabletop_autocraft_facility(produced_card_id, produced_instance_id, recipe)
+	selected_recipe_ids.append(str(recipe.get("recipe_id", "")))
+	TutorialManager.mark_action("craft")
+	AudioManager.play_sfx(audio_sfx_id_for_action("craft_success"))
+	SteamBridge.unlock_achievement("demo_first_recipe")
+	var craft_result := {
+		"first_discovery": bool(discovery_info.get("first_discovery", false)),
+		"first_discovery_reward": discovery_info.get("reward", {}),
+		"hidden": bool(discovery_info.get("hidden", false)),
+		"recipe_id": str(recipe.get("recipe_id", "")),
+		"result_card_id": result_card_id,
+		"result_card_ids": result_card_ids.duplicate(),
+		"resource_delta": resource_delta.duplicate(true)
+	}
+	_announce_first_discovery_if_any(craft_result)
+	_append_report_line("桌面自动合成：%s -> %s" % [_format_card_id_list(card_ids), _card_name(result_card_id)])
+	_drag_finish_refresh_mode = "card_zone"
+	_drag_finish_refresh_recipe_codex = true
+	_refresh_tabletop_layer()
+	refresh_resources_only()
+	if not result_card_id.is_empty():
+		_animate_tabletop_craft_success(result_card_id, result_position)
+	var feedback := _record_tabletop_craft_feedback(true, unique_ids, recipe, result_card_id, "tabletop_craft_success", result_instance_id, result_card_ids, result_instance_ids)
+	feedback["resource_delta"] = resource_delta.duplicate(true)
+	last_tabletop_craft_feedback = feedback.duplicate(true)
+	return feedback
+
+
+func _card_ids_for_tabletop_instances(instance_ids: Array) -> Array[String]:
+	var card_ids: Array[String] = []
+	for instance_id_variant in instance_ids:
+		card_ids.append(str(tabletop_card_ids.get(str(instance_id_variant), "")))
+	return card_ids
+
+
+func _result_card_ids_for_recipe(recipe: Dictionary) -> Array[String]:
+	var result: Array[String] = []
+	for card_id_variant in recipe.get("result_card_ids", []):
+		var card_id := str(card_id_variant)
+		if not card_id.is_empty():
+			result.append(card_id)
+	if result.is_empty():
+		var single_id := str(recipe.get("result_card_id", ""))
+		if not single_id.is_empty():
+			result.append(single_id)
+	return result
+
+
+func _preserved_tabletop_ingredient_ids(instance_ids: Array[String], recipe: Dictionary) -> Array[String]:
+	var preserve_types: Array = recipe.get("preserve_ingredient_types", [])
+	if preserve_types.is_empty():
+		return []
+	var preserved: Array[String] = []
+	for instance_id in instance_ids:
+		var card_id := str(tabletop_card_ids.get(instance_id, ""))
+		var card_def: Dictionary = _tabletop_card_def_for_id(card_id)
+		if preserve_types.has(str(card_def.get("type", ""))):
+			preserved.append(instance_id)
+	return preserved
+
+
+func _register_tabletop_autocraft_facility(card_id: String, instance_id: String, recipe: Dictionary) -> void:
+	var card_def: Dictionary = DataRepository.cards_by_id.get(card_id, {})
+	if str(card_def.get("type", "")) != "facility" and not bool(card_def.get("board_placeable", false)):
+		return
+	var state := GameState.get_state()
+	var built: Array = state.get("built_facilities", [])
+	built.append({
+		"card_id": card_id,
+		"instance_id": instance_id,
+		"cell_index": -1,
+		"root_cell": -1,
+		"occupied_cells": [],
+		"rotation": 0,
+		"source": "tabletop_autocraft",
+		"recipe_id": str(recipe.get("recipe_id", ""))
+	})
+	state["built_facilities"] = built
+
+
+func _try_resolve_tabletop_resident_need_stack(instance_ids: Array[String]) -> Dictionary:
+	var demand_instance_id := ""
+	var need_id := ""
+	var facility_instance_id := ""
+	var facility_card_id := ""
+	for instance_id in instance_ids:
+		var card_id := str(tabletop_card_ids.get(instance_id, ""))
+		if demand_instance_id.is_empty() and _is_demand_card_id(card_id):
+			demand_instance_id = instance_id
+			need_id = _need_id_from_demand_card_id(card_id)
+			continue
+		var card_def: Dictionary = DataRepository.cards_by_id.get(card_id, {})
+		if facility_instance_id.is_empty() and (str(card_def.get("type", "")) == "facility" or bool(card_def.get("board_placeable", false))):
+			facility_instance_id = instance_id
+			facility_card_id = card_id
+	if demand_instance_id.is_empty():
+		return {}
+	if facility_instance_id.is_empty() or facility_card_id.is_empty():
+		AudioManager.play_sfx(audio_sfx_id_for_action("craft_fail"))
+		return _record_tabletop_craft_feedback(false, instance_ids, {}, "", "resident_need_requires_facility")
+	var resident_system = RESIDENT_SYSTEM.new()
+	var state := GameState.get_state()
+	var result: Dictionary = resident_system.call("resolve_need_with_service_building", state, need_id, facility_card_id, DataRepository.cards_by_id)
+	if not bool(result.get("success", false)):
+		AudioManager.play_sfx(audio_sfx_id_for_action("craft_fail"))
+		return _record_tabletop_craft_feedback(false, instance_ids, {}, "", str(result.get("message", "resident_need_unresolved")))
+	tabletop_card_ids.erase(demand_instance_id)
+	tabletop_card_positions.erase(demand_instance_id)
+	tabletop_card_z.erase(demand_instance_id)
+	TutorialManager.mark_action("problem")
+	AudioManager.play_sfx(audio_sfx_id_for_action("problem_resolved"))
+	_append_report_line("Resident need resolved: %s -> %s" % [need_id, _card_name(facility_card_id)])
+	_drag_finish_refresh_mode = "card_zone"
+	_refresh_tabletop_layer()
+	var feedback := _record_tabletop_craft_feedback(true, instance_ids, {"recipe_id": "resident_need:%s" % need_id}, "", "resident_need_resolved")
+	feedback["need_id"] = need_id
+	feedback["resolved_by"] = facility_card_id
+	feedback["preserved_instance_id"] = facility_instance_id
+	last_tabletop_craft_feedback = feedback.duplicate(true)
+	return feedback
+
+
+func _record_tabletop_craft_feedback(success: bool, input_instance_ids: Array, recipe: Dictionary, result_card_id: String, message: String, result_instance_id: String = "", result_card_ids: Array = [], result_instance_ids: Array = [], resource_delta: Dictionary = {}) -> Dictionary:
+	var copied_inputs := Array(input_instance_ids)
+	_sync_stack_controller_from_facade()
+	last_tabletop_craft_feedback = stack_action_controller.call(
+		"record_feedback",
+		success,
+		copied_inputs,
+		recipe,
+		result_card_id,
+		message,
+		result_instance_id,
+		resource_delta,
+		result_card_ids,
+		result_instance_ids
+	)
+	_sync_stack_facade_from_controller()
+	return last_tabletop_craft_feedback.duplicate(true)
+
+
+func _is_handled_tabletop_stack_message(message: String) -> bool:
+	return message == "tabletop_craft_in_progress" \
+		or message == "tabletop_card_busy" \
+		or message == "tabletop_stack_needs_2_to_4_cards" \
+		or message.begins_with("当前桌面堆叠暂无可用配方")
+
+
+func _animate_tabletop_craft_success(result_card_id: String, local_position: Vector2) -> void:
+	if not _motion_enabled() or board_panel == null:
+		return
+	var global_position := board_panel.get_global_rect().position + local_position
+	_animate_card_pop(result_card_id, Rect2(global_position, _tabletop_card_size()))
 
 
 func _sync_tabletop_facility_to_board(card_id: String) -> Dictionary:
@@ -1411,9 +2452,16 @@ func _next_tabletop_instance_id(state: Dictionary, card_id: String) -> String:
 
 
 func _tabletop_local_position(global_position: Vector2) -> Vector2:
-	if board_panel == null:
+	if tabletop_layer == null:
 		return global_position
-	return global_position - board_panel.get_global_rect().position
+	return tabletop_layer.get_global_transform_with_canvas().affine_inverse() * global_position
+
+
+func _resolved_tabletop_drop_position(global_position: Vector2) -> Vector2:
+	var local_position := _tabletop_local_position(global_position)
+	if drag_source_zone == "tabletop":
+		return _clamp_tabletop_position(local_position - drag_pointer_offset)
+	return local_position
 
 
 func _is_dragging_free_tabletop_card() -> bool:
@@ -1424,10 +2472,32 @@ func _is_dragging_free_tabletop_card() -> bool:
 	if drag_source_zone != "hand":
 		return false
 	var card_def := _current_drag_card_def()
-	return not card_def.is_empty() and bool(card_def.get("board_placeable", false))
+	return _is_tabletop_eligible_card_def(card_def)
+
+
+func _tabletop_instance_intersecting_rect(candidate_rect: Rect2, exclude_instance_id: String = "") -> String:
+	var best_instance := ""
+	var best_z := -2147483648
+	for instance_id_variant in tabletop_card_ids.keys():
+		var instance_id := str(instance_id_variant)
+		if instance_id == exclude_instance_id:
+			continue
+		if not _tabletop_card_visual_rect(instance_id).intersects(candidate_rect):
+			continue
+		var z := int(tabletop_card_z.get(instance_id, 0))
+		if best_instance.is_empty() or z >= best_z:
+			best_instance = instance_id
+			best_z = z
+	return best_instance
 
 
 func _tabletop_instance_ids_sorted() -> Array[String]:
+	_sync_tabletop_controller_from_facade()
+	var controller_ids: Array[String] = []
+	for instance_id_variant in Array(tabletop_controller.call("instance_ids_sorted")):
+		controller_ids.append(str(instance_id_variant))
+	_sync_tabletop_facade_from_controller()
+	return controller_ids
 	var ids: Array[String] = []
 	for key_variant in tabletop_card_ids.keys():
 		ids.append(str(key_variant))
@@ -1467,11 +2537,14 @@ func _refresh_tabletop_layer() -> void:
 		var card_id := str(tabletop_card_ids.get(instance_id, ""))
 		if card_id.is_empty():
 			continue
-		var card_def: Dictionary = DataRepository.cards_by_id.get(card_id, {})
+		var card_def: Dictionary = _tabletop_card_def_for_id(card_id)
 		if card_def.is_empty():
 			continue
 		var card_view: Control = CARD_VIEW_SCENE.instantiate()
-		card_view.configure(card_def, "tabletop", index, "tabletop")
+		var highlighted := _highlighted_recipe_card_ids.has(card_id)
+		card_view.configure(card_def, "tabletop", index, "tabletop", highlighted)
+		if _is_community_funds_card_id(card_id) and card_view.has_method("set_primary_action"):
+			card_view.call("set_primary_action", "收", true)
 		card_view.position = _vector2_from_variant(tabletop_card_positions.get(instance_id, Vector2(24 + index * 18, 26 + index * 10)))
 		card_view.z_index = int(tabletop_card_z.get(instance_id, index + 1))
 		card_view.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -1616,6 +2689,33 @@ func _pending_resident_need_entities(state: Dictionary = {}) -> Array[Dictionary
 			continue
 		pending.append(entity)
 	return pending
+
+
+func _demand_card_id_for_need_id(need_id: String) -> String:
+	return "demand_%s" % need_id
+
+
+func _is_demand_card_id(card_id: String) -> bool:
+	return card_id.begins_with("demand_")
+
+
+func _need_id_from_demand_card_id(card_id: String) -> String:
+	if not _is_demand_card_id(card_id):
+		return ""
+	return card_id.substr("demand_".length())
+
+
+func _pending_need_entity_for_id(need_id: String) -> Dictionary:
+	if need_id.is_empty():
+		return {}
+	for need_entity in _pending_resident_need_entities():
+		if str(need_entity.get("need_id", "")) == need_id:
+			return need_entity
+	return {}
+
+
+func _need_entity_for_demand_card_id(card_id: String) -> Dictionary:
+	return _pending_need_entity_for_id(_need_id_from_demand_card_id(card_id))
 
 
 func _build_demand_card_def(need_entity: Dictionary) -> Dictionary:
@@ -1860,9 +2960,760 @@ func format_dusk_settlement_summary(lines: PackedStringArray, state: Dictionary 
 	return "\n".join(report)
 
 
-func _build_ui() -> void:
-	if page_scroll_container != null:
+func _set_first_screen_region_rect(node: Control, rect: Rect2) -> void:
+	if node == null:
 		return
+	node.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	node.position = rect.position
+	node.size = rect.size
+	node.custom_minimum_size = rect.size
+
+
+func _first_screen_region_rect(node_name: String) -> Rect2:
+	var node := get_node_or_null(node_name)
+	if node is Control:
+		var control := node as Control
+		return Rect2(control.position, control.size)
+	match node_name:
+		"ResourceHud":
+			return FIRST_SCREEN_HUD_RECT
+		"TopPackShop":
+			return FIRST_SCREEN_PACK_RECT
+		"TasksPanel":
+			return FIRST_SCREEN_TASKS_RECT
+		"PlaymatPanel":
+			return FIRST_SCREEN_PLAYMAT_RECT
+		"ToolbarStrip":
+			return FIRST_SCREEN_TOOLBAR_RECT
+		"SellDropZone":
+			return FIRST_SCREEN_SELL_RECT
+		_:
+			return Rect2()
+
+
+func _set_tabletop_drawer_content_visibility(drawer_id: String) -> void:
+	if drawer_content_stack == null:
+		return
+	for child: Node in drawer_content_stack.get_children():
+		if child is CanvasItem:
+			(child as CanvasItem).visible = str(child.name) == drawer_id
+
+
+func _is_tabletop_instance_busy(instance_id: String) -> bool:
+	var pending_ids: Array = _tabletop_pending_craft.get("instance_ids", [])
+	return pending_ids.has(instance_id)
+
+
+func _tabletop_organize_bucket(instance_id: String) -> int:
+	var card_id := str(tabletop_card_ids.get(instance_id, ""))
+	var card_def := _tabletop_card_def_for_id(card_id)
+	match str(card_def.get("type", "")):
+		"building_permit":
+			return 0
+		"material":
+			return 1
+		"facility":
+			return 2
+		"resident":
+			return 3
+		"resource_node":
+			return 4
+		"demand", "problem":
+			return 5
+		_:
+			return 6
+
+
+func _nearest_tabletop_snap_target(source_instance_id: String, position: Vector2) -> String:
+	var best_id := ""
+	var best_distance := 72.0
+	for instance_id_variant in tabletop_card_ids.keys():
+		var instance_id := str(instance_id_variant)
+		if instance_id == source_instance_id:
+			continue
+		var center := _tabletop_card_visual_rect(instance_id).get_center()
+		var distance := position.distance_to(center)
+		if distance <= best_distance:
+			best_distance = distance
+			best_id = instance_id
+	return best_id
+
+
+func _build_fixed_stacklands_first_screen_ui() -> void:
+	page_scroll_container = null
+	var table_background := ColorRect.new()
+	table_background.color = Color8(0x6B, 0xAE, 0x5A)
+	table_background.set_anchors_preset(Control.PRESET_FULL_RECT)
+	table_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(table_background)
+	_add_wood_grain(table_background)
+
+	var root_margin := MarginContainer.new()
+	root_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(root_margin)
+
+	var layout_root := Control.new()
+	layout_root.name = "FixedStacklandsFirstScreenRoot"
+	layout_root.custom_minimum_size = FIRST_SCREEN_SIZE
+	layout_root.size = FIRST_SCREEN_SIZE
+	layout_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root_margin.add_child(layout_root)
+	main_content_root = layout_root
+
+	_build_first_screen_hud()
+	_build_first_screen_tasks_panel()
+	_build_first_screen_playmat()
+	_build_first_screen_toolbar()
+	_build_first_screen_sell_zone()
+	_build_first_screen_drawers()
+
+	_build_debug_panel()
+	_build_settings_panel()
+	_build_tutorial_overlay()
+
+	drag_layer = Control.new()
+	drag_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	drag_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(drag_layer)
+
+	animation_layer = Control.new()
+	animation_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	animation_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(animation_layer)
+
+	_build_reference_layout_overlay()
+	_install_stacklands_region_markers()
+
+
+func _build_first_screen_hud() -> void:
+	var resource_hud := PanelContainer.new()
+	resource_hud.name = "ResourceHud"
+	resource_hud.add_theme_stylebox_override("panel", _panel_style(Color(0.94, 0.90, 0.76, 0.96), Color(0.26, 0.19, 0.10), 12, 3))
+	add_child(resource_hud)
+	_set_first_screen_region_rect(resource_hud, FIRST_SCREEN_HUD_RECT)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	resource_hud.add_child(margin)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	margin.add_child(row)
+
+	var title_label := Label.new()
+	title_label.text = DataRepository.get_string("app", "title", "看得见的一公里")
+	title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title_label.add_theme_font_size_override("font_size", 16)
+	title_label.add_theme_color_override("font_color", Color(0.18, 0.10, 0.04))
+	title_label.custom_minimum_size = Vector2(160, 32)
+	row.add_child(title_label)
+
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(spacer)
+
+	phase_label = Label.new()
+	phase_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	phase_label.clip_text = true
+	phase_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	phase_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	phase_label.add_theme_font_size_override("font_size", 13)
+	phase_label.add_theme_color_override("font_color", UI_TEXT_COLOR)
+	phase_label.custom_minimum_size = Vector2(240, 32)
+	row.add_child(phase_label)
+
+	resource_bar = Label.new()
+	resource_bar.visible = false
+	row.add_child(resource_bar)
+
+	var chip_row := HBoxContainer.new()
+	chip_row.add_theme_constant_override("separation", 6)
+	chip_row.size_flags_horizontal = Control.SIZE_SHRINK_END
+	row.add_child(chip_row)
+	resource_chip_flowers = _make_resource_chip(chip_row, "*", "小红花", Color(0.99, 0.89, 0.84), Color(0.78, 0.36, 0.32))
+	resource_chip_funds = _make_resource_chip(chip_row, "$", "资金", Color(0.91, 0.97, 0.86), Color(0.42, 0.62, 0.32))
+	resource_chip_manpower = _make_resource_chip(chip_row, "+", "人力", Color(0.99, 0.94, 0.78), Color(0.78, 0.58, 0.20))
+	resource_chip_moral = _make_resource_chip(chip_row, "M", "民心", Color(0.88, 0.94, 0.99), Color(0.32, 0.52, 0.69))
+
+	resource_chip_cards = _make_resource_chip(chip_row, "#", "Cards", Color(0.98, 0.96, 0.88), Color(0.48, 0.36, 0.22))
+
+	_build_first_screen_corner_settings(row)
+
+	var top_pack_shop := HFlowContainer.new()
+	top_pack_shop.name = "TopPackShop"
+	top_pack_shop.add_theme_constant_override("h_separation", 6)
+	top_pack_shop.add_theme_constant_override("v_separation", 4)
+	add_child(top_pack_shop)
+	_set_first_screen_region_rect(top_pack_shop, FIRST_SCREEN_PACK_RECT)
+	_build_card_pack_shop(top_pack_shop)
+
+	var bulletin_strip := Control.new()
+	bulletin_strip.name = "BulletinStrip"
+	bulletin_strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(bulletin_strip)
+	_set_first_screen_region_rect(bulletin_strip, Rect2(Vector2(260, 80), Vector2(978, 1)))
+
+	tutorial_hint_label = Label.new()
+	tutorial_hint_label.visible = false
+	add_child(tutorial_hint_label)
+	today_goals_label = RichTextLabel.new()
+	today_goals_label.visible = false
+	add_child(today_goals_label)
+
+
+func _build_first_screen_tasks_panel() -> void:
+	var tasks_panel := PanelContainer.new()
+	tasks_panel.name = "TasksPanel"
+	tasks_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.98, 0.93, 0.78, 0.96), Color(0.30, 0.21, 0.10), 10, 3))
+	add_child(tasks_panel)
+	_set_first_screen_region_rect(tasks_panel, FIRST_SCREEN_TASKS_RECT)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	tasks_panel.add_child(margin)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 6)
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	margin.add_child(list)
+	_render_tasks_panel_into(list)
+
+
+func _render_tasks_panel_into(list: Control) -> void:
+	var title := Label.new()
+	title.name = "TasksTitle"
+	title.text = "任务清单"
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", LIGHT_SURFACE_PRIMARY_TEXT)
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	list.add_child(title)
+
+	var objectives_header := Label.new()
+	objectives_header.name = "TaskGroupHeader"
+	objectives_header.text = "📋 教程目标"
+	objectives_header.add_theme_font_size_override("font_size", 13)
+	objectives_header.add_theme_color_override("font_color", Color(0.42, 0.30, 0.12))
+	objectives_header.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	list.add_child(objectives_header)
+	for line in _build_tasks_panel_lines():
+		var label := Label.new()
+		label.name = "TaskRow"
+		label.text = str(line)
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		label.add_theme_font_size_override("font_size", 12)
+		label.add_theme_color_override("font_color", LIGHT_SURFACE_PRIMARY_TEXT)
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		list.add_child(label)
+
+	var facilities_header := Label.new()
+	facilities_header.name = "TaskGroupHeader"
+	facilities_header.text = "🏗 可建设施"
+	facilities_header.add_theme_font_size_override("font_size", 13)
+	facilities_header.add_theme_color_override("font_color", Color(0.42, 0.30, 0.12))
+	facilities_header.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	list.add_child(facilities_header)
+	var facility_rows_scroll := ScrollContainer.new()
+	facility_rows_scroll.name = "FacilityRowsScroll"
+	facility_rows_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	facility_rows_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	facility_rows_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	facility_rows_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	list.add_child(facility_rows_scroll)
+
+	var facility_rows := VBoxContainer.new()
+	facility_rows.name = "FacilityRows"
+	facility_rows.add_theme_constant_override("separation", 4)
+	facility_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	facility_rows_scroll.add_child(facility_rows)
+
+	for entry in _build_facility_recipe_entries():
+		var recipe_id := str(entry.get("result_id", ""))
+		var row_slot := MarginContainer.new()
+		row_slot.name = "FacilityRowSlot"
+		row_slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		facility_rows.add_child(row_slot)
+
+		var button := Button.new()
+		button.name = "FacilityRow"
+		button.text = str(entry.get("label", recipe_id))
+		button.tooltip_text = str(entry.get("tooltip", ""))
+		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		button.toggle_mode = true
+		button.flat = false
+		button.custom_minimum_size = Vector2(0, 32)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.add_theme_font_size_override("font_size", 12)
+		button.set_meta("recipe_id", recipe_id)
+		button.set_meta("ingredient_ids", entry.get("ingredient_ids", []))
+		button.pressed.connect(_on_facility_recipe_row_pressed.bind(recipe_id))
+		row_slot.add_child(button)
+		_apply_facility_recipe_row_style(button, recipe_id == _active_facility_highlight_id)
+
+
+func _build_first_screen_playmat() -> void:
+	board_panel = PanelContainer.new()
+	board_panel.name = "PlaymatPanel"
+	board_panel.clip_contents = true
+	board_panel.add_theme_stylebox_override("panel", _tabletop_playmat_style())
+	add_child(board_panel)
+	_set_first_screen_region_rect(board_panel, FIRST_SCREEN_PLAYMAT_RECT)
+
+	iso_board_frame = board_panel
+	iso_grid_painter = ISOMETRIC_GRID_PAINTER.new()
+	iso_grid_painter.set_anchors_preset(Control.PRESET_FULL_RECT)
+	iso_grid_painter.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	iso_grid_painter.visible = false
+	iso_grid_painter.call("set_tile_size", Vector2(30, 15))
+	iso_grid_painter.call("fit_board_to_viewport", FIRST_SCREEN_PLAYMAT_RECT.size, 12.0)
+	board_panel.add_child(iso_grid_painter)
+
+	tabletop_layer = Control.new()
+	tabletop_layer.name = "FreeStackingTabletopLayer"
+	_set_first_screen_region_rect(tabletop_layer, Rect2(Vector2.ZERO, FIRST_SCREEN_PLAYMAT_RECT.size))
+	tabletop_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tabletop_layer.clip_contents = true
+	board_panel.add_child(tabletop_layer)
+
+	var overlay_margin := MarginContainer.new()
+	overlay_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay_margin.add_theme_constant_override("margin_left", 16)
+	overlay_margin.add_theme_constant_override("margin_top", 16)
+	overlay_margin.add_theme_constant_override("margin_right", 12)
+	overlay_margin.add_theme_constant_override("margin_bottom", 14)
+	overlay_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	board_panel.add_child(overlay_margin)
+	var overlay_column := VBoxContainer.new()
+	overlay_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay_margin.add_child(overlay_column)
+	var overlay_spacer := Control.new()
+	overlay_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	overlay_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay_column.add_child(overlay_spacer)
+	problem_token_container = HFlowContainer.new()
+	problem_token_container.visible = false
+	problem_token_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay_column.add_child(problem_token_container)
+	problems_container = HFlowContainer.new()
+	problems_container.custom_minimum_size = Vector2(196, 0)
+	problems_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay_column.add_child(problems_container)
+
+
+func _build_first_screen_toolbar() -> void:
+	var toolbar := HBoxContainer.new()
+	toolbar.name = "ToolbarStrip"
+	toolbar.add_theme_constant_override("separation", 14)
+	toolbar.visible = false
+	toolbar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(toolbar)
+	_set_first_screen_region_rect(toolbar, FIRST_SCREEN_TOOLBAR_RECT)
+	var actions := _first_screen_toolbar_actions()
+	for index in range(actions.size()):
+		var action: Dictionary = actions[index]
+		var button := Button.new()
+		button.text = str(action.get("label", ""))
+		button.tooltip_text = str(action.get("tip", ""))
+		button.custom_minimum_size = Vector2(44, 44)
+		button.add_theme_stylebox_override("normal", _round_button_style())
+		button.add_theme_stylebox_override("hover", _round_button_style())
+		button.add_theme_stylebox_override("pressed", _round_button_style())
+		if index == 1:
+			button.pressed.connect(func() -> void:
+				organize_tabletop_cards_basic()
+			)
+		elif index == 2:
+			button.pressed.connect(_toggle_settings_panel)
+		elif index == 3:
+			button.pressed.connect(func() -> void:
+				open_tabletop_drawer("settings")
+			)
+		toolbar.add_child(button)
+
+
+func _build_first_screen_corner_settings(row: HBoxContainer) -> void:
+	var corner := Button.new()
+	corner.name = "CornerSettingsButton"
+	corner.text = "设"
+	corner.tooltip_text = "设置 · 快捷键: O 整理 / Esc 调试面板"
+	corner.custom_minimum_size = Vector2(28, 26)
+	corner.add_theme_font_size_override("font_size", 12)
+	corner.add_theme_stylebox_override("normal", _round_button_style())
+	corner.add_theme_stylebox_override("hover", _round_button_style())
+	corner.add_theme_stylebox_override("pressed", _round_button_style())
+	corner.pressed.connect(func() -> void:
+		open_tabletop_drawer("settings")
+	)
+	row.add_child(corner)
+
+
+func _build_first_screen_sell_zone() -> void:
+	sell_drop_zone = PanelContainer.new()
+	sell_drop_zone.name = "SellDropZone"
+	sell_drop_zone.tooltip_text = "把卡牌拖到这里出售"
+	sell_drop_zone.mouse_filter = Control.MOUSE_FILTER_STOP
+	sell_drop_zone.add_theme_stylebox_override("panel", _sell_zone_style())
+	add_child(sell_drop_zone)
+	_set_first_screen_region_rect(sell_drop_zone, FIRST_SCREEN_SELL_RECT)
+
+	var margin := MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_top", 2)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_bottom", 2)
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sell_drop_zone.add_child(margin)
+
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 4)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_child(row)
+
+	var title := Label.new()
+	title.text = "出售"
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 12)
+	title.add_theme_color_override("font_color", Color(0.18, 0.11, 0.05))
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(title)
+
+	tabletop_card_count_label = Label.new()
+	tabletop_card_count_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tabletop_card_count_label.add_theme_font_size_override("font_size", 11)
+	tabletop_card_count_label.add_theme_color_override("font_color", Color(0.38, 0.25, 0.13))
+	tabletop_card_count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(tabletop_card_count_label)
+
+
+func _build_first_screen_drawers() -> void:
+	drawer_layer = PanelContainer.new()
+	drawer_layer.name = "TabletopDrawerLayer"
+	drawer_layer.visible = false
+	drawer_layer.add_theme_stylebox_override("panel", _panel_style(Color(0.95, 0.90, 0.76, 0.98), Color(0.27, 0.19, 0.10), 12, 3))
+	add_child(drawer_layer)
+	_set_first_screen_region_rect(drawer_layer, Rect2(Vector2(260, 352), Vector2(978, 288)))
+	var drawer_margin := MarginContainer.new()
+	drawer_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	drawer_margin.add_theme_constant_override("margin_left", 12)
+	drawer_margin.add_theme_constant_override("margin_top", 10)
+	drawer_margin.add_theme_constant_override("margin_right", 12)
+	drawer_margin.add_theme_constant_override("margin_bottom", 10)
+	drawer_layer.add_child(drawer_margin)
+	drawer_scroll_container = ScrollContainer.new()
+	drawer_scroll_container.name = "DrawerScroll"
+	drawer_scroll_container.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	drawer_scroll_container.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	drawer_scroll_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	drawer_scroll_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	drawer_margin.add_child(drawer_scroll_container)
+	drawer_content_stack = VBoxContainer.new()
+	drawer_content_stack.add_theme_constant_override("separation", 8)
+	drawer_content_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	drawer_scroll_container.add_child(drawer_content_stack)
+
+	_build_drawer_quick_options()
+	_build_drawer_residents()
+	_build_drawer_status()
+	_build_drawer_codex_handbook()
+	_build_drawer_end_day()
+	_build_drawer_board_record()
+	_set_tabletop_drawer_content_visibility("")
+
+
+func _build_drawer_quick_options() -> void:
+	var parts := _create_panel("Quick Options", Vector2(0, 96))
+	var quick_panel: PanelContainer = parts["panel"]
+	quick_panel.name = "quick_options"
+	drawer_content_stack.add_child(quick_panel)
+	var content: VBoxContainer = parts["content"]
+	var quick_buttons := HFlowContainer.new()
+	quick_buttons.add_theme_constant_override("h_separation", 6)
+	quick_buttons.add_theme_constant_override("v_separation", 6)
+	content.add_child(quick_buttons)
+	var tutorial_button := Button.new()
+	tutorial_button.text = "Guide"
+	tutorial_button.pressed.connect(_open_day_minus_one_scene)
+	quick_buttons.add_child(tutorial_button)
+	var theme_button := Button.new()
+	theme_button.text = "Theme"
+	theme_button.pressed.connect(func() -> void:
+		SettingsManager.set_value("high_contrast", not bool(SettingsManager.get_value("high_contrast")))
+	)
+	quick_buttons.add_child(theme_button)
+	var settings_button := Button.new()
+	settings_button.text = "Settings"
+	settings_button.pressed.connect(func() -> void:
+		open_tabletop_drawer("settings")
+	)
+	quick_buttons.add_child(settings_button)
+
+	var event_parts := _create_panel("Events", Vector2(0, 120))
+	event_preview_panel = event_parts["panel"]
+	content.add_child(event_preview_panel)
+	var event_content: VBoxContainer = event_parts["content"]
+	var event_art_center := CenterContainer.new()
+	event_art_center.custom_minimum_size = Vector2(0, 40)
+	event_content.add_child(event_art_center)
+	event_preview_icon_rect = TextureRect.new()
+	event_preview_icon_rect.custom_minimum_size = Vector2(36, 36)
+	event_preview_icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	event_preview_icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	event_art_center.add_child(event_preview_icon_rect)
+	event_preview_icon_fallback_label = Label.new()
+	event_preview_icon_fallback_label.visible = false
+	event_art_center.add_child(event_preview_icon_fallback_label)
+	event_preview_title_label = Label.new()
+	event_preview_title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	event_content.add_child(event_preview_title_label)
+	event_preview_body_label = Label.new()
+	event_preview_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	event_content.add_child(event_preview_body_label)
+
+	var bulletin_parts := _create_panel("Bulletin", Vector2(0, 120))
+	bulletin_panel = bulletin_parts["panel"]
+	bulletin_panel.add_theme_stylebox_override("panel", _cork_panel_style())
+	content.add_child(bulletin_panel)
+	var bulletin_content: VBoxContainer = bulletin_parts["content"]
+	bulletin_status_label = Label.new()
+	bulletin_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	bulletin_content.add_child(bulletin_status_label)
+	bulletin_container = HFlowContainer.new()
+	bulletin_container.add_theme_constant_override("h_separation", 8)
+	bulletin_container.add_theme_constant_override("v_separation", 8)
+	bulletin_content.add_child(bulletin_container)
+
+
+func _build_drawer_residents() -> void:
+	var parts := _create_panel("Residents", Vector2(0, 120))
+	var residents_panel: PanelContainer = parts["panel"]
+	residents_panel.name = "residents"
+	drawer_content_stack.add_child(residents_panel)
+	var content: VBoxContainer = parts["content"]
+	resident_cards_container = HFlowContainer.new()
+	resident_cards_container.add_theme_constant_override("h_separation", 8)
+	resident_cards_container.add_theme_constant_override("v_separation", 6)
+	content.add_child(resident_cards_container)
+	residents_label = Label.new()
+	residents_label.visible = false
+	content.add_child(residents_label)
+
+
+func _build_drawer_status() -> void:
+	var parts := _create_panel("Status", Vector2(0, 130))
+	var status_panel: PanelContainer = parts["panel"]
+	status_panel.name = "status"
+	drawer_content_stack.add_child(status_panel)
+	var content: VBoxContainer = parts["content"]
+	report_label = RichTextLabel.new()
+	report_label.custom_minimum_size = Vector2(0, 74)
+	report_label.scroll_active = false
+	report_label.fit_content = true
+	report_label.bbcode_enabled = true
+	report_label.add_theme_color_override("default_color", UI_TEXT_COLOR)
+	content.add_child(report_label)
+	manpower_label = Label.new()
+	manpower_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(manpower_label)
+	problem_status_label = Label.new()
+	problem_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(problem_status_label)
+
+
+func _build_drawer_codex_handbook() -> void:
+	var parts := _create_panel("Handbook", Vector2(0, 180))
+	var codex_panel: PanelContainer = parts["panel"]
+	codex_panel.name = "codex"
+	drawer_content_stack.add_child(codex_panel)
+	var content: VBoxContainer = parts["content"]
+	hand_panel = codex_panel
+	var inventory_row := HBoxContainer.new()
+	inventory_row.add_theme_constant_override("separation", 8)
+	content.add_child(inventory_row)
+	facility_inventory_container = _make_inventory_column(inventory_row, "Facilities")
+	material_inventory_container = _make_inventory_column(inventory_row, "Materials")
+	consumable_inventory_container = _make_inventory_column(inventory_row, "Items")
+	hand_container = facility_inventory_container
+
+	var craft_parts := _create_panel("Craft", Vector2(0, 140))
+	craft_panel = craft_parts["panel"]
+	craft_panel.add_theme_stylebox_override("panel", _workbench_panel_style())
+	content.add_child(craft_panel)
+	var craft_content: VBoxContainer = craft_parts["content"]
+	craft_status_label = Label.new()
+	craft_status_label.text = CRAFT_STATUS_COPY
+	craft_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	craft_content.add_child(craft_status_label)
+	var craft_row := HBoxContainer.new()
+	craft_row.add_theme_constant_override("separation", 10)
+	craft_content.add_child(craft_row)
+	craft_slot_panels.clear()
+	for slot_index: int in range(2):
+		var slot_panel := PanelContainer.new()
+		slot_panel.custom_minimum_size = Vector2(78, 106)
+		slot_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		slot_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.97, 0.93, 0.84), Color(0.69, 0.54, 0.31), 14, 2))
+		craft_row.add_child(slot_panel)
+		craft_slot_panels.append(slot_panel)
+		var slot_margin := MarginContainer.new()
+		slot_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+		slot_margin.add_theme_constant_override("margin_left", 10)
+		slot_margin.add_theme_constant_override("margin_top", 10)
+		slot_margin.add_theme_constant_override("margin_right", 10)
+		slot_margin.add_theme_constant_override("margin_bottom", 10)
+		slot_panel.add_child(slot_margin)
+		var slot_label := Label.new()
+		slot_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		slot_label.text = "Slot %d" % (slot_index + 1)
+		slot_margin.add_child(slot_label)
+	recipe_codex_label = RichTextLabel.new()
+	recipe_codex_label.bbcode_enabled = true
+	recipe_codex_label.scroll_active = true
+	recipe_codex_label.fit_content = false
+	recipe_codex_label.custom_minimum_size = Vector2(0, RECIPE_CODEX_MIN_HEIGHT)
+	recipe_codex_label.meta_clicked.connect(_on_recipe_codex_meta_clicked)
+	craft_content.add_child(recipe_codex_label)
+
+
+func _build_drawer_end_day() -> void:
+	var parts := _create_panel("End Day", Vector2(0, 160))
+	var action_panel: PanelContainer = parts["panel"]
+	action_panel.name = "end_day"
+	drawer_content_stack.add_child(action_panel)
+	var content: VBoxContainer = parts["content"]
+	var action_row := HBoxContainer.new()
+	action_row.add_theme_constant_override("separation", 6)
+	content.add_child(action_row)
+	var save_button := Button.new()
+	save_button.text = "Save"
+	save_button.pressed.connect(_manual_save)
+	action_row.add_child(save_button)
+	var load_button := Button.new()
+	load_button.text = "Load"
+	load_button.pressed.connect(_manual_load)
+	action_row.add_child(load_button)
+	next_button = Button.new()
+	next_button.text = "End Day"
+	next_button.custom_minimum_size = Vector2(0, 44)
+	next_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	next_button.pressed.connect(_on_advance_day)
+	content.add_child(next_button)
+	phase_action_hint_label = Label.new()
+	phase_action_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(phase_action_hint_label)
+	flower_unlock_button = Button.new()
+	flower_unlock_button.visible = false
+	flower_unlock_button.text = "Unlock"
+	flower_unlock_button.pressed.connect(_unlock_featured_flower_item)
+	content.add_child(flower_unlock_button)
+	_build_stack_area(content)
+
+
+func _build_drawer_board_record() -> void:
+	var parts := _create_panel("Board Record", Vector2(0, 160))
+	var record_panel: PanelContainer = parts["panel"]
+	record_panel.name = "board"
+	drawer_content_stack.add_child(record_panel)
+	var content: VBoxContainer = parts["content"]
+	var board_button_row := HBoxContainer.new()
+	board_button_row.add_theme_constant_override("separation", 6)
+	content.add_child(board_button_row)
+	var center_button := Button.new()
+	center_button.text = "Center"
+	center_button.pressed.connect(_focus_board_center)
+	board_button_row.add_child(center_button)
+	var clear_button := Button.new()
+	clear_button.text = "Clear"
+	clear_button.pressed.connect(func() -> void:
+		_clear_board_demolition_confirmation()
+		selected_board_index = -1
+		_update_all_ui()
+	)
+	board_button_row.add_child(clear_button)
+	rotate_build_button = Button.new()
+	rotate_build_button.text = "Rotate"
+	rotate_build_button.pressed.connect(func() -> void:
+		rotate_pending_build()
+		if _is_dragging_board_placeable_card():
+			_update_board_drag_feedback(get_global_mouse_position())
+	)
+	board_button_row.add_child(rotate_build_button)
+	board_land_unlock_button = Button.new()
+	board_land_unlock_button.visible = false
+	board_land_unlock_button.pressed.connect(func() -> void:
+		request_selected_board_land_unlock()
+	)
+	board_button_row.add_child(board_land_unlock_button)
+	board_demolish_button = Button.new()
+	board_demolish_button.visible = false
+	board_demolish_button.pressed.connect(func() -> void:
+		request_selected_board_demolition()
+	)
+	board_button_row.add_child(board_demolish_button)
+	var info_row := HBoxContainer.new()
+	info_row.add_theme_constant_override("separation", 8)
+	content.add_child(info_row)
+	board_detail_label = RichTextLabel.new()
+	board_detail_label.bbcode_enabled = true
+	board_detail_label.scroll_active = false
+	board_detail_label.custom_minimum_size = get_board_detail_preview_metrics().get("min_size", Vector2(0, 88))
+	board_detail_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info_row.add_child(board_detail_label)
+	combo_summary_label = RichTextLabel.new()
+	combo_summary_label.bbcode_enabled = true
+	combo_summary_label.scroll_active = false
+	combo_summary_label.custom_minimum_size = Vector2(0, 60)
+	combo_summary_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info_row.add_child(combo_summary_label)
+	board_scroll_container = ScrollContainer.new()
+	board_scroll_container.visible = false
+	board_scroll_container.custom_minimum_size = Vector2(0, 1)
+	content.add_child(board_scroll_container)
+	board_grid = GridContainer.new()
+	board_grid.columns = BOARD_RULES.BOARD_SIZE
+	board_grid.add_theme_constant_override("h_separation", 4)
+	board_grid.add_theme_constant_override("v_separation", 4)
+	board_scroll_container.add_child(board_grid)
+	board_cell_panels.clear()
+	board_cell_labels.clear()
+	board_cell_demolish_buttons.clear()
+	for cell_index: int in range(BOARD_RULES.BOARD_SIZE * BOARD_RULES.BOARD_SIZE):
+		var cell_panel := PanelContainer.new()
+		cell_panel.custom_minimum_size = Vector2(78, 62)
+		cell_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+		cell_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.97, 0.97, 0.97), Color(0.70, 0.70, 0.72), 18, 2))
+		cell_panel.gui_input.connect(_on_board_cell_gui_input.bind(cell_index))
+		board_grid.add_child(cell_panel)
+		board_cell_panels.append(cell_panel)
+		var cell_margin := MarginContainer.new()
+		cell_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+		cell_margin.add_theme_constant_override("margin_left", 4)
+		cell_margin.add_theme_constant_override("margin_top", 4)
+		cell_margin.add_theme_constant_override("margin_right", 4)
+		cell_margin.add_theme_constant_override("margin_bottom", 4)
+		cell_panel.add_child(cell_margin)
+		var cell_label := Label.new()
+		cell_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		cell_label.add_theme_font_size_override("font_size", 10)
+		cell_margin.add_child(cell_label)
+		board_cell_labels.append(cell_label)
+		var demolish_button := Button.new()
+		demolish_button.text = "Demolish"
+		demolish_button.visible = false
+		demolish_button.pressed.connect(_on_demolish_board_cell.bind(cell_index))
+		cell_margin.add_child(demolish_button)
+		board_cell_demolish_buttons.append(demolish_button)
+
+
+func _build_ui() -> void:
+	if main_content_root != null:
+		return
+	_build_fixed_stacklands_first_screen_ui()
+	return
 	var table_background := ColorRect.new()
 	table_background.color = TABLETOP_BG_COLOR
 	table_background.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -1917,6 +3768,15 @@ func _build_ui() -> void:
 	title_label.add_theme_font_size_override("font_size", 24)
 	title_label.add_theme_color_override("font_color", Color(0.18, 0.09, 0.04))
 	title_group.add_child(title_label)
+
+	var top_pack_shop := HFlowContainer.new()
+	top_pack_shop.name = "TopPackShop"
+	top_pack_shop.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top_pack_shop.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	top_pack_shop.add_theme_constant_override("h_separation", 6)
+	top_pack_shop.add_theme_constant_override("v_separation", 4)
+	header_row.add_child(top_pack_shop)
+	_build_card_pack_shop(top_pack_shop)
 
 	var header_spacer := Control.new()
 	header_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -2420,7 +4280,6 @@ func _build_ui() -> void:
 	flower_unlock_button.pressed.connect(_unlock_featured_flower_item)
 	action_content.add_child(flower_unlock_button)
 
-	_build_card_pack_shop(action_content)
 	_build_stack_area(action_content)
 	var reset_button := Button.new()
 	reset_button.visible = false
@@ -2459,6 +4318,7 @@ func _install_stacklands_region_markers() -> void:
 	# legacy nested containers.
 	var regions := {
 		"ResourceHud": Vector2(360, 56),
+		"TopPackShop": Vector2(520, 56),
 		"BulletinStrip": Vector2(720, 110),
 		"TasksPanel": Vector2(180, 240),
 		"PlaymatPanel": Vector2(720, 360),
@@ -2482,33 +4342,286 @@ func _install_stacklands_region_markers() -> void:
 func _populate_tasks_panel(parent: Control) -> void:
 	if parent == null or parent.get_child_count() > 0:
 		return
-	var lines := _build_tasks_panel_lines()
-	for line in lines:
-		var label := Label.new()
-		label.name = "TaskRow"
-		label.text = str(line)
-		label.add_theme_font_size_override("font_size", 12)
-		label.add_theme_color_override("font_color", LIGHT_SURFACE_PRIMARY_TEXT)
-		parent.add_child(label)
+	_render_tasks_panel_into(parent)
+
+
+func _refresh_tasks_panel_ui() -> void:
+	var panel: Control = get_node_or_null("TasksPanel")
+	if panel == null:
+		return
+	var target: Control = panel
+	for child in panel.get_children():
+		if child is MarginContainer and child.get_child_count() > 0:
+			target = child.get_child(0) as Control
+			break
+	if target == null:
+		return
+	_clear_children(target)
+	_render_tasks_panel_into(target)
 
 
 func _build_tasks_panel_lines() -> PackedStringArray:
 	var lines := PackedStringArray()
+	for objective in get_tasks_panel_objectives():
+		if typeof(objective) != TYPE_DICTIONARY:
+			continue
+		var objective_dict := objective as Dictionary
+		var title := str(objective_dict.get("title", ""))
+		if title.is_empty():
+			continue
+		var status := "✓ " if bool(objective_dict.get("completed", false)) else ("▶ " if bool(objective_dict.get("current", false)) else "")
+		lines.append("· %s%s" % [status, title])
+	if lines.is_empty():
+		lines.append("· 暂无任务")
+	return lines
+
+
+func _build_facility_recipe_lines() -> PackedStringArray:
+	var lines := PackedStringArray()
+	for entry in _build_facility_recipe_entries():
+		lines.append("· %s" % str(entry.get("label", "")))
+	if lines.is_empty():
+		lines.append("· 暂无可建项")
+	return lines
+
+
+func _build_facility_recipe_entries() -> Array[Dictionary]:
+	var entries: Array[Dictionary] = []
+	var seen := {}
 	for recipe_variant in DataRepository.recipes:
 		if typeof(recipe_variant) != TYPE_DICTIONARY:
 			continue
 		var recipe: Dictionary = recipe_variant
 		var result_id := str(recipe.get("result_card_id", ""))
+		if result_id.is_empty() or seen.has(result_id):
+			continue
 		var card_def: Dictionary = DataRepository.cards_by_id.get(result_id, {})
 		var label_name := str(card_def.get("name", result_id))
 		if label_name.is_empty():
 			continue
-		lines.append("· %s" % label_name)
-		if lines.size() >= 12:
+		seen[result_id] = true
+		var ingredient_ids: Array = recipe.get("ingredient_card_ids", [])
+		var ingredient_names := PackedStringArray()
+		for ing_variant in ingredient_ids:
+			ingredient_names.append(_card_name(str(ing_variant)))
+		var tooltip := "%s ← %s" % [label_name, "、".join(ingredient_names)] if ingredient_names.size() > 0 else label_name
+		entries.append({
+			"result_id": result_id,
+			"label": "· %s" % label_name,
+			"tooltip": tooltip,
+			"ingredient_ids": ingredient_ids.duplicate()
+		})
+		if entries.size() >= 8:
 			break
-	if lines.is_empty():
-		lines.append("· 暂无可建项")
-	return lines
+	return entries
+
+
+func _on_facility_recipe_row_pressed(recipe_id: String) -> void:
+	if recipe_id.is_empty():
+		return
+	if _active_facility_highlight_id == recipe_id:
+		_active_facility_highlight_id = ""
+		_highlighted_recipe_card_ids.clear()
+	else:
+		_active_facility_highlight_id = recipe_id
+		_highlighted_recipe_card_ids.clear()
+		_highlighted_recipe_card_ids[recipe_id] = true
+		for entry in _build_facility_recipe_entries():
+			if str(entry.get("result_id", "")) != recipe_id:
+				continue
+			for ing_variant in entry.get("ingredient_ids", []):
+				var ing_id := str(ing_variant)
+				if not ing_id.is_empty():
+					_highlighted_recipe_card_ids[ing_id] = true
+			break
+	_refresh_facility_recipe_row_styles()
+	_refresh_tabletop_layer()
+
+
+func _refresh_facility_recipe_row_styles() -> void:
+	for button: Button in _facility_recipe_row_buttons():
+		var recipe_id := str(button.get_meta("recipe_id", ""))
+		_apply_facility_recipe_row_style(button, recipe_id == _active_facility_highlight_id)
+
+
+func _facility_recipe_row_buttons() -> Array[Button]:
+	var result: Array[Button] = []
+	var panel := get_node_or_null("TasksPanel")
+	if panel == null:
+		return result
+	_collect_facility_recipe_row_buttons(panel, result)
+	return result
+
+
+func _collect_facility_recipe_row_buttons(node: Node, result: Array[Button]) -> void:
+	if node is Button and str(node.name) == "FacilityRow":
+		result.append(node as Button)
+	for child: Node in node.get_children():
+		_collect_facility_recipe_row_buttons(child, result)
+
+
+func _apply_facility_recipe_row_style(button: Button, selected: bool) -> void:
+	if button == null:
+		return
+	button.add_theme_color_override("font_color", Color(0.20, 0.12, 0.05) if selected else Color(0.32, 0.24, 0.10))
+	button.add_theme_color_override("font_hover_color", Color(0.16, 0.09, 0.04) if selected else Color(0.18, 0.13, 0.06))
+	button.add_theme_color_override("font_pressed_color", Color(0.16, 0.09, 0.04))
+	button.add_theme_stylebox_override("normal", _facility_recipe_row_style(selected, false))
+	button.add_theme_stylebox_override("hover", _facility_recipe_row_style(selected, true))
+	button.add_theme_stylebox_override("pressed", _facility_recipe_row_style(true, true))
+	button.add_theme_stylebox_override("focus", _facility_recipe_row_style(selected, true))
+	button.button_pressed = selected
+
+
+func _facility_recipe_row_style(selected: bool, hovered: bool = false) -> StyleBoxFlat:
+	var background := Color(0.98, 0.95, 0.88, 0.98) if selected else (Color(0.99, 0.97, 0.92, 0.98) if hovered else Color(0.97, 0.94, 0.85, 0.95))
+	var border := Color(0.90, 0.57, 0.18) if selected else (Color(0.74, 0.57, 0.30) if hovered else Color(0.60, 0.46, 0.25))
+	var style := _panel_style(background, border, 10, 2)
+	style.border_width_left = 6 if selected else 2
+	style.shadow_color = Color(0.16, 0.08, 0.03, 0.24 if selected else 0.14)
+	style.shadow_size = 6 if selected else (4 if hovered else 2)
+	style.shadow_offset = Vector2(2, 3) if selected else Vector2(1, 2)
+	return style
+
+
+func get_tasks_panel_objectives() -> Array:
+	_sync_tabletop_controller_from_facade()
+	_sync_tabletop_facade_from_controller()
+	var state := GameState.get_state()
+	var pack_count := int(state.get("card_pack_open_count", 0))
+	var assigned_complete := _opening_task_resident_assigned()
+	var collect_complete := int(state.get("collected_tabletop_funds", 0)) > 0
+	var facility_complete := _opening_task_facility_built(state)
+	var need_complete := _opening_task_resident_need_handled(state)
+	var objectives := [
+		{
+			"id": "buy_pack",
+			"title": DataRepository.get_string("tasks", "buy_pack_title", "购买首个卡包"),
+			"detail": DataRepository.get_string("tasks", "buy_pack_detail", "在顶部卡包栏打开入门卡包。"),
+			"completed": pack_count >= 1,
+			"unlocked": true,
+			"current": false
+		},
+		{
+			"id": "assign_resident",
+			"title": DataRepository.get_string("tasks", "assign_resident_title", "安排居民"),
+			"detail": DataRepository.get_string("tasks", "assign_resident_detail", "把居民叠到资源点或设施上。"),
+			"completed": assigned_complete,
+			"unlocked": pack_count >= 1 or assigned_complete,
+			"current": false
+		},
+		{
+			"id": "collect_funds",
+			"title": DataRepository.get_string("tasks", "collect_funds_title", "收取资金"),
+			"detail": DataRepository.get_string("tasks", "collect_funds_detail", "把社区资金卡收进顶栏资金。"),
+			"completed": collect_complete,
+			"unlocked": assigned_complete or _tabletop_has_community_funds_card() or collect_complete,
+			"current": false
+		},
+		{
+			"id": "buy_next_pack",
+			"title": DataRepository.get_string("tasks", "buy_next_pack_title", "购买下一个卡包"),
+			"detail": DataRepository.get_string("tasks", "buy_next_pack_detail", "用收到的资金再开一个卡包。"),
+			"completed": pack_count >= 2,
+			"unlocked": collect_complete or pack_count >= 2,
+			"current": false
+		},
+		{
+			"id": "build_facility",
+			"title": DataRepository.get_string("tasks", "build_facility_title", "建造设施"),
+			"detail": DataRepository.get_string("tasks", "build_facility_detail", "新建或落地一处社区设施。"),
+			"completed": facility_complete,
+			"unlocked": pack_count >= 2 or facility_complete,
+			"current": false
+		},
+		{
+			"id": "handle_resident_need",
+			"title": DataRepository.get_string("tasks", "handle_resident_need_title", "回应居民需求"),
+			"detail": DataRepository.get_string("tasks", "handle_resident_need_detail", "用对应服务化解一个居民需求。"),
+			"completed": need_complete,
+			"unlocked": facility_complete or need_complete,
+			"current": false
+		}
+	]
+	var current_set := false
+	for objective_variant in objectives:
+		var objective: Dictionary = objective_variant
+		if not current_set and bool(objective.get("unlocked", false)) and not bool(objective.get("completed", false)):
+			objective["current"] = true
+			current_set = true
+	return objectives
+
+
+func _opening_task_resident_assigned() -> bool:
+	var feedback := last_tabletop_craft_feedback
+	if bool(feedback.get("success", false)):
+		var recipe_id := str(feedback.get("recipe_id", ""))
+		if recipe_id in ["gather_lumber_from_scrap", "register_donation_supplies", "collect_community_clues", "staff_ramp_shift"]:
+			return true
+	for recipe_id_variant in selected_recipe_ids:
+		var recipe_id := str(recipe_id_variant)
+		if recipe_id in ["gather_lumber_from_scrap", "register_donation_supplies", "collect_community_clues", "staff_ramp_shift"]:
+			return true
+	return false
+
+
+func _tabletop_has_community_funds_card() -> bool:
+	for card_id_variant in tabletop_card_ids.values():
+		if _is_community_funds_card_id(str(card_id_variant)):
+			return true
+	return false
+
+
+func _opening_task_facility_built(state: Dictionary) -> bool:
+	if not Array(state.get("built_facilities", [])).is_empty():
+		return true
+	for card_id_variant in tabletop_card_ids.values():
+		var card_def: Dictionary = _tabletop_card_def_for_id(str(card_id_variant))
+		if str(card_def.get("type", "")) == "facility" or bool(card_def.get("board_placeable", false)):
+			return true
+	return false
+
+
+func _opening_task_resident_need_handled(state: Dictionary) -> bool:
+	if str(last_tabletop_craft_feedback.get("message", "")) == "resident_need_resolved":
+		return true
+	for entity_variant in state.get("resident_need_entities", []):
+		if typeof(entity_variant) != TYPE_DICTIONARY:
+			continue
+		if str((entity_variant as Dictionary).get("status", "pending")) == "resolved":
+			return true
+	return false
+
+
+func get_demo_rhythm_contract() -> Dictionary:
+	return {
+		"target_duration_minutes": "45-60",
+		"stages": [
+			{
+				"id": "opening",
+				"day_range": [1, 5],
+				"pack_ids": ["starter_pack", "material_pack", "resident_pack", "permit_pack"],
+				"task_ids": ["buy_pack", "get_resident", "gather_material", "build_ramp", "satisfy_resident_need"],
+				"unlock_conditions": ["day_1", "starter_resources", "first_facility"]
+			},
+			{
+				"id": "midgame",
+				"day_range": [6, 10],
+				"pack_ids": ["material_pack", "resident_pack", "permit_pack", "service_pack"],
+				"task_ids": ["multiple_resident_needs", "community_services", "event_pressure", "expand_facilities"],
+				"unlock_conditions": ["day_6", "service_pack_unlocked", "resident_need_pressure"]
+			},
+			{
+				"id": "lategame",
+				"day_range": [11, 15],
+				"pack_ids": ["service_pack", "governance_pack"],
+				"task_ids": ["governance_results", "advanced_facilities", "complete_demo_route"],
+				"unlock_conditions": ["day_11", "governance_pack_unlocked", "stable_moral"]
+			}
+		],
+		"smoke_routes": ["first_10_minutes_smoke", "full_game_smoke"],
+		"persistent_features": ["save", "settings", "audio", "accessibility", "steam_mock", "local_fallback"]
+	}
 
 
 func get_tasks_panel_lines() -> PackedStringArray:
@@ -2528,15 +4641,24 @@ func get_tasks_panel_lines() -> PackedStringArray:
 func _populate_toolbar_strip(parent: Control) -> void:
 	if parent == null or parent.get_child_count() > 0:
 		return
-	var labels := ["放大", "整理", "全屏", "设置"]
-	for label_text in labels:
+	for action in _first_screen_toolbar_actions():
 		var button := Button.new()
-		button.text = str(label_text)
+		button.text = str(action.get("label", ""))
+		button.tooltip_text = str(action.get("tip", ""))
 		button.custom_minimum_size = Vector2(44, 44)
 		button.add_theme_stylebox_override("normal", _round_button_style())
 		button.add_theme_stylebox_override("hover", _round_button_style())
 		button.add_theme_stylebox_override("pressed", _round_button_style())
 		parent.add_child(button)
+
+
+func _first_screen_toolbar_actions() -> Array:
+	return [
+		{"label": "+", "tip": "放大视野"},
+		{"label": "☰", "tip": "整理卡片"},
+		{"label": "‖", "tip": "暂停 / 安全面板"},
+		{"label": "⚙", "tip": "设置"},
+	]
 
 
 func _round_button_style() -> StyleBoxFlat:
@@ -2914,6 +5036,19 @@ func _tabletop_playmat_style() -> StyleBoxFlat:
 	return style
 
 
+func _sell_zone_style(highlighted: bool = false) -> StyleBoxFlat:
+	var style := _panel_style(
+		Color(1.0, 0.92, 0.74, 0.98) if highlighted else Color(0.96, 0.84, 0.62, 0.96),
+		Color(0.95, 0.95, 0.95, 0.98) if highlighted else Color(0.42, 0.24, 0.10),
+		12,
+		3
+	)
+	style.shadow_color = Color(0.16, 0.08, 0.03, 0.24)
+	style.shadow_size = 6
+	style.shadow_offset = Vector2(3, 4)
+	return style
+
+
 func _make_setting_checkbox(label: String, key: String) -> CheckBox:
 	var checkbox := CheckBox.new()
 	checkbox.text = label
@@ -2962,6 +5097,13 @@ func _on_reset_game() -> void:
 	tabletop_card_positions.clear()
 	tabletop_card_z.clear()
 	_tabletop_next_z = 1
+	tabletop_drag_feedback_state.clear()
+	_tabletop_pending_craft.clear()
+	last_tabletop_craft_feedback.clear()
+	if tabletop_controller != null:
+		tabletop_controller.call("apply_state", {})
+	if stack_action_controller != null:
+		stack_action_controller.call("apply_state", {})
 	active_announcement.clear()
 	GameState.reset_state()
 	EventManager.reset_runtime()
@@ -3003,6 +5145,8 @@ func _manual_load() -> void:
 
 
 func _build_ui_save_state() -> Dictionary:
+	_sync_tabletop_controller_from_facade()
+	_sync_stack_controller_from_facade()
 	return {
 		"bulletin_cards": bulletin_cards.duplicate(),
 		"bulletin_card_prices": bulletin_card_prices.duplicate(),
@@ -3017,6 +5161,8 @@ func _build_ui_save_state() -> Dictionary:
 		"tabletop_card_positions": tabletop_card_positions.duplicate(true),
 		"tabletop_card_z": tabletop_card_z.duplicate(true),
 		"tabletop_next_z": _tabletop_next_z,
+		"tabletop_controller_state": tabletop_controller.call("get_state").duplicate(true),
+		"stack_action_controller_state": stack_action_controller.call("get_state").duplicate(true),
 		"current_bulletin_offset": current_bulletin_offset,
 		"active_announcement": active_announcement.duplicate(true)
 	}
@@ -3032,10 +5178,26 @@ func _apply_ui_save_state(ui_state: Dictionary) -> void:
 	craft_slot_sources.assign(ui_state.get("craft_slot_sources", []))
 	craft_slot_prices.assign(ui_state.get("craft_slot_prices", []))
 	selected_recipe_ids = PackedStringArray(ui_state.get("selected_recipe_ids", []))
-	tabletop_card_ids = _string_dictionary(ui_state.get("tabletop_card_ids", {}))
-	tabletop_card_positions = _vector2_dictionary(ui_state.get("tabletop_card_positions", {}))
-	tabletop_card_z = _int_dictionary(ui_state.get("tabletop_card_z", {}))
-	_tabletop_next_z = maxi(int(ui_state.get("tabletop_next_z", 1)), _max_tabletop_z() + 1)
+	if ui_state.has("tabletop_controller_state"):
+		_ensure_tabletop_controller()
+		var tabletop_state: Dictionary = ui_state.get("tabletop_controller_state", {})
+		tabletop_controller.call("apply_state", tabletop_state)
+		_sync_tabletop_facade_from_controller()
+	else:
+		tabletop_card_ids = _string_dictionary(ui_state.get("tabletop_card_ids", {}))
+		tabletop_card_positions = _vector2_dictionary(ui_state.get("tabletop_card_positions", {}))
+		tabletop_card_z = _int_dictionary(ui_state.get("tabletop_card_z", {}))
+		_tabletop_next_z = maxi(int(ui_state.get("tabletop_next_z", 1)), _max_tabletop_z() + 1)
+		_sync_tabletop_controller_from_facade()
+	if ui_state.has("stack_action_controller_state"):
+		_ensure_stack_action_controller()
+		var stack_state: Dictionary = ui_state.get("stack_action_controller_state", {})
+		stack_action_controller.call("apply_state", stack_state)
+		_sync_stack_facade_from_controller()
+	else:
+		_tabletop_pending_craft.clear()
+		last_tabletop_craft_feedback.clear()
+		_sync_stack_controller_from_facade()
 	current_bulletin_offset = int(ui_state.get("current_bulletin_offset", current_bulletin_offset))
 	active_announcement = ui_state.get("active_announcement", {}).duplicate(true)
 	_normalize_card_metadata()
@@ -3316,9 +5478,30 @@ func _resolve_drop_target(drop_global_position: Vector2) -> Dictionary:
 	var board_target := _resolve_board_drop_target(drop_global_position)
 	if not board_target.is_empty():
 		return board_target
+	if drag_source_zone == "tabletop" and _is_community_funds_card_id(drag_card_id) and resource_chip_funds != null:
+		if resource_chip_funds.get_global_rect().grow(8.0).has_point(drop_global_position):
+			return {
+				"type": "funds_chip",
+				"instance_id": drag_tabletop_instance_id
+			}
+	if sell_drop_zone != null and sell_drop_zone.get_global_rect().has_point(drop_global_position) and drag_source_zone == "tabletop":
+		return {
+			"type": "sell_zone",
+			"instance_id": drag_tabletop_instance_id
+		}
 	if board_panel != null and board_panel.get_global_rect().has_point(drop_global_position):
+		var tabletop_position := _resolved_tabletop_drop_position(drop_global_position)
+		var hit_instance := _tabletop_instance_intersecting_rect(Rect2(tabletop_position, _tabletop_card_size()), drag_tabletop_instance_id) \
+			if drag_source_zone == "tabletop" \
+			else _tabletop_instance_at_local_position(tabletop_position, drag_tabletop_instance_id)
+		if not hit_instance.is_empty() and _is_tabletop_eligible_card_id(drag_card_id):
+			return {
+				"type": "tabletop_card",
+				"position": tabletop_position,
+				"target_instance_id": hit_instance
+			}
 		if _is_dragging_free_tabletop_card():
-			return {"type": "tabletop", "position": _tabletop_local_position(drop_global_position)}
+			return {"type": "tabletop", "position": tabletop_position}
 		return {"type": "board_invalid"}
 	if bulletin_panel != null and bulletin_panel.get_global_rect().has_point(drop_global_position):
 		return {"type": "bulletin"}
@@ -3516,6 +5699,18 @@ func _drop_from_hand(target: Dictionary) -> bool:
 		"bulletin":
 			var result := return_hand_card_to_bulletin(drag_source_index)
 			return bool(result.get("success", false))
+		"tabletop_card":
+			var stack_result: Dictionary = _stack_hand_card_on_tabletop(
+				drag_source_index,
+				str(target.get("target_instance_id", "")),
+				_vector2_from_variant(target.get("position", Vector2.ZERO))
+			)
+			if bool(stack_result.get("success", false)):
+				return true
+			if _is_handled_tabletop_stack_message(str(stack_result.get("message", ""))):
+				return true
+			_show_floating_error(str(stack_result.get("message", "tabletop_stack_failed")), 1.8)
+			return true
 		"tabletop":
 			var tabletop_result: Dictionary = place_hand_card_on_tabletop(drag_source_index, _vector2_from_variant(target.get("position", Vector2.ZERO)))
 			if bool(tabletop_result.get("success", false)):
@@ -3619,6 +5814,36 @@ func _drop_from_hand(target: Dictionary) -> bool:
 
 
 func _drop_from_tabletop(target: Dictionary) -> bool:
+	if str(target.get("type", "")) == "funds_chip":
+		var collect_result: Dictionary = collect_tabletop_funds_card(str(target.get("instance_id", drag_tabletop_instance_id)))
+		if bool(collect_result.get("success", false)):
+			_drag_finish_refresh_mode = "card_zone"
+			AudioManager.play_sfx(audio_sfx_id_for_action("pick"))
+			return true
+		_show_floating_error(str(collect_result.get("message", "tabletop_funds_collect_failed")), 1.6)
+		return true
+	if str(target.get("type", "")) == "sell_zone":
+		var sell_result: Dictionary = sell_tabletop_card_instance(str(target.get("instance_id", drag_tabletop_instance_id)))
+		if bool(sell_result.get("success", false)):
+			_drag_finish_refresh_mode = "card_zone"
+			AudioManager.play_sfx(audio_sfx_id_for_action("pick"))
+			return true
+		_show_floating_error(str(sell_result.get("message", "tabletop_sell_failed")), 1.6)
+		return true
+	if str(target.get("type", "")) == "tabletop_card":
+		var stack_result: Dictionary = _stack_tabletop_instance_on_tabletop(
+			drag_tabletop_instance_id,
+			str(target.get("target_instance_id", "")),
+			_vector2_from_variant(target.get("position", Vector2.ZERO))
+		)
+		if bool(stack_result.get("success", false)):
+			_drag_finish_refresh_mode = "card_zone"
+			return true
+		if _is_handled_tabletop_stack_message(str(stack_result.get("message", ""))):
+			_drag_finish_refresh_mode = "card_zone"
+			return true
+		_show_floating_error(str(stack_result.get("message", "tabletop_stack_failed")), 1.6)
+		return true
 	if str(target.get("type", "")) != "tabletop":
 		return false
 	var result: Dictionary = move_tabletop_card(drag_tabletop_instance_id, _vector2_from_variant(target.get("position", Vector2.ZERO)))
@@ -3980,24 +6205,38 @@ func _show_floating_error(text: String, duration: float = 1.6) -> void:
 
 
 func _build_card_pack_shop(parent: Node) -> void:
+	var inline_header := not (parent is HFlowContainer)
 	var label := Label.new()
 	label.text = "卡包商店"
 	label.add_theme_color_override("font_color", Color(0.18, 0.13, 0.08))
 	label.add_theme_font_size_override("font_size", 13)
-	parent.add_child(label)
+	label.visible = inline_header
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if inline_header:
+		parent.add_child(label)
+	else:
+		add_child(label)
+		label.position = Vector2(-9999, -9999)
 	_card_pack_status_label = Label.new()
 	_card_pack_status_label.add_theme_font_size_override("font_size", 11)
 	_card_pack_status_label.add_theme_color_override("font_color", Color(0.34, 0.27, 0.18))
-	_card_pack_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	parent.add_child(_card_pack_status_label)
+	_card_pack_status_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_card_pack_status_label.visible = inline_header
+	_card_pack_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if inline_header:
+		parent.add_child(_card_pack_status_label)
+	else:
+		add_child(_card_pack_status_label)
+		_card_pack_status_label.position = Vector2(-9999, -9999)
 	var packs: Dictionary = CARD_PACK_SYSTEM.get_pack_definitions()
 	_card_pack_buttons.clear()
-	for pack_id_variant in packs.keys():
+	for pack_id_variant in _primary_card_pack_ids():
 		var pack_id := str(pack_id_variant)
 		var pack: Dictionary = packs[pack_id_variant]
 		var button := Button.new()
-		button.text = "%s · %d朵" % [str(pack.get("display_name", pack_id)), int(pack.get("flower_cost", 0))]
+		button.text = "%s · %d资金" % [str(pack.get("display_name", pack_id)), int(pack.get("fund_cost", 0))]
 		button.tooltip_text = str(pack.get("description", ""))
+		button.add_theme_font_size_override("font_size", 12)
 		button.pressed.connect(_on_card_pack_purchase.bind(pack_id))
 		parent.add_child(button)
 		_card_pack_buttons[pack_id] = button
@@ -4008,17 +6247,22 @@ func _refresh_card_pack_buttons() -> void:
 		return
 	var state: Dictionary = GameState.get_state()
 	var packs: Dictionary = CARD_PACK_SYSTEM.get_pack_definitions()
+	var economy: Dictionary = get_tabletop_economy_state()
+	var card_limit_reached := not bool(economy.get("can_open_card_pack", true))
 	var locked_count := 0
 	var affordable_count := 0
-	for pack_id_variant in packs.keys():
+	for pack_id_variant in _primary_card_pack_ids():
 		var pack_id := str(pack_id_variant)
 		if not _card_pack_buttons.has(pack_id):
 			continue
 		var button: Button = _card_pack_buttons[pack_id]
 		var check: Dictionary = CARD_PACK_SYSTEM.can_purchase(state, pack_id)
-		var can_buy := bool(check.get("can", false))
+		var can_buy := bool(check.get("can", false)) and not card_limit_reached
+		var disabled_reason := str(check.get("reason", ""))
+		if card_limit_reached:
+			disabled_reason = str(economy.get("pack_limit_reason", "tabletop_card_limit_reached"))
 		button.disabled = not can_buy
-		button.tooltip_text = "%s\n%s" % [str(packs[pack_id_variant].get("description", "")), str(check.get("reason", "")) if not can_buy else "可购买"]
+		button.tooltip_text = "%s\n%s" % [str(packs[pack_id_variant].get("description", "")), disabled_reason if not can_buy else "可购买"]
 		if can_buy:
 			affordable_count += 1
 		else:
@@ -4028,27 +6272,19 @@ func _refresh_card_pack_buttons() -> void:
 
 
 func _on_card_pack_purchase(pack_id: String) -> void:
-	var state: Dictionary = GameState.get_state()
-	var check: Dictionary = CARD_PACK_SYSTEM.can_purchase(state, pack_id)
-	if not bool(check.get("can", false)):
-		AudioManager.play_sfx(audio_sfx_id_for_action("craft_fail"))
-		_show_floating_error(str(check.get("reason", "无法购买卡包。")), 1.8)
-		return
 	if _card_pack_rng == null:
 		_card_pack_rng = RandomNumberGenerator.new()
 		_card_pack_rng.randomize()
-	var result: Dictionary = CARD_PACK_SYSTEM.open_pack(state, pack_id, DataRepository.cards_by_id, _card_pack_rng)
+	var result: Dictionary = purchase_card_pack_to_tabletop(pack_id)
 	if not bool(result.get("success", false)):
+		AudioManager.play_sfx(audio_sfx_id_for_action("craft_fail"))
 		_show_floating_error(str(result.get("message", "无法开包。")), 1.8)
 		return
 	AudioManager.play_sfx(audio_sfx_id_for_action("craft_success"))
 	var drawn: Array = result.get("drawn_card_ids", [])
 	_append_report_line("开包 %s: %s" % [str(result.get("pack_name", pack_id)), _format_card_id_list(drawn)])
-	for card_id_variant in drawn:
-		var card_id := str(card_id_variant)
-		hand_cards.append(card_id)
-		hand_card_sources.append("card_pack")
-		hand_card_prices.append(0)
+	for _card_id_variant in drawn:
+		pass
 	_animate_card_pack_open(drawn)
 	_drag_finish_refresh_mode = "card_zone"
 	_update_all_ui()
@@ -4488,6 +6724,15 @@ func _on_advance_day() -> void:
 
 
 func _on_card_primary_action(card_id: String, zone: String, index: int) -> void:
+	if zone == "tabletop" and _is_community_funds_card_id(card_id):
+		var result := collect_tabletop_funds_card(_tabletop_instance_id_for_index(index))
+		if bool(result.get("success", false)):
+			AudioManager.play_sfx(audio_sfx_id_for_action("pick"))
+		else:
+			AudioManager.play_sfx(audio_sfx_id_for_action("craft_fail"))
+			_show_floating_error(str(result.get("message", "tabletop_funds_collect_failed")), 1.8)
+		_update_all_ui()
+		return
 	if zone == "bulletin":
 		var result := _claim_bulletin_card_from_ui(index)
 		if bool(result.get("success", false)):
@@ -4639,7 +6884,7 @@ func _apply_readable_text_colors(node: Node, color: Color) -> void:
 
 
 func _update_all_ui() -> void:
-	if page_scroll_container == null:
+	if main_content_root == null:
 		_build_ui()
 	var state: Dictionary = GameState.get_state()
 	_normalize_card_metadata()
@@ -4681,7 +6926,7 @@ func _reset_drag_finish_refresh_state() -> void:
 
 
 func _refresh_after_board_place_ui(board_index: int) -> void:
-	if page_scroll_container == null:
+	if main_content_root == null:
 		_build_ui()
 	var state: Dictionary = GameState.get_state()
 	_normalize_card_metadata()
@@ -4702,7 +6947,7 @@ func _refresh_after_board_place_ui(board_index: int) -> void:
 
 
 func _refresh_after_card_zone_change_ui(refresh_recipe_codex: bool = false) -> void:
-	if page_scroll_container == null:
+	if main_content_root == null:
 		_build_ui()
 	var state: Dictionary = GameState.get_state()
 	_normalize_card_metadata()
@@ -4739,13 +6984,21 @@ func _refresh_status_header_ui(state: Dictionary) -> void:
 			int(state.get("moral", 0)),
 			int(state.get("moral_max", 20))
 		]
-	phase_label.text = "社区地图 · 第 %d 天 · %s · %s · %s" % [
+	var economy_state := get_tabletop_economy_state()
+	var card_count_text := "%d/%d" % [
+		int(economy_state.get("card_count", 0)),
+		int(economy_state.get("card_limit", 0))
+	]
+	if resource_chip_cards != null:
+		resource_chip_cards.text = card_count_text
+	if tabletop_card_count_label != null:
+		tabletop_card_count_label.text = card_count_text
+	phase_label.text = "第%d天 · %s · %s · %s" % [
 		int(state.get("day_count", 1)),
 		phase_name,
 		WEATHER_SYSTEM.display_label(str(state.get("weather_today", "sunny"))),
-		selection_status
+		_format_compact_day_timer(state)
 	]
-	phase_label.text = "%s · %s" % [phase_label.text, format_day_timer_text(state)]
 	if next_button != null:
 		next_button.text = runtime_control_button_text()
 		next_button.disabled = _run_finished
@@ -4943,6 +7196,10 @@ func _update_problem_cards() -> void:
 		return
 	_clear_children(problem_token_container)
 	_clear_children(problems_container)
+	if int(GameState.get_state().get("card_pack_open_count", 0)) <= 0:
+		problem_token_container.visible = false
+		problems_container.visible = false
+		return
 	var pending_needs := _pending_resident_need_entities()
 	if pending_needs.is_empty():
 		problem_token_container.visible = false
@@ -5550,7 +7807,7 @@ func _ai_failure_reason_label(reason: String) -> String:
 
 
 func _motion_enabled() -> bool:
-	return animation_layer != null and not bool(SettingsManager.get_value("reduce_motion"))
+	return is_inside_tree() and animation_layer != null and not bool(SettingsManager.get_value("reduce_motion"))
 
 
 func _animation_layer_child_count() -> int:
@@ -5812,15 +8069,18 @@ func _make_tutorial_coachmark_bubble(coachmark: Dictionary) -> PanelContainer:
 	bubble.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	bubble.add_theme_stylebox_override("panel", _panel_style(TUTORIAL_BUBBLE_COLOR, TUTORIAL_BUBBLE_BORDER, 14, 2))
 	var margin := MarginContainer.new()
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.add_theme_constant_override("margin_left", 12)
 	margin.add_theme_constant_override("margin_top", 8)
 	margin.add_theme_constant_override("margin_right", 12)
 	margin.add_theme_constant_override("margin_bottom", 8)
 	bubble.add_child(margin)
 	var layout := VBoxContainer.new()
+	layout.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layout.add_theme_constant_override("separation", 3)
 	margin.add_child(layout)
 	var title := Label.new()
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title.text = _compact_tutorial_title(str(coachmark.get("title", "下一步")))
 	title.custom_minimum_size = Vector2(TUTORIAL_BUBBLE_SIZE.x - 24, 22)
 	title.autowrap_mode = TextServer.AUTOWRAP_OFF
@@ -5829,6 +8089,7 @@ func _make_tutorial_coachmark_bubble(coachmark: Dictionary) -> PanelContainer:
 	title.add_theme_color_override("font_color", TUTORIAL_BUBBLE_TEXT_COLOR)
 	layout.add_child(title)
 	var body := Label.new()
+	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	body.text = _compact_tutorial_body(str(coachmark.get("body", TutorialManager.get_active_inline_hint())))
 	body.custom_minimum_size = Vector2(TUTORIAL_BUBBLE_SIZE.x - 24, 18)
 	body.autowrap_mode = TextServer.AUTOWRAP_OFF
@@ -5840,7 +8101,9 @@ func _make_tutorial_coachmark_bubble(coachmark: Dictionary) -> PanelContainer:
 
 
 func _tutorial_bubble_position(target_rect: Rect2, bubble_size: Vector2) -> Vector2:
-	var viewport_rect := get_viewport_rect()
+	var viewport_rect := Rect2(Vector2.ZERO, FIRST_SCREEN_SIZE)
+	if is_inside_tree():
+		viewport_rect = get_viewport_rect()
 	var bubble_position := Vector2(target_rect.position.x, target_rect.end.y + 10)
 	if bubble_position.y + bubble_size.y > viewport_rect.size.y - 12:
 		bubble_position.y = target_rect.position.y - bubble_size.y - 12

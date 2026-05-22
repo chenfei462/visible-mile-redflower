@@ -2,11 +2,92 @@ extends RefCounted
 
 
 const PACK_DEFINITIONS := {
-	"basic_pack": {
-		"display_name": "基础包",
-		"description": "3 张基础物资/建筑许可。",
-		"flower_cost": 1,
+	"starter_pack": {
+		"display_name": "Starter Pack",
+		"description": "Opening resident, resource, material, and collectable funds cards.",
+		"fund_cost": 2,
+		"flower_cost": 0,
+		"card_count": 4,
+		"unlock_day": 1,
+		"unlock_trust": 0,
+		"types": ["resident", "resource_node", "material", "building_permit"],
+		"required_tags": [],
+		"excluded_tags": ["support", "problem"],
+		"guaranteed_card_ids": ["neighbor_helper", "scrap_wood_pile", "lumber_pack", "community_funds"],
+		"rarity_weights": {"common": 75, "uncommon": 20, "rare": 5}
+	},
+	"material_pack": {
+		"display_name": "Material Pack",
+		"description": "3 material cards for tabletop building.",
+		"fund_cost": 2,
+		"flower_cost": 0,
 		"card_count": 3,
+		"unlock_day": 1,
+		"unlock_trust": 0,
+		"types": ["material"],
+		"required_tags": ["material"],
+		"excluded_tags": ["support", "problem"],
+		"rarity_weights": {"common": 70, "uncommon": 25, "rare": 5}
+	},
+	"resident_pack": {
+		"display_name": "Resident Pack",
+		"description": "Resident workers, resource nodes, and community cards for the opening loop.",
+		"fund_cost": 3,
+		"flower_cost": 0,
+		"card_count": 3,
+		"unlock_day": 1,
+		"unlock_trust": 0,
+		"types": ["resident", "resource_node", "material", "building_permit", "facility"],
+		"required_tags": ["resident", "worker", "resource_node", "community", "service"],
+		"excluded_tags": ["problem"],
+		"rarity_weights": {"common": 65, "uncommon": 30, "rare": 5}
+	},
+	"permit_pack": {
+		"display_name": "Permit Pack",
+		"description": "3 building permit cards.",
+		"fund_cost": 3,
+		"flower_cost": 0,
+		"card_count": 3,
+		"unlock_day": 1,
+		"unlock_trust": 0,
+		"types": ["building_permit"],
+		"required_tags": [],
+		"excluded_tags": ["support", "problem"],
+		"rarity_weights": {"common": 65, "uncommon": 30, "rare": 5}
+	},
+	"service_pack": {
+		"display_name": "Service Pack",
+		"description": "Community service cards for care, access, and communication.",
+		"fund_cost": 4,
+		"flower_cost": 0,
+		"card_count": 3,
+		"unlock_day": 6,
+		"unlock_trust": 0,
+		"types": ["material", "building_permit", "facility"],
+		"required_tags": ["service", "care", "community"],
+		"excluded_tags": ["problem"],
+		"rarity_weights": {"common": 55, "uncommon": 35, "rare": 10}
+	},
+	"governance_pack": {
+		"display_name": "Governance Pack",
+		"description": "Late stage governance and organization cards.",
+		"fund_cost": 5,
+		"flower_cost": 0,
+		"card_count": 3,
+		"unlock_day": 11,
+		"unlock_trust": 0,
+		"types": ["material", "building_permit", "facility"],
+		"required_tags": ["organization", "communication", "service"],
+		"excluded_tags": ["problem"],
+		"rarity_weights": {"common": 40, "uncommon": 40, "rare": 20}
+	},
+	"basic_pack": {
+		"display_name": "Basic Pack",
+		"description": "Legacy alias for the starter pack.",
+		"fund_cost": 2,
+		"flower_cost": 0,
+		"card_count": 3,
+		"unlock_day": 1,
 		"unlock_trust": 0,
 		"types": ["material", "building_permit"],
 		"required_tags": [],
@@ -14,21 +95,25 @@ const PACK_DEFINITIONS := {
 		"rarity_weights": {"common": 70, "uncommon": 25, "rare": 5}
 	},
 	"volunteer_pack": {
-		"display_name": "志愿者包",
-		"description": "2 张志愿者相关卡 + 1 张支持卡。",
-		"flower_cost": 2,
+		"display_name": "Volunteer Pack",
+		"description": "Legacy alias for community volunteer cards.",
+		"fund_cost": 3,
+		"flower_cost": 0,
 		"card_count": 3,
+		"unlock_day": 1,
 		"unlock_trust": 0,
-		"types": ["support", "material", "building_permit"],
+		"types": ["material", "building_permit", "facility"],
 		"required_tags": ["volunteer", "community", "service"],
 		"excluded_tags": ["problem"],
 		"rarity_weights": {"common": 60, "uncommon": 30, "rare": 10}
 	},
 	"accessibility_pack": {
-		"display_name": "无障碍包",
-		"description": "3 张无障碍设施/高级材料。",
-		"flower_cost": 3,
+		"display_name": "Accessibility Pack",
+		"description": "Legacy alias for access and care cards.",
+		"fund_cost": 4,
+		"flower_cost": 0,
 		"card_count": 3,
+		"unlock_day": 6,
 		"unlock_trust": 5,
 		"types": ["building_permit", "material", "facility"],
 		"required_tags": ["accessibility", "care", "safety"],
@@ -44,58 +129,75 @@ static func get_pack_definitions() -> Dictionary:
 
 static func can_purchase(state: Dictionary, pack_id: String) -> Dictionary:
 	if not PACK_DEFINITIONS.has(pack_id):
-		return {"can": false, "reason": "未知卡包。"}
+		return {"can": false, "reason": "Unknown pack."}
 	var pack: Dictionary = PACK_DEFINITIONS[pack_id]
-	var cost := int(pack.get("flower_cost", 0))
+	var fund_cost := int(pack.get("fund_cost", 0))
+	var flower_cost := int(pack.get("flower_cost", 0))
+	var day_req := int(pack.get("unlock_day", 1))
 	var trust_req := int(pack.get("unlock_trust", 0))
+	if int(state.get("day_count", 1)) < day_req:
+		return {"can": false, "reason": "Pack unlocks on day %d." % day_req}
 	if int(state.get("trust", 0)) < trust_req:
-		return {"can": false, "reason": "信任未达 %d。" % trust_req}
-	if int(state.get("flowers", 0)) < cost:
-		return {"can": false, "reason": "小红花不足，需要 %d。" % cost}
+		return {"can": false, "reason": "Trust needs %d." % trust_req}
+	if int(state.get("funds", 0)) < fund_cost:
+		return {"can": false, "reason": "Needs %d funds." % fund_cost}
+	if int(state.get("flowers", 0)) < flower_cost:
+		return {"can": false, "reason": "Needs %d flowers." % flower_cost}
 	return {"can": true, "reason": ""}
 
 
 static func open_pack(state: Dictionary, pack_id: String, cards_by_id: Dictionary, rng: RandomNumberGenerator = null) -> Dictionary:
 	var check := can_purchase(state, pack_id)
 	if not bool(check.get("can", false)):
-		return {"success": false, "message": str(check.get("reason", "无法购买卡包。"))}
+		return {"success": false, "message": str(check.get("reason", "Cannot purchase pack."))}
 	if rng == null:
 		rng = RandomNumberGenerator.new()
 		rng.randomize()
 	var pack: Dictionary = PACK_DEFINITIONS[pack_id]
-	var pool: Array = _filter_card_pool(cards_by_id, pack)
+	var pool: Array = _filter_card_pool(cards_by_id, pack, state)
 	if pool.is_empty():
-		return {"success": false, "message": "卡包池为空，请检查数据。"}
-	var cost := int(pack.get("flower_cost", 0))
-	state["flowers"] = int(state.get("flowers", 0)) - cost
+		return {"success": false, "message": "Pack pool is empty."}
+	var fund_cost := int(pack.get("fund_cost", 0))
+	var flower_cost := int(pack.get("flower_cost", 0))
+	state["funds"] = int(state.get("funds", 0)) - fund_cost
+	state["flowers"] = int(state.get("flowers", 0)) - flower_cost
 	var drawn_card_ids: Array[String] = []
 	var rarity_weights: Dictionary = pack.get("rarity_weights", {"common": 100})
 	var count := int(pack.get("card_count", 3))
-	for _i in range(count):
+	for guaranteed_variant in pack.get("guaranteed_card_ids", []):
+		var guaranteed_id := str(guaranteed_variant)
+		if cards_by_id.has(guaranteed_id) and not drawn_card_ids.has(guaranteed_id):
+			drawn_card_ids.append(guaranteed_id)
+	while drawn_card_ids.size() < count:
 		var rarity := _pick_rarity(rarity_weights, rng)
 		var card_id := _pick_from_pool(pool, rarity, rng)
 		if card_id.is_empty():
 			continue
 		drawn_card_ids.append(card_id)
+	state["card_pack_open_count"] = int(state.get("card_pack_open_count", 0)) + 1
 	return {
 		"success": true,
 		"pack_id": pack_id,
 		"pack_name": str(pack.get("display_name", pack_id)),
 		"drawn_card_ids": drawn_card_ids,
-		"flower_cost": cost,
-		"message": "已开包：%s" % str(pack.get("display_name", pack_id))
+		"fund_cost": fund_cost,
+		"flower_cost": flower_cost,
+		"message": "Opened %s" % str(pack.get("display_name", pack_id))
 	}
 
 
-static func _filter_card_pool(cards_by_id: Dictionary, pack: Dictionary) -> Array:
+static func _filter_card_pool(cards_by_id: Dictionary, pack: Dictionary, state: Dictionary = {}) -> Array:
 	var types: Array = pack.get("types", [])
 	var required_tags: Array = pack.get("required_tags", [])
 	var excluded_tags: Array = pack.get("excluded_tags", [])
+	var current_day := int(state.get("day_count", 1))
 	var pool: Array = []
 	for card_id_variant in cards_by_id.keys():
 		var card_def: Dictionary = cards_by_id[card_id_variant]
 		var card_type := str(card_def.get("type", ""))
 		if not types.is_empty() and not types.has(card_type):
+			continue
+		if int(card_def.get("unlock_day", 1)) > current_day:
 			continue
 		var card_tags: Array = card_def.get("tags", [])
 		var excluded_hit := false

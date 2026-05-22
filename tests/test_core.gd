@@ -4,6 +4,7 @@ const BOARD_RULES := preload("res://scripts/core/BoardRules.gd")
 const PROTOTYPE_RULES := preload("res://scripts/core/PrototypeRules.gd")
 const RECIPE_RULES := preload("res://scripts/core/RecipeRules.gd")
 const RESIDENT_SYSTEM := preload("res://scripts/core/ResidentSystem.gd")
+const CARD_PACK_SYSTEM := preload("res://scripts/core/CardPackSystem.gd")
 const PLAYABILITY_DIRECTOR := preload("res://scripts/core/PlayabilityDirector.gd")
 const SAFETY_PANEL := preload("res://scripts/ui/SafetyPanel.gd")
 
@@ -32,6 +33,7 @@ func run(context: Dictionary) -> PackedStringArray:
 	_failures.clear()
 	_context = context
 	_test_json_loading_and_validation()
+	_test_recipe_validation_checks_multi_result_card_ids()
 	_test_live_data_schema_drops_legacy_fields()
 	_test_building_permit_type_and_bulletin_filters()
 	_test_legacy_systems_are_inert()
@@ -89,10 +91,43 @@ func run(context: Dictionary) -> PackedStringArray:
 	_test_card_view_stacklands_title_bar_palette()
 	_test_main_view_tabletop_stack_renders_title_bar_peeks()
 	_test_main_view_dropping_permit_on_material_triggers_build()
+	_test_main_view_places_materials_and_permits_on_tabletop()
+	_test_main_view_resolves_tabletop_card_drop_targets()
+	_test_main_view_tabletop_free_move_preserves_drag_pointer_offset()
+	_test_main_view_tabletop_auto_craft_records_feedback()
+	_test_main_view_tabletop_timed_recipe_waits_before_result()
+	_test_main_view_tabletop_resource_node_production_preserves_worker_and_node()
+	_test_main_view_tabletop_live_resource_node_chain_outputs()
+	_test_main_view_tabletop_facility_production_creates_collectable_funds_cards()
+	_test_main_view_busy_tabletop_stack_rejects_second_action()
+	_test_main_view_invalid_tabletop_stack_keeps_cards_and_records_feedback()
+	_test_main_view_tabletop_auto_craft_uses_instance_ids_for_duplicates()
+	_test_tabletop_controller_state_position_z_snap_and_round_trip()
+	_test_stack_action_controller_success_busy_duplicate_and_multi_result_contract()
+	_test_main_view_tabletop_controller_is_authoritative_for_facade_sync()
+	_test_main_view_controller_states_round_trip_through_save_state()
 	_test_main_view_tasks_panel_lists_recipes_and_goals()
+	_test_card_pack_system_covers_stacklands_demo_pack_roles()
+	_test_card_pack_shop_module_buttons_and_purchase_signal_contract()
+	_test_main_view_card_pack_shop_is_top_entry_and_opens_to_tabletop()
+	_test_main_view_pack_open_places_new_cards_in_safe_tabletop_band()
+	_test_main_view_clean_opening_screen_prioritizes_card_pack_loop()
+	_test_os_click_helper_script_exposes_visible_lookup_contract()
+	_test_main_view_tasks_panel_guides_opening_stacklands_loop()
+	_test_tabletop_economy_rules_sell_values_and_limit_contract()
+	_test_main_view_card_pack_limit_blocks_purchase_and_recovers_after_sell()
+	_test_main_view_sell_tabletop_card_instance_updates_resources_and_preserves_duplicates()
+	_test_main_view_fixed_sell_zone_drop_target_sells_tabletop_card()
+	_test_main_view_sell_zone_highlight_contract()
+	_test_main_view_resident_need_card_resolves_on_tabletop_stack()
+	_test_main_view_demo_rhythm_contract_and_full_smoke_gate()
 	_test_main_view_toolbar_strip_has_four_round_buttons()
 	_test_main_view_defaults_to_live_ui_instead_of_reference_overlay()
-	_test_main_view_wraps_primary_layout_in_a_page_scroll_container()
+	_test_main_view_uses_fixed_stacklands_first_screen()
+	_test_tabletop_drawer_module_state_and_lazy_refresh_contract()
+	_test_main_view_drawers_default_closed_and_open_from_toolbar()
+	_test_main_view_basic_tabletop_organize_groups_idle_cards()
+	_test_main_view_drag_feedback_exposes_stack_snap()
 	_test_main_view_bottom_strip_keeps_panel_border_inside_viewport()
 	_test_window_configuration_is_resizable_and_large_enough()
 	_test_main_view_tetris_rotation_helpers()
@@ -113,6 +148,7 @@ func run(context: Dictionary) -> PackedStringArray:
 	_test_main_view_non_board_drag_does_not_refresh_iso_grid()
 	_test_main_view_craft_drop_uses_light_drag_refresh()
 	_test_main_view_board_place_uses_light_drag_refresh()
+	_test_main_view_light_refresh_facades_avoid_full_ui_rebuild()
 	_test_main_view_land_unlock_and_bulletin_action_contract()
 	_test_main_view_contextual_tutorial_coachmark_contract()
 	_test_tutorial_and_resident_cards_use_dark_text_on_light_surfaces()
@@ -143,13 +179,54 @@ func _test_json_loading_and_validation() -> void:
 	_assert_equal(repository.validation_errors.size(), 0, "data should validate cleanly")
 	for legacy_type: String in ["problem", "support"]:
 		_assert_true(not DataRepository.CARD_TYPES.has(legacy_type), "legacy card type %s should not be accepted" % legacy_type)
+	for production_type: String in ["resident", "resource_node"]:
+		_assert_true(DataRepository.CARD_TYPES.has(production_type), "production card type %s should be accepted" % production_type)
+	var loaded_card_types := {}
 	for card: Dictionary in repository.card_list:
 		var card_type := str(card.get("type", ""))
-		_assert_true(card_type == "facility" or card_type == "building_permit" or card_type == "material", "loaded card %s should use only new tabletop types" % str(card.get("card_id", "")))
+		loaded_card_types[card_type] = true
+		_assert_true(["facility", "building_permit", "material", "resident", "resource_node"].has(card_type), "loaded card %s should use only live tabletop types" % str(card.get("card_id", "")))
 		var material_outputs: Dictionary = card.get("material_outputs", card.get("production_outputs", {}))
 		for material_id_variant in material_outputs.keys():
 			var material_id := str(material_id_variant)
 			_assert_true(repository.cards_by_id.has(material_id), "produced material %s from %s should be defined as a card" % [material_id, str(card.get("card_id", ""))])
+	_assert_true(loaded_card_types.has("resident"), "live tabletop data should include resident worker cards")
+	_assert_true(loaded_card_types.has("resource_node"), "live tabletop data should include resource node cards")
+	_assert_true(repository.cards_by_id.has("neighbor_helper"), "live data should include a starter resident worker")
+	_assert_true(repository.cards_by_id.has("scrap_wood_pile"), "live data should include a starter resource node")
+	_assert_true(repository.cards_by_id.has("community_funds"), "live data should include collectable community funds cards")
+	if repository.cards_by_id.has("community_funds"):
+		var funds_card: Dictionary = repository.cards_by_id.get("community_funds", {})
+		_assert_equal(str(funds_card.get("type", "")), "material", "community funds should reuse the material card type")
+		for funds_tag in ["currency", "funds", "community"]:
+			_assert_true(Array(funds_card.get("tags", [])).has(funds_tag), "community funds card should expose tag %s" % funds_tag)
+	_assert_true(_recipe_exists(repository.recipes, "gather_lumber_from_scrap"), "live recipes should include resident + resource-node material production")
+	_assert_true(_recipe_exists(repository.recipes, "staff_ramp_shift"), "live recipes should include resident + facility funds production")
+
+
+func _test_recipe_validation_checks_multi_result_card_ids() -> void:
+	var repository: Node = load("res://scripts/autoload/DataRepository.gd").new()
+	repository.cards_by_id = {
+		"neighbor_helper": {"type": "resident"},
+		"community_ramp": {"type": "facility"},
+		"community_funds": {"type": "material"}
+	}
+	var recipes: Array[Dictionary] = [{
+		"recipe_id": "invalid_multi_result",
+		"ingredient_card_ids": ["neighbor_helper", "community_ramp"],
+		"result_card_id": "community_funds",
+		"result_card_ids": ["community_funds", "missing_funds_card"],
+		"unlock_day": 1
+	}]
+	repository.recipes = recipes
+	repository.validation_errors.clear()
+	repository.call("_validate_recipes")
+	var found_missing_result_error := false
+	for error in repository.validation_errors:
+		if str(error).contains("missing_funds_card"):
+			found_missing_result_error = true
+			break
+	_assert_true(found_missing_result_error, "recipe validation should reject missing cards listed in result_card_ids")
 
 
 func _test_live_data_schema_drops_legacy_fields() -> void:
@@ -2272,6 +2349,539 @@ func _test_main_view_tasks_panel_lists_recipes_and_goals() -> void:
 	main_view.free()
 
 
+func _test_card_pack_system_covers_stacklands_demo_pack_roles() -> void:
+	var packs: Dictionary = CARD_PACK_SYSTEM.get_pack_definitions()
+	for pack_id in ["starter_pack", "material_pack", "resident_pack", "permit_pack", "service_pack", "governance_pack"]:
+		_assert_true(packs.has(pack_id), "card pack system should define %s" % pack_id)
+	if not packs.has("starter_pack") or not packs.has("material_pack") or not packs.has("permit_pack") or not packs.has("service_pack") or not packs.has("governance_pack"):
+		return
+	_assert_true(int(packs["starter_pack"].get("fund_cost", 99)) <= 4, "starter pack should be affordable from opening funds")
+	_assert_equal(int(packs["starter_pack"].get("flower_cost", 0)), 0, "starter pack should not spend rare flowers for daily pack buying")
+	for guaranteed_id in ["neighbor_helper", "scrap_wood_pile", "lumber_pack", "community_funds"]:
+		_assert_true(Array(packs["starter_pack"].get("guaranteed_card_ids", [])).has(guaranteed_id), "starter pack should guarantee opening card %s" % guaranteed_id)
+	var starter_state := {"funds": 4, "flowers": 3, "day_count": 1, "trust": 0}
+	var starter_result: Dictionary = CARD_PACK_SYSTEM.open_pack(starter_state, "starter_pack", _context.get("data_repository").cards_by_id, RandomNumberGenerator.new())
+	_assert_true(bool(starter_result.get("success", false)), "first starter pack should open from starting funds")
+	var starter_draws: Array = starter_result.get("drawn_card_ids", [])
+	for guaranteed_id in ["neighbor_helper", "scrap_wood_pile", "lumber_pack", "community_funds"]:
+		_assert_true(starter_draws.has(guaranteed_id), "first starter pack draw should include guaranteed card %s" % guaranteed_id)
+	_assert_equal(int(starter_state.get("funds", -1)), 2, "starter pack should spend funds instead of flowers")
+	_assert_equal(int(starter_state.get("flowers", -1)), 3, "starter pack should preserve flowers")
+	_assert_true(Array(packs["material_pack"].get("types", [])).has("material"), "material pack should draw materials")
+	_assert_true(Array(packs["permit_pack"].get("types", [])).has("building_permit"), "permit pack should draw building permits")
+	_assert_true(Array(packs["service_pack"].get("required_tags", [])).has("service"), "service pack should bias service cards")
+	_assert_true(int(packs["governance_pack"].get("unlock_day", 0)) >= 11 or int(packs["governance_pack"].get("unlock_trust", 0)) > 0, "governance pack should be stage gated")
+	var locked_check: Dictionary = CARD_PACK_SYSTEM.can_purchase({"funds": 99, "flowers": 99, "day_count": 1, "trust": 0}, "governance_pack")
+	_assert_true(not bool(locked_check.get("can", true)), "governance pack should not be purchasable on day 1")
+	var unlocked_check: Dictionary = CARD_PACK_SYSTEM.can_purchase({"funds": 99, "flowers": 99, "day_count": 11, "trust": 99}, "governance_pack")
+	_assert_true(bool(unlocked_check.get("can", false)), "governance pack should be purchasable after its stage gate")
+
+
+func _test_main_view_card_pack_shop_is_top_entry_and_opens_to_tabletop() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var state: Dictionary = game_state.get_state()
+	state["flowers"] = 3
+	state["funds"] = 4
+	state["day_count"] = 1
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	_assert_true(main_view.has_node("TopPackShop"), "main view should expose TopPackShop as a named top region")
+	_assert_true(main_view.has_method("get_card_pack_shop_layout_contract"), "main view should expose card pack shop layout contract")
+	if main_view.has_method("get_card_pack_shop_layout_contract"):
+		var contract: Dictionary = main_view.call("get_card_pack_shop_layout_contract")
+		_assert_equal(str(contract.get("region", "")), "TopPackShop", "card pack shop should be the top entry region")
+		_assert_equal(str(contract.get("opens_to", "")), "tabletop", "card pack shop should open packs to the tabletop")
+		_assert_true(Array(contract.get("pack_ids", [])).has("starter_pack"), "top pack shop should include the starter pack")
+		var layout_contract: Dictionary = main_view.call("get_tabletop_first_screen_layout_contract") if main_view.has_method("get_tabletop_first_screen_layout_contract") else {}
+		var pack_rect: Rect2 = layout_contract.get("top_pack_shop_rect", Rect2())
+		var hud_rect: Rect2 = layout_contract.get("hud_rect", Rect2())
+		var playmat_rect: Rect2 = layout_contract.get("playmat_rect", Rect2())
+		_assert_true(pack_rect.size.x >= 760.0 and pack_rect.size.y >= 42.0, "top pack shop should reserve enough first-screen space for visible pack buttons")
+		_assert_true(not pack_rect.intersects(hud_rect), "top pack shop should not overlap the resource HUD")
+		_assert_true(pack_rect.position.y + pack_rect.size.y <= playmat_rect.position.y, "top pack shop should sit above the playmat")
+		_assert_true(int(contract.get("button_count", 0)) >= 4, "top pack shop should create visible pack buttons")
+	_assert_true(main_view.has_method("purchase_card_pack_to_tabletop"), "main view should expose tabletop pack purchase flow")
+	if not main_view.has_method("purchase_card_pack_to_tabletop"):
+		main_view.free()
+		return
+	var before_funds := int(state.get("funds", 0))
+	var before_flowers := int(state.get("flowers", 0))
+	var result: Dictionary = main_view.call("purchase_card_pack_to_tabletop", "starter_pack")
+	_assert_true(bool(result.get("success", false)), "starter pack purchase should succeed")
+	_assert_true(int(state.get("funds", 0)) < before_funds, "starter pack should spend funds")
+	_assert_equal(int(state.get("flowers", 0)), before_flowers, "starter pack should not spend flowers")
+	var drawn: Array = result.get("drawn_card_ids", [])
+	_assert_true(drawn.size() > 0, "starter pack should draw cards")
+	for guaranteed_id in ["neighbor_helper", "scrap_wood_pile", "lumber_pack", "community_funds"]:
+		_assert_true(drawn.has(guaranteed_id), "first top-pack purchase should place guaranteed starter card %s" % guaranteed_id)
+	var ids: Dictionary = main_view.call("get_tabletop_card_ids")
+	_assert_true(ids.size() >= drawn.size(), "opened pack should place drawn cards on the tabletop")
+	for card_id_variant in drawn:
+		_assert_true(ids.values().has(str(card_id_variant)), "tabletop should include opened card %s" % str(card_id_variant))
+	_assert_equal(Array(main_view.get("hand_cards")).size(), 0, "top pack opening should not route primary cards through the hand")
+	main_view.free()
+
+
+func _test_main_view_pack_open_places_new_cards_in_safe_tabletop_band() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var tutorial_progress: Dictionary = game_state.get_tutorial_progress()
+	tutorial_progress["completed_day_minus_one"] = true
+	var state: Dictionary = game_state.get_state()
+	state["flowers"] = 3
+	state["funds"] = 4
+	state["day_count"] = 1
+	state["resident_need_entities"] = [{
+		"need_id": "opening_care_need",
+		"resident_id": "resident_1",
+		"resident_name": "测试居民",
+		"need_tags": ["care", "service"],
+		"service_capacity": 2,
+		"fallback_flower_costs": [1, 2],
+		"status": "pending",
+		"day_created": 1
+	}]
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	var result: Dictionary = main_view.call("purchase_card_pack_to_tabletop", "starter_pack")
+	_assert_true(bool(result.get("success", false)), "starter pack regression setup should succeed")
+	if not bool(result.get("success", false)):
+		main_view.free()
+		return
+	main_view.call("_update_problem_cards")
+	var placed_instance_ids: Array = result.get("placed_instance_ids", [])
+	_assert_equal(placed_instance_ids.size(), 4, "starter pack should place all four guaranteed opening cards on the tabletop")
+	var tabletop_layer: Control = main_view.get("tabletop_layer")
+	_assert_true(tabletop_layer != null, "main view should expose the tabletop layer after building the first screen")
+	if tabletop_layer == null:
+		main_view.free()
+		return
+	var rendered_card_rects := {}
+	for child: Node in tabletop_layer.get_children():
+		if not (child is Control):
+			continue
+		var card_view := child as Control
+		rendered_card_rects[str(card_view.get("card_id"))] = Rect2(card_view.position, card_view.size)
+	var coachmark: Dictionary = main_view.call("get_active_tutorial_coachmark")
+	var bubble_size: Vector2 = Dictionary(main_view.call("get_tutorial_pointer_visual_spec")).get("bubble_size", Vector2.ZERO)
+	var tutorial_target_rect: Rect2 = main_view.call("_tutorial_target_rect", str(coachmark.get("target", "")))
+	var tabletop_origin := tabletop_layer.get_global_rect().position
+	var tutorial_bubble_rect := Rect2()
+	if tutorial_target_rect.size != Vector2.ZERO and bubble_size != Vector2.ZERO:
+		var tutorial_bubble_position: Vector2 = main_view.call("_tutorial_bubble_position", tutorial_target_rect, bubble_size)
+		tutorial_bubble_rect = Rect2(tutorial_bubble_position - tabletop_origin, bubble_size)
+	var sell_zone_rect := Rect2()
+	var sell_zone: Control = main_view.get("sell_drop_zone")
+	if sell_zone != null:
+		var sell_zone_global_rect := sell_zone.get_global_rect()
+		sell_zone_rect = Rect2(sell_zone_global_rect.position - tabletop_origin, sell_zone_global_rect.size)
+	var problem_rect_global: Rect2 = main_view.call("_first_problem_card_rect")
+	var problem_rect := Rect2()
+	if problem_rect_global.size != Vector2.ZERO:
+		problem_rect = Rect2(problem_rect_global.position - tabletop_origin, problem_rect_global.size)
+	var play_area: Vector2 = main_view.call("_tabletop_play_area_size")
+	var previous_rects: Array[Rect2] = []
+	for card_id_variant in result.get("drawn_card_ids", []):
+		var card_id := str(card_id_variant)
+		_assert_true(rendered_card_rects.has(card_id), "rendered tabletop cards should include opened starter card %s" % card_id)
+		if not rendered_card_rects.has(card_id):
+			continue
+		var card_rect: Rect2 = rendered_card_rects.get(card_id, Rect2())
+		_assert_true(card_rect.position.y < play_area.y * 0.45, "opened starter card %s should stay in the upper tabletop safe band" % card_id)
+		_assert_true(card_rect.end.y <= play_area.y * 0.55, "opened starter card %s should not drift into the lower demand zone" % card_id)
+		if sell_zone_rect.size != Vector2.ZERO:
+			_assert_true(not card_rect.intersects(sell_zone_rect), "opened starter card %s should avoid the sell-zone overlay" % card_id)
+		if tutorial_bubble_rect.size != Vector2.ZERO:
+			_assert_true(not card_rect.intersects(tutorial_bubble_rect), "opened starter card %s should avoid the tutorial coachmark bubble" % card_id)
+		if problem_rect.size != Vector2.ZERO:
+			_assert_true(not card_rect.intersects(problem_rect), "opened starter card %s should avoid the resident-need card region" % card_id)
+		for previous_rect: Rect2 in previous_rects:
+			_assert_true(not card_rect.intersects(previous_rect), "opened starter cards should not overlap each other after pack expansion")
+		previous_rects.append(card_rect)
+	main_view.free()
+
+
+func _test_main_view_clean_opening_screen_prioritizes_card_pack_loop() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var state: Dictionary = game_state.get_state()
+	state["resident_need_entities"] = [{
+		"need_id": "opening_noise_need",
+		"resident_id": "resident_1",
+		"resident_name": "测试居民",
+		"need_tags": ["care"],
+		"service_capacity": 2,
+		"fallback_flower_costs": [1, 2],
+		"status": "pending",
+		"day_created": 1
+	}]
+	state["card_pack_open_count"] = 0
+	var progress: Dictionary = game_state.get_tutorial_progress()
+	progress["completed_day_minus_one"] = true
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	main_view.call("_update_problem_cards")
+	var demand_views: Array = main_view.get("problem_card_views")
+	_assert_equal(demand_views.size(), 0, "opening screen should not render resident demand cards before the first pack loop")
+	var lines: PackedStringArray = main_view.call("get_tasks_panel_lines")
+	var objectives: Array = main_view.call("get_tasks_panel_objectives")
+	_assert_equal(lines.size(), objectives.size(), "opening task panel should show only the focused task chain, not append a recipe dump")
+	var coachmark: Dictionary = main_view.call("get_active_tutorial_coachmark")
+	_assert_equal(str(coachmark.get("target", "")), "card_pack", "opening coachmark should point to the top card pack shop before any pack is opened")
+	main_view.free()
+
+
+func _test_main_view_tasks_panel_guides_opening_stacklands_loop() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	_assert_true(main_view.has_method("get_tasks_panel_objectives"), "main view should expose structured task panel objectives")
+	if not main_view.has_method("get_tasks_panel_objectives"):
+		main_view.free()
+		return
+	var objectives: Array = main_view.call("get_tasks_panel_objectives")
+	var objective_ids := {}
+	var locked_count := 0
+	var current_count := 0
+	for objective_variant in objectives:
+		if typeof(objective_variant) != TYPE_DICTIONARY:
+			continue
+		var objective: Dictionary = objective_variant
+		objective_ids[str(objective.get("id", ""))] = true
+		if not bool(objective.get("unlocked", false)):
+			locked_count += 1
+		if bool(objective.get("current", false)):
+			current_count += 1
+	for task_id in ["buy_pack", "assign_resident", "collect_funds", "buy_next_pack", "build_facility", "handle_resident_need"]:
+		_assert_true(objective_ids.has(task_id), "tasks panel should guide opening task %s" % task_id)
+	_assert_true(locked_count > 0, "opening tasks should lock later steps until prerequisites are met")
+	_assert_equal(current_count, 1, "opening tasks should expose one current step")
+	var state: Dictionary = game_state.get_state()
+	state["card_pack_open_count"] = 1
+	state["collected_tabletop_funds"] = 1
+	main_view.set("last_tabletop_craft_feedback", {"success": true, "recipe_id": "gather_lumber_from_scrap", "result_card_id": "lumber_pack"})
+	main_view.set("tabletop_card_ids", {
+		"resident:1": "neighbor_helper",
+		"node:1": "scrap_wood_pile",
+		"mat:1": "lumber_pack",
+		"funds:1": "community_funds"
+	})
+	var progressed: Array = main_view.call("get_tasks_panel_objectives")
+	_assert_true(_objective_completed(progressed, "buy_pack"), "opening tasks should mark pack buying complete after the first pack")
+	_assert_true(_objective_completed(progressed, "assign_resident"), "opening tasks should mark resident assignment complete after a tabletop production")
+	_assert_true(_objective_completed(progressed, "collect_funds"), "opening tasks should mark funds collection complete after collecting a funds card")
+	_assert_true(_objective_unlocked(progressed, "buy_next_pack"), "opening tasks should unlock the second pack step after collecting funds")
+	main_view.free()
+
+
+func _test_main_view_tasks_panel_facility_row_click_toggles_selection_feedback() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	var helper_script: Script = load("res://tests/helpers/os_click_helpers.gd")
+	var helper: RefCounted = helper_script.new()
+	var entries: Array[Dictionary] = main_view.call("_build_facility_recipe_entries")
+	_assert_true(not entries.is_empty(), "facility recipe entries should exist for the left sidebar")
+	if entries.is_empty():
+		main_view.free()
+		return
+	var facility_buttons: Array[Button] = _buttons_named(main_view, "FacilityRow")
+	_assert_equal(facility_buttons.size(), entries.size(), "left sidebar should expose one probe-visible FacilityRow button per facility entry")
+	var first_label := str(entries[0].get("label", ""))
+	var first_button: Button = helper.call("find_visible_button_containing", main_view, first_label)
+	_assert_true(first_button != null, "left sidebar should expose a visible FacilityRow button for the first facility entry")
+	if first_button == null:
+		main_view.free()
+		return
+	var initial_pressed := bool(first_button.button_pressed)
+	var initial_style: StyleBoxFlat = first_button.get_theme_stylebox("normal") as StyleBoxFlat
+	if initial_style != null:
+		var initial_border_width := int(initial_style.border_width_left)
+		var target_rect: Rect2 = first_button.get_global_rect()
+		_assert_true(target_rect.size.x > 0.0 and target_rect.size.y > 0.0, "facility row button should have a visible clickable rect")
+		first_button.emit_signal("pressed")
+		var selected_style: StyleBoxFlat = first_button.get_theme_stylebox("normal") as StyleBoxFlat
+		_assert_true(bool(first_button.button_pressed) != initial_pressed, "clicking a facility row should toggle its pressed state")
+		_assert_true(selected_style != null, "selected facility row should keep a theme stylebox")
+		if selected_style != null:
+			_assert_true(int(selected_style.border_width_left) >= initial_border_width, "selected facility row should become visually stronger than the unselected row")
+	else:
+		first_button.emit_signal("pressed")
+		_assert_true(bool(first_button.button_pressed) != initial_pressed, "clicking a facility row should toggle its pressed state")
+	main_view.free()
+
+
+func _buttons_named(node: Node, target_name: String) -> Array[Button]:
+	var result: Array[Button] = []
+	_collect_buttons_named(node, target_name, result)
+	return result
+
+
+func _collect_buttons_named(node: Node, target_name: String, result: Array[Button]) -> void:
+	if node is Button and str(node.name) == target_name:
+		result.append(node as Button)
+	for child: Node in node.get_children():
+		_collect_buttons_named(child, target_name, result)
+
+
+func _test_tabletop_economy_rules_sell_values_and_limit_contract() -> void:
+	var script: Script = load("res://scripts/core/TabletopEconomyRules.gd")
+	_assert_true(script != null, "TabletopEconomyRules script should exist")
+	if script == null:
+		return
+	_assert_true(script.has_method("sell_value_for_card"), "TabletopEconomyRules should expose sell_value_for_card")
+	_assert_true(script.has_method("card_limit_for_state"), "TabletopEconomyRules should expose card_limit_for_state")
+	_assert_true(script.has_method("economy_state"), "TabletopEconomyRules should expose economy_state")
+	var material_value: Dictionary = script.call("sell_value_for_card", {"card_id": "lumber_pack", "type": "material", "rarity": "common"})
+	var facility_value: Dictionary = script.call("sell_value_for_card", {"card_id": "community_ramp", "type": "facility", "rarity": "common"})
+	_assert_true(int(material_value.get("funds", 0)) >= 1, "common material cards should sell for at least one fund")
+	_assert_true(int(facility_value.get("funds", 0)) > int(material_value.get("funds", 0)), "facility cards should sell for more funds than basic materials")
+	var rare_value: Dictionary = script.call("sell_value_for_card", {"card_id": "rare_test", "type": "facility", "rarity": "rare"})
+	_assert_true(int(rare_value.get("flowers", 0)) >= 1, "rare tabletop cards should return at least one flower")
+	var economy_state: Dictionary = script.call("economy_state", {"funds": 5, "flowers": 2, "trust": 0}, 4)
+	_assert_equal(int(economy_state.get("funds", 0)), 5, "economy state should expose funds")
+	_assert_equal(int(economy_state.get("flowers", 0)), 2, "economy state should expose flowers")
+	_assert_equal(int(economy_state.get("card_count", 0)), 4, "economy state should expose tabletop card count")
+	_assert_true(int(economy_state.get("card_limit", 0)) >= 20, "opening tabletop card limit should be at least 20")
+	_assert_true(bool(economy_state.get("can_open_card_pack", false)), "economy state should allow pack opening below the card limit")
+	var limited_state: Dictionary = script.call("economy_state", {"funds": 5, "flowers": 2, "trust": 0}, int(economy_state.get("card_limit", 0)))
+	_assert_true(bool(limited_state.get("card_limit_reached", false)), "economy state should flag the tabletop card limit")
+	_assert_true(not bool(limited_state.get("can_open_card_pack", true)), "economy state should block pack opening at the card limit")
+	_assert_equal(str(limited_state.get("pack_limit_reason", "")), "tabletop_card_limit_reached", "economy state should expose a stable pack limit reason")
+
+
+func _test_main_view_card_pack_limit_blocks_purchase_and_recovers_after_sell() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var state: Dictionary = game_state.get_state()
+	state["flowers"] = 5
+	state["funds"] = 5
+	state["day_count"] = 1
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	var initial_economy: Dictionary = main_view.call("get_tabletop_economy_state")
+	var limit := int(initial_economy.get("card_limit", 20))
+	var ids := {}
+	var positions := {}
+	var z_order := {}
+	for i: int in range(limit):
+		var instance_id := "mat:%d" % i
+		ids[instance_id] = "lumber_pack"
+		positions[instance_id] = Vector2(12 + i, 18 + i)
+		z_order[instance_id] = i + 1
+	main_view.set("tabletop_card_ids", ids)
+	main_view.set("tabletop_card_positions", positions)
+	main_view.set("tabletop_card_z", z_order)
+	var capped_economy: Dictionary = main_view.call("get_tabletop_economy_state")
+	_assert_true(bool(capped_economy.get("card_limit_reached", false)), "main view economy should flag the card limit")
+	_assert_true(not bool(capped_economy.get("can_open_card_pack", true)), "main view economy should block packs at the card limit")
+	var blocked: Dictionary = main_view.call("purchase_card_pack_to_tabletop", "starter_pack")
+	_assert_true(not bool(blocked.get("success", true)), "pack purchase should fail when the tabletop is at the card limit")
+	_assert_equal(str(blocked.get("reason", "")), "tabletop_card_limit_reached", "blocked pack purchase should expose the card limit reason")
+	_assert_equal(int(state.get("flowers", 0)), 5, "blocked pack purchase should not spend flowers")
+	_assert_equal(int(state.get("funds", 0)), 5, "blocked pack purchase should not spend funds")
+	var sold: Dictionary = main_view.call("sell_tabletop_card_instance", "mat:0")
+	_assert_true(bool(sold.get("success", false)), "selling a card should recover one tabletop slot")
+	var recovered_economy: Dictionary = main_view.call("get_tabletop_economy_state")
+	_assert_true(bool(recovered_economy.get("can_open_card_pack", false)), "pack opening should recover after selling below the card limit")
+	main_view.free()
+
+
+func _test_main_view_sell_tabletop_card_instance_updates_resources_and_preserves_duplicates() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var state: Dictionary = game_state.get_state()
+	state["funds"] = 0
+	state["flowers"] = 0
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.set("tabletop_card_ids", {"mat:a": "lumber_pack", "mat:b": "lumber_pack", "facility:a": "community_ramp"})
+	main_view.set("tabletop_card_positions", {"mat:a": Vector2(40, 40), "mat:b": Vector2(90, 40), "facility:a": Vector2(160, 40)})
+	main_view.set("tabletop_card_z", {"mat:a": 1, "mat:b": 2, "facility:a": 3})
+	_assert_true(main_view.has_method("sell_tabletop_card_instance"), "main view should expose tabletop instance selling")
+	_assert_true(main_view.has_method("get_tabletop_economy_state"), "main view should expose tabletop economy state")
+	if not main_view.has_method("sell_tabletop_card_instance"):
+		main_view.free()
+		return
+	var before_counters: Dictionary = main_view.call("get_refresh_counters") if main_view.has_method("get_refresh_counters") else {}
+	var result: Dictionary = main_view.call("sell_tabletop_card_instance", "mat:a")
+	_assert_true(bool(result.get("success", false)), "selling a tabletop card instance should succeed")
+	_assert_equal(str(result.get("card_id", "")), "lumber_pack", "sell result should report the sold card id")
+	_assert_true(int(result.get("funds", 0)) >= 1, "selling a material should award funds")
+	var ids: Dictionary = main_view.call("get_tabletop_card_ids")
+	_assert_true(not ids.has("mat:a"), "sold instance should leave the tabletop")
+	_assert_equal(str(ids.get("mat:b", "")), "lumber_pack", "selling one duplicate should preserve the other duplicate instance")
+	_assert_true(int(state.get("funds", 0)) >= int(result.get("funds", 0)), "selling should add funds to the community state")
+	var economy_state: Dictionary = main_view.call("get_tabletop_economy_state")
+	_assert_equal(int(economy_state.get("card_count", 0)), ids.size(), "economy state should track remaining tabletop card count")
+	var after_counters: Dictionary = main_view.call("get_refresh_counters") if main_view.has_method("get_refresh_counters") else {}
+	if not before_counters.is_empty() and not after_counters.is_empty():
+		_assert_equal(int(after_counters.get("full", 0)), int(before_counters.get("full", 0)), "selling should not trigger a full UI rebuild")
+		_assert_true(int(after_counters.get("tabletop", 0)) > int(before_counters.get("tabletop", 0)), "selling should refresh the tabletop locally")
+		_assert_true(int(after_counters.get("resources", 0)) > int(before_counters.get("resources", 0)), "selling should refresh resources locally")
+	main_view.free()
+
+
+func _test_main_view_fixed_sell_zone_drop_target_sells_tabletop_card() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var state: Dictionary = game_state.get_state()
+	state["funds"] = 0
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	_assert_true(main_view.has_node("SellDropZone"), "first screen should expose a fixed sell drop zone")
+	_assert_true(main_view.has_method("get_sell_zone_contract"), "main view should expose sell zone contract")
+	if main_view.has_method("get_sell_zone_contract"):
+		var contract: Dictionary = main_view.call("get_sell_zone_contract")
+		_assert_equal(str(contract.get("type", "")), "sell_zone", "sell zone contract should use a stable type")
+		_assert_true(bool(contract.get("fixed", false)), "sell zone should be a fixed tabletop target")
+	main_view.set("tabletop_card_ids", {"mat:a": "lumber_pack"})
+	main_view.set("tabletop_card_positions", {"mat:a": Vector2(40, 40)})
+	main_view.set("tabletop_card_z", {"mat:a": 1})
+	main_view.set("is_dragging", true)
+	main_view.set("drag_source_zone", "tabletop")
+	main_view.set("drag_source_index", 0)
+	main_view.set("drag_card_id", "lumber_pack")
+	main_view.set("drag_tabletop_instance_id", "mat:a")
+	var sell_zone: Control = main_view.get_node("SellDropZone")
+	var drop_position := sell_zone.get_global_rect().get_center()
+	var target: Dictionary = main_view.call("_resolve_drop_target", drop_position)
+	_assert_equal(str(target.get("type", "")), "sell_zone", "dropping a tabletop card over the fixed zone should resolve to sell_zone")
+	var handled: bool = bool(main_view.call("_drop_from_tabletop", target))
+	_assert_true(handled, "tabletop drop handler should handle the sell zone")
+	var ids: Dictionary = main_view.call("get_tabletop_card_ids")
+	_assert_true(not ids.has("mat:a"), "sell zone drop should remove the dragged tabletop instance")
+	_assert_true(int(state.get("funds", 0)) >= 1, "sell zone drop should award funds")
+	main_view.free()
+
+
+func _test_main_view_sell_zone_highlight_contract() -> void:
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	_assert_true(main_view.has_method("preview_sell_zone_drop"), "main view should expose sell zone drop preview")
+	_assert_true(main_view.has_method("get_sell_zone_feedback_state"), "main view should expose sell zone feedback state")
+	if not main_view.has_method("preview_sell_zone_drop") or not main_view.has_method("get_sell_zone_feedback_state"):
+		main_view.free()
+		return
+	var sell_zone: Control = main_view.get_node("SellDropZone")
+	main_view.set("tabletop_card_ids", {"mat:a": "lumber_pack"})
+	main_view.set("tabletop_card_positions", {"mat:a": Vector2(40, 40)})
+	main_view.set("tabletop_card_z", {"mat:a": 1})
+	var preview: Dictionary = main_view.call("preview_sell_zone_drop", "mat:a", sell_zone.get_global_rect().get_center())
+	_assert_true(bool(preview.get("visible", false)), "sell zone preview should become visible over the sell zone")
+	_assert_true(bool(preview.get("can_sell", false)), "sell zone preview should allow sellable tabletop cards")
+	_assert_equal(str(preview.get("feedback", "")), "sell_zone_highlight", "sell zone preview should expose a stable highlight code")
+	var state: Dictionary = main_view.call("get_sell_zone_feedback_state")
+	_assert_equal(str(state.get("target", "")), "sell_zone", "sell zone feedback should remember its target")
+	_assert_equal(str(state.get("instance_id", "")), "mat:a", "sell zone feedback should remember the candidate card")
+	var away: Dictionary = main_view.call("preview_sell_zone_drop", "mat:a", Vector2(-40, -40))
+	_assert_true(not bool(away.get("visible", true)), "sell zone preview should hide away from the sell zone")
+	main_view.free()
+
+
+func _test_main_view_resident_need_card_resolves_on_tabletop_stack() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var state: Dictionary = game_state.get_state()
+	state["resident_need_entities"] = [{
+		"need_id": "need_1",
+		"resident_id": "resident_1",
+		"resident_name": "Test Resident",
+		"need_tags": ["care", "service"],
+		"service_capacity": 2,
+		"fallback_flower_costs": [1, 2],
+		"status": "pending",
+		"day_created": 1
+	}]
+	state["resident_need_queue"] = state["resident_need_entities"].duplicate(true)
+	state["daily_need_queue"] = state["resident_need_entities"].duplicate(true)
+	state["built_facilities"] = [{
+		"instance_id": "care_station:tabletop_test",
+		"card_id": "care_station",
+		"cell_index": -1,
+		"root_cell": -1,
+		"occupied_cells": [],
+		"source": "tabletop_test"
+	}]
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	_assert_true(main_view.has_method("place_resident_need_on_tabletop"), "main view should place resident need cards on the tabletop")
+	if not main_view.has_method("place_resident_need_on_tabletop"):
+		main_view.free()
+		return
+	main_view.set("tabletop_card_ids", {"facility:1": "care_station"})
+	main_view.set("tabletop_card_positions", {"facility:1": Vector2(160, 120)})
+	main_view.set("tabletop_card_z", {"facility:1": 1})
+	var placed_need: Dictionary = main_view.call("place_resident_need_on_tabletop", "need_1", Vector2(168, 138))
+	_assert_true(bool(placed_need.get("success", false)), "resident need card should be placeable on the tabletop")
+	var need_instance_id := str(placed_need.get("instance_id", ""))
+	_assert_true(not need_instance_id.is_empty(), "placed resident need should return a tabletop instance id")
+	var ids: Dictionary = main_view.call("get_tabletop_card_ids")
+	_assert_equal(str(ids.get(need_instance_id, "")), "demand_need_1", "tabletop need instance should use a stable demand card id")
+	var resolved: Dictionary = main_view.call("drop_tabletop_card_instances_on", need_instance_id, "facility:1")
+	_assert_true(bool(resolved.get("success", false)), "stacking a need card on a matching facility should resolve the need")
+	_assert_equal(str(resolved.get("message", "")), "resident_need_resolved", "tabletop need stack should report a stable success code")
+	_assert_equal(str(state.get("resident_need_entities", [])[0].get("status", "")), "resolved", "tabletop stack should mark the resident need resolved")
+	var after_ids: Dictionary = main_view.call("get_tabletop_card_ids")
+	_assert_true(not after_ids.has(need_instance_id), "resolved resident need card should leave the tabletop")
+	_assert_equal(str(after_ids.get("facility:1", "")), "care_station", "resolving a need should preserve the service facility card")
+	main_view.free()
+
+
+func _test_main_view_demo_rhythm_contract_and_full_smoke_gate() -> void:
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	_assert_true(main_view.has_method("get_demo_rhythm_contract"), "main view should expose a structured 45-60 minute demo rhythm contract")
+	if main_view.has_method("get_demo_rhythm_contract"):
+		var contract: Dictionary = main_view.call("get_demo_rhythm_contract")
+		_assert_equal(str(contract.get("target_duration_minutes", "")), "45-60", "demo rhythm should keep the target play length explicit")
+		var stages: Array = contract.get("stages", [])
+		_assert_equal(stages.size(), 3, "demo rhythm should split content into opening, midgame, and lategame stages")
+		var stages_by_id := {}
+		for stage_variant in stages:
+			if typeof(stage_variant) != TYPE_DICTIONARY:
+				continue
+			var stage: Dictionary = stage_variant
+			var stage_id := str(stage.get("id", ""))
+			stages_by_id[stage_id] = stage
+			_assert_true(not Array(stage.get("pack_ids", [])).is_empty(), "demo stage %s should name card pack pools" % stage_id)
+			_assert_true(not Array(stage.get("task_ids", [])).is_empty(), "demo stage %s should name task-line beats" % stage_id)
+			_assert_true(not Array(stage.get("unlock_conditions", [])).is_empty(), "demo stage %s should name unlock conditions" % stage_id)
+		for required_stage_id in ["opening", "midgame", "lategame"]:
+			_assert_true(stages_by_id.has(required_stage_id), "demo rhythm should include stage %s" % required_stage_id)
+		if stages_by_id.has("opening"):
+			_assert_true(Array(stages_by_id["opening"].get("pack_ids", [])).has("starter_pack"), "opening stage should start from the starter pack")
+			_assert_true(Array(stages_by_id["opening"].get("task_ids", [])).has("build_ramp"), "opening stage should include the first build route")
+		if stages_by_id.has("midgame"):
+			_assert_true(Array(stages_by_id["midgame"].get("pack_ids", [])).has("service_pack"), "midgame stage should introduce service packs")
+			_assert_true(Array(stages_by_id["midgame"].get("task_ids", [])).has("multiple_resident_needs"), "midgame stage should escalate resident needs")
+		if stages_by_id.has("lategame"):
+			_assert_true(Array(stages_by_id["lategame"].get("pack_ids", [])).has("governance_pack"), "lategame stage should unlock governance packs")
+			_assert_true(Array(stages_by_id["lategame"].get("task_ids", [])).has("complete_demo_route"), "lategame stage should expose a clear finish route")
+		var smoke_routes: Array = contract.get("smoke_routes", [])
+		_assert_true(smoke_routes.has("first_10_minutes_smoke"), "demo rhythm should retain the opening smoke route")
+		_assert_true(smoke_routes.has("full_game_smoke"), "demo rhythm should retain a complete demo smoke route")
+		var persistent_features: Array = contract.get("persistent_features", [])
+		for feature_id in ["save", "settings", "audio", "accessibility", "steam_mock", "local_fallback"]:
+			_assert_true(persistent_features.has(feature_id), "demo rhythm should retain %s support" % feature_id)
+	main_view.free()
+	var run_tests_file := FileAccess.open("res://run_tests.bat", FileAccess.READ)
+	_assert_true(run_tests_file != null, "run_tests.bat should be readable for smoke gate checks")
+	if run_tests_file != null:
+		var run_tests_text := run_tests_file.get_as_text()
+		_assert_true(run_tests_text.contains("tests/full_game_smoke.gd"), "run_tests.bat should include the full demo smoke gate")
+
+
 func _test_main_view_toolbar_strip_has_four_round_buttons() -> void:
 	var main_scene: PackedScene = load("res://scenes/Main.tscn")
 	var main_view: Control = main_scene.instantiate()
@@ -2322,6 +2932,756 @@ func _test_main_view_dropping_permit_on_material_triggers_build() -> void:
 			has_ramp = true
 	_assert_true(has_ramp, "built_facilities should record the newly crafted community_ramp")
 	main_view.free()
+
+
+func _test_main_view_places_materials_and_permits_on_tabletop() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.set_hand_cards_state(["ramp_blueprint", "lumber_pack"], ["bulletin_free", "bulletin_free"], [0, 0])
+	var permit_result: Dictionary = main_view.call("place_hand_card_on_tabletop", 0, Vector2(80, 90))
+	_assert_true(bool(permit_result.get("success", false)), "building permits should be placeable on the central tabletop")
+	var material_result: Dictionary = main_view.call("place_hand_card_on_tabletop", 0, Vector2(150, 96))
+	_assert_true(bool(material_result.get("success", false)), "materials should be placeable on the central tabletop")
+	_assert_equal(Array(main_view.get("hand_cards")).size(), 0, "placing permit and material should remove both cards from hand")
+	var ids: Dictionary = main_view.call("get_tabletop_card_ids")
+	_assert_true(ids.values().has("ramp_blueprint"), "tabletop ids should include the placed building permit")
+	_assert_true(ids.values().has("lumber_pack"), "tabletop ids should include the placed material")
+	main_view.free()
+
+
+func _test_main_view_resolves_tabletop_card_drop_targets() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	main_view.set("tabletop_card_ids", {"perm:1": "ramp_blueprint"})
+	main_view.set("tabletop_card_positions", {"perm:1": Vector2(140, 96)})
+	main_view.set("tabletop_card_z", {"perm:1": 1})
+	main_view.set("drag_card_id", "lumber_pack")
+	main_view.set("drag_source_zone", "hand")
+	main_view.set("drag_source_index", 0)
+	main_view.set("is_dragging", true)
+	var board_panel: Control = main_view.get("board_panel")
+	_assert_true(board_panel != null, "main view should expose the tabletop panel for target resolution")
+	if board_panel == null:
+		main_view.free()
+		return
+	board_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	board_panel.global_position = Vector2(100, 80)
+	board_panel.size = Vector2(520, 320)
+	var target: Dictionary = main_view.call("_resolve_drop_target", board_panel.global_position + Vector2(150, 110))
+	_assert_equal(str(target.get("type", "")), "tabletop_card", "dropping over an existing tabletop card should resolve to a card stack target")
+	_assert_equal(str(target.get("target_instance_id", "")), "perm:1", "tabletop card target should expose the hit instance id")
+	main_view.free()
+
+
+func _test_main_view_tabletop_free_move_preserves_drag_pointer_offset() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	main_view.set("tabletop_card_ids", {
+		"perm:1": "ramp_blueprint",
+		"mat:1": "lumber_pack"
+	})
+	main_view.set("tabletop_card_positions", {
+		"perm:1": Vector2(120, 80),
+		"mat:1": Vector2(280, 80)
+	})
+	main_view.set("tabletop_card_z", {"perm:1": 1, "mat:1": 2})
+	main_view.set("is_dragging", true)
+	main_view.set("drag_source_zone", "tabletop")
+	main_view.set("drag_source_index", 0)
+	main_view.set("drag_card_id", "ramp_blueprint")
+	main_view.set("drag_tabletop_instance_id", "perm:1")
+	main_view.set("drag_pointer_offset", Vector2(29, 47))
+	var board_panel: Control = main_view.get("board_panel")
+	_assert_true(board_panel != null, "main view should expose the tabletop panel for free tabletop movement")
+	if board_panel == null:
+		main_view.free()
+		return
+	var desired_local_position := Vector2(40, 180)
+	var drop_position := board_panel.get_global_rect().position + desired_local_position + Vector2(29, 47)
+	var target: Dictionary = main_view.call("_resolve_drop_target", drop_position)
+	_assert_equal(str(target.get("type", "")), "tabletop", "dropping a tabletop card on blank space should stay a free tabletop move")
+	_assert_equal(target.get("position", Vector2.ZERO), desired_local_position, "free tabletop moves should preserve the grabbed pointer offset when resolving the drop position")
+	var handled: bool = bool(main_view.call("_drop_from_tabletop", target))
+	_assert_true(handled, "tabletop drop handler should handle free tabletop moves")
+	var positions: Dictionary = main_view.call("get_tabletop_card_positions")
+	_assert_equal(positions.get("perm:1", Vector2.ZERO), desired_local_position, "free tabletop moves should keep the released card at the intended blank-space position")
+	main_view.free()
+
+
+func _test_main_view_tabletop_auto_craft_records_feedback() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.set_hand_cards_state(["ramp_blueprint", "lumber_pack"], ["bulletin_free", "bulletin_free"], [0, 0])
+	var placed_permit: Dictionary = main_view.call("place_hand_card_on_tabletop", 0, Vector2(120, 140))
+	_assert_true(bool(placed_permit.get("success", false)), "starter permit should be placeable before tabletop auto-craft")
+	main_view.set("drag_card_id", "lumber_pack")
+	main_view.set("drag_source_zone", "hand")
+	main_view.set("drag_source_index", 0)
+	main_view.set("is_dragging", true)
+	var crafted: bool = bool(main_view.call("_drop_from_hand", {
+		"type": "tabletop_card",
+		"target_instance_id": str(placed_permit.get("instance_id", "")),
+		"position": Vector2(126, 148)
+	}))
+	_assert_true(crafted, "dropping a matching hand card on a tabletop card should perform an action")
+	var ids: Dictionary = main_view.call("get_tabletop_card_ids")
+	_assert_equal(ids.size(), 1, "auto-craft should replace two input tabletop cards with one result card")
+	_assert_true(ids.values().has("community_ramp"), "auto-craft should leave the crafted facility on the central tabletop")
+	var feedback: Dictionary = main_view.call("get_last_tabletop_craft_feedback")
+	_assert_true(bool(feedback.get("success", false)), "auto-craft should record successful feedback")
+	_assert_equal(str(feedback.get("recipe_id", "")), "build_ramp", "auto-craft feedback should record the matched recipe")
+	_assert_equal(str(feedback.get("result_card_id", "")), "community_ramp", "auto-craft feedback should record the result card")
+	var built: Array = game_state.get_state().get("built_facilities", [])
+	_assert_true(_built_facilities_contains_card(built, "community_ramp", -1), "tabletop auto-crafted facilities should be recorded with cell_index -1")
+	main_view.free()
+
+
+func _test_main_view_tabletop_timed_recipe_waits_before_result() -> void:
+	var game_state: Node = _context.get("game_state")
+	var repository: Node = _context.get("data_repository")
+	game_state.reset_state()
+	var original_recipes: Array[Dictionary] = repository.recipes.duplicate(true)
+	var timed_recipes: Array[Dictionary] = original_recipes.duplicate(true)
+	var timed_recipe: Dictionary = {}
+	for recipe: Dictionary in timed_recipes:
+		if str(recipe.get("recipe_id", "")) == "build_ramp":
+			timed_recipe = recipe.duplicate(true)
+			break
+	_assert_true(not timed_recipe.is_empty(), "timed recipe test requires the starter ramp recipe")
+	if timed_recipe.is_empty():
+		return
+	timed_recipe["recipe_id"] = "timed_build_ramp"
+	timed_recipe["time_cost_sec"] = 0.1
+	timed_recipes.push_front(timed_recipe)
+	repository.recipes = timed_recipes
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.set_hand_cards_state(["ramp_blueprint", "lumber_pack"], ["bulletin_free", "bulletin_free"], [0, 0])
+	var placed_permit: Dictionary = main_view.call("place_hand_card_on_tabletop", 0, Vector2(120, 140))
+	main_view.set("drag_card_id", "lumber_pack")
+	main_view.set("drag_source_zone", "hand")
+	main_view.set("drag_source_index", 0)
+	main_view.set("is_dragging", true)
+	var started: bool = bool(main_view.call("_drop_from_hand", {
+		"type": "tabletop_card",
+		"target_instance_id": str(placed_permit.get("instance_id", "")),
+		"position": Vector2(126, 148)
+	}))
+	var ids_before_finish: Dictionary = main_view.call("get_tabletop_card_ids")
+	_assert_true(started, "dropping a timed recipe pair should start a tabletop action")
+	_assert_equal(ids_before_finish.size(), 2, "timed tabletop recipes should keep input cards visible until the progress completes")
+	var feedback_before_finish: Dictionary = main_view.call("get_last_tabletop_craft_feedback")
+	_assert_equal(str(feedback_before_finish.get("message", "")), "tabletop_craft_in_progress", "timed tabletop feedback should expose an in-progress state")
+	_assert_true(main_view.has_method("get_tabletop_stack_progress_state"), "main view should expose tabletop stack progress state")
+	if main_view.has_method("get_tabletop_stack_progress_state"):
+		var progress_before_finish: Dictionary = main_view.call("get_tabletop_stack_progress_state")
+		_assert_true(bool(progress_before_finish.get("pending", false)), "timed tabletop progress should be pending before completion")
+		_assert_equal(str(progress_before_finish.get("recipe_id", "")), "timed_build_ramp", "timed tabletop progress should report the recipe id")
+		_assert_true(float(progress_before_finish.get("time_cost_sec", 0.0)) > 0.0, "timed tabletop progress should expose the recipe duration")
+	main_view.call("finish_tabletop_timed_craft_now")
+	repository.recipes = original_recipes
+	var ids_after_finish: Dictionary = main_view.call("get_tabletop_card_ids")
+	_assert_equal(ids_after_finish.size(), 1, "finishing timed tabletop craft should replace inputs with the result")
+	_assert_true(ids_after_finish.values().has("community_ramp"), "finishing timed tabletop craft should create the expected result card")
+	var feedback_after_finish: Dictionary = main_view.call("get_last_tabletop_craft_feedback")
+	_assert_true(bool(feedback_after_finish.get("success", false)), "timed tabletop craft should record success after completion")
+	if main_view.has_method("get_tabletop_stack_progress_state"):
+		var progress_after_finish: Dictionary = main_view.call("get_tabletop_stack_progress_state")
+		_assert_true(not bool(progress_after_finish.get("pending", true)), "timed tabletop progress should clear after completion")
+	main_view.free()
+
+
+func _test_main_view_tabletop_resource_node_production_preserves_worker_and_node() -> void:
+	var game_state: Node = _context.get("game_state")
+	var repository: Node = _context.get("data_repository")
+	game_state.reset_state()
+	var original_cards_by_id: Dictionary = repository.cards_by_id.duplicate(true)
+	var original_recipes: Array[Dictionary] = repository.recipes.duplicate(true)
+	repository.cards_by_id["neighbor_helper"] = _make_test_tabletop_card("neighbor_helper", "热心邻居", "resident", ["resident", "worker"])
+	repository.cards_by_id["scrap_wood_pile"] = _make_test_tabletop_card("scrap_wood_pile", "废木料堆", "resource_node", ["wood", "resource_node"])
+	repository.recipes = _prepend_test_recipe({
+		"recipe_id": "gather_lumber_from_scrap",
+		"ingredient_card_ids": ["neighbor_helper", "scrap_wood_pile"],
+		"result_card_id": "lumber_pack",
+		"result_type": "material",
+		"unlock_day": 1,
+		"time_cost_sec": 0.1,
+		"preserve_ingredient_types": ["resident", "resource_node"]
+	}, original_recipes)
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.set("tabletop_card_ids", {
+		"resident:1": "neighbor_helper",
+		"node:1": "scrap_wood_pile"
+	})
+	main_view.set("tabletop_card_positions", {
+		"resident:1": Vector2(100, 100),
+		"node:1": Vector2(100, 118)
+	})
+	main_view.set("tabletop_card_z", {"resident:1": 1, "node:1": 2})
+	var started: Dictionary = main_view.call("drop_tabletop_card_instances_on", "resident:1", "node:1")
+	_assert_true(bool(started.get("message", "") == "tabletop_craft_in_progress"), "resident + resource node production should start as a timed tabletop action")
+	main_view.call("finish_tabletop_timed_craft_now")
+	var ids: Dictionary = main_view.call("get_tabletop_card_ids")
+	_assert_equal(str(ids.get("resident:1", "")), "neighbor_helper", "production should preserve the resident worker card")
+	_assert_equal(str(ids.get("node:1", "")), "scrap_wood_pile", "production should preserve the resource node card")
+	_assert_true(ids.values().has("lumber_pack"), "production should add the gathered material card")
+	var feedback: Dictionary = main_view.call("get_last_tabletop_craft_feedback")
+	_assert_true(bool(feedback.get("success", false)), "finished production should record successful tabletop feedback")
+	_assert_equal(str(feedback.get("recipe_id", "")), "gather_lumber_from_scrap", "production feedback should record the production recipe")
+	repository.cards_by_id = original_cards_by_id
+	repository.recipes = original_recipes
+	main_view.free()
+
+
+func _test_main_view_tabletop_live_resource_node_chain_outputs() -> void:
+	var game_state: Node = _context.get("game_state")
+	var repository: Node = _context.get("data_repository")
+	game_state.reset_state()
+	var expected_cards := {
+		"neighbor_helper": "resident",
+		"volunteer_captain": "resident",
+		"scrap_wood_pile": "resource_node",
+		"donation_supply_box": "resource_node",
+		"community_clue_board": "resource_node",
+		"lumber_pack": "material",
+		"convenience_supplies": "material",
+		"info_notes": "material"
+	}
+	for card_id in expected_cards.keys():
+		_assert_true(repository.cards_by_id.has(card_id), "live tabletop chain should define card %s" % card_id)
+		if repository.cards_by_id.has(card_id):
+			_assert_equal(str(repository.cards_by_id.get(card_id, {}).get("type", "")), str(expected_cards[card_id]), "live card %s should have the expected tabletop type" % card_id)
+	var chain_expectations := {
+		"gather_lumber_from_scrap": {
+			"inputs": ["neighbor_helper", "scrap_wood_pile"],
+			"result": "lumber_pack"
+		},
+		"register_donation_supplies": {
+			"inputs": ["neighbor_helper", "donation_supply_box"],
+			"result": "convenience_supplies"
+		},
+		"collect_community_clues": {
+			"inputs": ["neighbor_helper", "community_clue_board"],
+			"result": "info_notes"
+		}
+	}
+	for recipe_id in chain_expectations.keys():
+		var expectation: Dictionary = chain_expectations[recipe_id]
+		var recipe := _recipe_by_id(repository.recipes, recipe_id)
+		_assert_true(not recipe.is_empty(), "live recipes should include tabletop chain %s" % recipe_id)
+		if recipe.is_empty():
+			continue
+		_assert_equal(Array(recipe.get("ingredient_card_ids", [])), Array(expectation.get("inputs", [])), "%s should use the expected worker + resource node inputs" % recipe_id)
+		_assert_equal(str(recipe.get("result_card_id", "")), str(expectation.get("result", "")), "%s should produce the expected community material" % recipe_id)
+		_assert_true(float(recipe.get("time_cost_sec", 0.0)) > 0.0, "%s should be a timed tabletop production task" % recipe_id)
+		_assert_true(Array(recipe.get("preserve_ingredient_types", [])).has("resident"), "%s should preserve the resident worker" % recipe_id)
+		_assert_true(Array(recipe.get("preserve_ingredient_types", [])).has("resource_node"), "%s should preserve the resource node" % recipe_id)
+
+	var state: Dictionary = game_state.get_state()
+	var original_count := int(state.get("next_building_instance_id", 1))
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.set("tabletop_card_ids", {
+		"resident:1": "neighbor_helper",
+		"node:1": "donation_supply_box"
+	})
+	main_view.set("tabletop_card_positions", {
+		"resident:1": Vector2(100, 100),
+		"node:1": Vector2(100, 118)
+	})
+	main_view.set("tabletop_card_z", {"resident:1": 1, "node:1": 2})
+	var started: Dictionary = main_view.call("drop_tabletop_card_instances_on", "resident:1", "node:1")
+	_assert_equal(str(started.get("message", "")), "tabletop_craft_in_progress", "live donation supply chain should start as a timed tabletop action")
+	main_view.call("finish_tabletop_timed_craft_now")
+	var ids: Dictionary = main_view.call("get_tabletop_card_ids")
+	_assert_equal(str(ids.get("resident:1", "")), "neighbor_helper", "live donation supply chain should preserve the resident worker")
+	_assert_equal(str(ids.get("node:1", "")), "donation_supply_box", "live donation supply chain should preserve the resource node")
+	_assert_true(ids.values().has("convenience_supplies"), "live donation supply chain should add convenience supplies")
+	_assert_true(int(state.get("next_building_instance_id", original_count)) > int(original_count), "live tabletop production should allocate a result instance id")
+	main_view.free()
+
+
+func _test_main_view_tabletop_facility_production_creates_collectable_funds_cards() -> void:
+	var game_state: Node = _context.get("game_state")
+	var repository: Node = _context.get("data_repository")
+	game_state.reset_state()
+	var state: Dictionary = game_state.get_state()
+	state["funds"] = 0
+	var original_cards_by_id: Dictionary = repository.cards_by_id.duplicate(true)
+	var original_recipes: Array[Dictionary] = repository.recipes.duplicate(true)
+	repository.cards_by_id["neighbor_helper"] = _make_test_tabletop_card("neighbor_helper", "热心邻居", "resident", ["resident", "worker"])
+	repository.cards_by_id["community_funds"] = _make_test_tabletop_card("community_funds", "社区资金", "material", ["currency", "funds", "community"])
+	repository.recipes = _prepend_test_recipe({
+		"recipe_id": "staff_ramp_shift",
+		"ingredient_card_ids": ["neighbor_helper", "community_ramp"],
+		"result_card_id": "community_funds",
+		"result_card_ids": ["community_funds", "community_funds", "community_funds"],
+		"result_type": "material",
+		"unlock_day": 1,
+		"time_cost_sec": 0.1,
+		"preserve_ingredient_types": ["resident", "facility"]
+	}, original_recipes)
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.set("tabletop_card_ids", {
+		"resident:1": "neighbor_helper",
+		"facility:1": "community_ramp"
+	})
+	main_view.set("tabletop_card_positions", {
+		"resident:1": Vector2(100, 100),
+		"facility:1": Vector2(100, 118)
+	})
+	main_view.set("tabletop_card_z", {"resident:1": 1, "facility:1": 2})
+	var started: Dictionary = main_view.call("drop_tabletop_card_instances_on", "resident:1", "facility:1")
+	_assert_equal(str(started.get("message", "")), "tabletop_craft_in_progress", "resident + facility production should start as a timed tabletop action")
+	main_view.call("finish_tabletop_timed_craft_now")
+	var ids: Dictionary = main_view.call("get_tabletop_card_ids")
+	_assert_equal(str(ids.get("resident:1", "")), "neighbor_helper", "facility production should preserve the resident worker card")
+	_assert_equal(str(ids.get("facility:1", "")), "community_ramp", "facility production should preserve the facility card")
+	_assert_equal(_count_card_id(ids, "community_funds"), 3, "facility production should create one collectable community funds card per fund")
+	_assert_equal(int(state.get("funds", 0)), 0, "facility production should not add top-bar funds until funds cards are collected")
+	var feedback: Dictionary = main_view.call("get_last_tabletop_craft_feedback")
+	_assert_true(bool(feedback.get("success", false)), "finished facility production should record successful tabletop feedback")
+	_assert_equal(Array(feedback.get("result_card_ids", [])).size(), 3, "production feedback should expose generated collectable funds cards")
+	_assert_true(main_view.has_method("collect_tabletop_funds_card"), "main view should expose funds card collection")
+	if main_view.has_method("collect_tabletop_funds_card"):
+		var funds_instance_id := _first_instance_id_for_card(ids, "community_funds")
+		var collected: Dictionary = main_view.call("collect_tabletop_funds_card", funds_instance_id)
+		_assert_true(bool(collected.get("success", false)), "collecting a community funds card should succeed")
+		_assert_equal(int(collected.get("funds", 0)), 1, "each community funds card should collect one fund")
+		_assert_equal(int(state.get("funds", 0)), 1, "collecting a community funds card should add top-bar funds")
+		var remaining_ids: Dictionary = main_view.call("get_tabletop_card_ids")
+		_assert_true(not remaining_ids.has(funds_instance_id), "collected community funds card should leave the tabletop")
+	repository.cards_by_id = original_cards_by_id
+	repository.recipes = original_recipes
+	main_view.free()
+
+
+func _test_main_view_busy_tabletop_stack_rejects_second_action() -> void:
+	var game_state: Node = _context.get("game_state")
+	var repository: Node = _context.get("data_repository")
+	game_state.reset_state()
+	var original_cards_by_id: Dictionary = repository.cards_by_id.duplicate(true)
+	var original_recipes: Array[Dictionary] = repository.recipes.duplicate(true)
+	repository.cards_by_id["neighbor_helper"] = _make_test_tabletop_card("neighbor_helper", "热心邻居", "resident", ["resident", "worker"])
+	repository.cards_by_id["scrap_wood_pile"] = _make_test_tabletop_card("scrap_wood_pile", "废木料堆", "resource_node", ["wood", "resource_node"])
+	repository.recipes = _prepend_test_recipe({
+		"recipe_id": "gather_lumber_from_scrap",
+		"ingredient_card_ids": ["neighbor_helper", "scrap_wood_pile"],
+		"result_card_id": "lumber_pack",
+		"result_type": "material",
+		"unlock_day": 1,
+		"time_cost_sec": 5.0,
+		"preserve_ingredient_types": ["resident", "resource_node"]
+	}, original_recipes)
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.set("tabletop_card_ids", {
+		"resident:1": "neighbor_helper",
+		"node:1": "scrap_wood_pile"
+	})
+	main_view.set("tabletop_card_positions", {
+		"resident:1": Vector2(100, 100),
+		"node:1": Vector2(100, 118)
+	})
+	main_view.set("tabletop_card_z", {"resident:1": 1, "node:1": 2})
+	main_view.call("drop_tabletop_card_instances_on", "resident:1", "node:1")
+	var rejected: Dictionary = main_view.call("drop_tabletop_card_instances_on", "resident:1", "node:1")
+	_assert_true(not bool(rejected.get("success", true)), "busy resident should not be allowed to start another tabletop action")
+	_assert_equal(str(rejected.get("message", "")), "tabletop_card_busy", "busy tabletop rejection should use a stable feedback code")
+	main_view.call("finish_tabletop_timed_craft_now")
+	repository.cards_by_id = original_cards_by_id
+	repository.recipes = original_recipes
+	main_view.free()
+
+
+func _test_main_view_invalid_tabletop_stack_keeps_cards_and_records_feedback() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.set_hand_cards_state(["ramp_blueprint", "volunteer_poster"], ["bulletin_free", "bulletin_free"], [0, 0])
+	var placed_permit: Dictionary = main_view.call("place_hand_card_on_tabletop", 0, Vector2(120, 140))
+	_assert_true(bool(placed_permit.get("success", false)), "starter permit should be placeable before invalid tabletop stack")
+	main_view.set("drag_card_id", "volunteer_poster")
+	main_view.set("drag_source_zone", "hand")
+	main_view.set("drag_source_index", 0)
+	main_view.set("is_dragging", true)
+	var stacked: bool = bool(main_view.call("_drop_from_hand", {
+		"type": "tabletop_card",
+		"target_instance_id": str(placed_permit.get("instance_id", "")),
+		"position": Vector2(126, 148)
+	}))
+	_assert_true(stacked, "dropping an unmatched card on a tabletop stack should still be handled")
+	var ids: Dictionary = main_view.call("get_tabletop_card_ids")
+	_assert_equal(ids.size(), 2, "invalid tabletop stacks should keep both cards on the table")
+	_assert_true(ids.values().has("ramp_blueprint"), "invalid stack should keep the original card")
+	_assert_true(ids.values().has("volunteer_poster"), "invalid stack should keep the dropped card")
+	var feedback: Dictionary = main_view.call("get_last_tabletop_craft_feedback")
+	_assert_true(not bool(feedback.get("success", true)), "invalid stack should record failed feedback")
+	_assert_true(str(feedback.get("message", "")).length() > 0, "invalid stack feedback should include a player-facing reason")
+	main_view.free()
+
+
+func _test_main_view_tabletop_auto_craft_uses_instance_ids_for_duplicates() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.set("tabletop_card_ids", {
+		"perm:a": "ramp_blueprint",
+		"perm:b": "ramp_blueprint",
+		"mat:a": "lumber_pack"
+	})
+	main_view.set("tabletop_card_positions", {
+		"perm:a": Vector2(40, 50),
+		"perm:b": Vector2(200, 80),
+		"mat:a": Vector2(206, 88)
+	})
+	main_view.set("tabletop_card_z", {"perm:a": 1, "perm:b": 2, "mat:a": 3})
+	var result: Dictionary = main_view.call("drop_tabletop_card_instances_on", "mat:a", "perm:b")
+	_assert_true(bool(result.get("success", false)), "instance-based tabletop auto-craft should resolve matching duplicate stacks")
+	var ids: Dictionary = main_view.call("get_tabletop_card_ids")
+	_assert_true(ids.has("perm:a"), "auto-craft should not remove an unrelated duplicate instance")
+	_assert_equal(str(ids.get("perm:a", "")), "ramp_blueprint", "unrelated duplicate instance should keep its card id")
+	_assert_true(ids.values().has("community_ramp"), "auto-craft should create the expected result from selected instances")
+	_assert_true(not ids.has("perm:b") and not ids.has("mat:a"), "auto-craft should remove only the selected input instances")
+	main_view.free()
+
+
+func _test_tabletop_controller_state_position_z_snap_and_round_trip() -> void:
+	var script: Script = load("res://scripts/ui/controllers/TabletopController.gd")
+	_assert_true(script != null, "TabletopController script should exist")
+	if script == null:
+		return
+	var controller: RefCounted = script.new()
+	_assert_true(controller.has_method("configure_play_area_size"), "TabletopController should accept play-area sizing without UI nodes")
+	_assert_true(controller.has_method("add_card"), "TabletopController should add card instances")
+	_assert_true(controller.has_method("get_state"), "TabletopController should expose serializable state")
+	_assert_true(controller.has_method("apply_state"), "TabletopController should restore serializable state")
+	if not controller.has_method("add_card"):
+		return
+	controller.call("configure_play_area_size", Vector2(220, 160))
+	var first: Dictionary = controller.call("add_card", "permit:1", "ramp_blueprint", Vector2(-40, -20))
+	var second: Dictionary = controller.call("add_card", "mat:1", "lumber_pack", Vector2(20, 18))
+	_assert_true(bool(first.get("success", false)) and bool(second.get("success", false)), "TabletopController should add two tabletop instances")
+	var positions: Dictionary = controller.call("get_card_positions")
+	var z_order: Dictionary = controller.call("get_card_z_order")
+	_assert_equal(positions.get("permit:1", Vector2.ZERO), Vector2(8, 8), "TabletopController should clamp cards inside the play area")
+	_assert_true(int(z_order.get("mat:1", 0)) > int(z_order.get("permit:1", 0)), "TabletopController should assign later cards a higher z order")
+	controller.call("bring_to_front", "permit:1")
+	z_order = controller.call("get_card_z_order")
+	_assert_true(int(z_order.get("permit:1", 0)) > int(z_order.get("mat:1", 0)), "TabletopController bring_to_front should raise the selected instance")
+	var preview: Dictionary = controller.call("preview_stack_snap", "permit:1", Vector2(54, 70))
+	_assert_true(bool(preview.get("can_snap", false)), "TabletopController should report stack snap preview near another card")
+	_assert_equal(str(preview.get("target_instance_id", "")), "mat:1", "TabletopController snap preview should return the nearest target")
+	var organize: Dictionary = controller.call("organize_basic", {
+		"ramp_blueprint": {"type": "building_permit"},
+		"lumber_pack": {"type": "material"}
+	})
+	_assert_true(bool(organize.get("success", false)), "TabletopController organize should succeed")
+	positions = controller.call("get_card_positions")
+	_assert_true(_vector2_from_test(positions.get("permit:1", Vector2.ZERO)).x < _vector2_from_test(positions.get("mat:1", Vector2.ZERO)).x, "TabletopController should group permits before materials")
+	var saved: Dictionary = controller.call("get_state")
+	var restored: RefCounted = script.new()
+	restored.call("apply_state", saved)
+	_assert_equal(restored.call("get_card_positions"), controller.call("get_card_positions"), "TabletopController state should round-trip positions")
+	_assert_equal(restored.call("get_card_z_order"), controller.call("get_card_z_order"), "TabletopController state should round-trip z-order")
+
+
+func _test_stack_action_controller_success_busy_duplicate_and_multi_result_contract() -> void:
+	var script: Script = load("res://scripts/ui/controllers/StackActionController.gd")
+	_assert_true(script != null, "StackActionController script should exist")
+	if script == null:
+		return
+	var controller: RefCounted = script.new()
+	_assert_true(controller.has_method("attempt_stack"), "StackActionController should expose attempt_stack")
+	_assert_true(controller.has_method("finish_timed_craft_now"), "StackActionController should expose finish_timed_craft_now")
+	_assert_true(controller.has_method("get_last_feedback"), "StackActionController should expose last feedback")
+	if not controller.has_method("attempt_stack"):
+		return
+	var card_ids := {"perm:a": "ramp_blueprint", "perm:b": "ramp_blueprint", "mat:a": "lumber_pack"}
+	var positions := {"perm:a": Vector2(20, 20), "perm:b": Vector2(120, 60), "mat:a": Vector2(130, 68)}
+	var z_order := {"perm:a": 1, "perm:b": 2, "mat:a": 3}
+	var state := {"recipe_codex": {}, "inventory": {}}
+	var recipes: Array[Dictionary] = [{
+		"recipe_id": "test_build_ramp",
+		"ingredient_card_ids": ["ramp_blueprint", "lumber_pack"],
+		"result_card_id": "community_ramp",
+		"time_cost_sec": 0.0
+	}]
+	var result: Dictionary = controller.call("attempt_stack", ["perm:b", "mat:a"], "perm:b", card_ids, positions, z_order, recipes, {}, state)
+	_assert_true(bool(result.get("success", false)), "StackActionController should craft a matching tabletop stack")
+	_assert_true(card_ids.has("perm:a"), "StackActionController should preserve unrelated duplicate instances")
+	_assert_true(not card_ids.has("perm:b") and not card_ids.has("mat:a"), "StackActionController should consume only selected input instances")
+	_assert_true(card_ids.values().has("community_ramp"), "StackActionController should place the result card on the tabletop")
+
+	var timed_card_ids := {"perm:1": "ramp_blueprint", "mat:1": "lumber_pack", "other:1": "paint_bucket"}
+	var timed_positions := {"perm:1": Vector2(90, 90), "mat:1": Vector2(94, 96), "other:1": Vector2(12, 12)}
+	var timed_z := {"perm:1": 1, "mat:1": 2, "other:1": 3}
+	var timed_recipes: Array[Dictionary] = [{
+		"recipe_id": "test_timed_ramp",
+		"ingredient_card_ids": ["ramp_blueprint", "lumber_pack"],
+		"result_card_id": "community_ramp",
+		"time_cost_sec": 2.0
+	}]
+	var timed_start: Dictionary = controller.call("attempt_stack", ["perm:1", "mat:1"], "perm:1", timed_card_ids, timed_positions, timed_z, timed_recipes, {}, state)
+	_assert_true(not bool(timed_start.get("success", true)) and str(timed_start.get("message", "")) == "tabletop_craft_in_progress", "StackActionController timed recipes should become pending before completion")
+	var busy_result: Dictionary = controller.call("attempt_stack", ["perm:1", "mat:1"], "perm:1", timed_card_ids, timed_positions, timed_z, timed_recipes, {}, state)
+	_assert_equal(str(busy_result.get("message", "")), "tabletop_card_busy", "StackActionController should reject stacks that reuse pending instances")
+	var finish: Dictionary = controller.call("finish_timed_craft_now", timed_card_ids, timed_positions, timed_z, {}, state)
+	_assert_true(bool(finish.get("success", false)), "StackActionController should finish pending timed craft on demand")
+	_assert_true(timed_card_ids.values().has("community_ramp"), "StackActionController timed finish should place the result card")
+	var feedback: Dictionary = controller.call("get_last_feedback")
+	_assert_true(bool(feedback.get("success", false)), "StackActionController should remember final successful feedback")
+
+	var multi_card_ids := {"resident:1": "neighbor_helper", "facility:1": "community_ramp"}
+	var multi_positions := {"resident:1": Vector2(120, 120), "facility:1": Vector2(124, 136)}
+	var multi_z := {"resident:1": 1, "facility:1": 2}
+	var multi_cards_by_id := {
+		"neighbor_helper": {"type": "resident"},
+		"community_ramp": {"type": "facility"},
+		"community_funds": {"type": "material"}
+	}
+	var multi_recipes: Array[Dictionary] = [{
+		"recipe_id": "test_staff_ramp_shift",
+		"ingredient_card_ids": ["neighbor_helper", "community_ramp"],
+		"result_card_id": "community_funds",
+		"result_card_ids": ["community_funds", "community_funds"],
+		"time_cost_sec": 0.0,
+		"preserve_ingredient_types": ["resident", "facility"]
+	}]
+	var multi_state := {"recipe_codex": {}, "inventory": {}}
+	var multi_result: Dictionary = controller.call("attempt_stack", ["resident:1", "facility:1"], "facility:1", multi_card_ids, multi_positions, multi_z, multi_recipes, multi_cards_by_id, multi_state)
+	_assert_true(bool(multi_result.get("success", false)), "StackActionController should support recipes with multiple result cards")
+	_assert_equal(str(multi_card_ids.get("resident:1", "")), "neighbor_helper", "multi-result production should preserve the resident")
+	_assert_equal(str(multi_card_ids.get("facility:1", "")), "community_ramp", "multi-result production should preserve the facility")
+	_assert_equal(_count_card_id(multi_card_ids, "community_funds"), 2, "multi-result production should add every requested result card")
+	_assert_equal(Array(multi_result.get("result_card_ids", [])).size(), 2, "multi-result feedback should expose all generated card ids")
+
+
+func _test_main_view_tabletop_controller_is_authoritative_for_facade_sync() -> void:
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	_assert_true(main_view.has_method("get_tabletop_controller_state"), "MainView should expose tabletop controller state for save/load and tests")
+	if not main_view.has_method("get_tabletop_controller_state"):
+		main_view.free()
+		return
+	main_view.set("tabletop_card_ids", {
+		"permit:1": "ramp_blueprint",
+		"mat:1": "lumber_pack"
+	})
+	main_view.set("tabletop_card_positions", {
+		"permit:1": Vector2(80, 80),
+		"mat:1": Vector2(100, 90)
+	})
+	main_view.set("tabletop_card_z", {"permit:1": 1, "mat:1": 2})
+	main_view.set("_tabletop_next_z", 3)
+	var raised_z := int(main_view.call("bring_tabletop_card_to_front", "permit:1"))
+	var controller_state: Dictionary = main_view.call("get_tabletop_controller_state")
+	var controller_ids: Dictionary = controller_state.get("tabletop_card_ids", {})
+	var controller_z: Dictionary = controller_state.get("tabletop_card_z", {})
+	_assert_equal(str(controller_ids.get("permit:1", "")), "ramp_blueprint", "MainView should sync legacy tabletop ids into TabletopController")
+	_assert_equal(str(controller_ids.get("mat:1", "")), "lumber_pack", "MainView should keep all legacy tabletop ids when controller syncs")
+	_assert_equal(int(controller_z.get("permit:1", 0)), raised_z, "MainView bring-to-front should delegate z-order through TabletopController")
+	_assert_equal(int(Dictionary(main_view.call("get_tabletop_card_z_order")).get("permit:1", 0)), raised_z, "MainView z facade should mirror controller z-order")
+	var moved: Dictionary = main_view.call("set_tabletop_card_position", "mat:1", Vector2(-5, -5))
+	_assert_true(bool(moved.get("success", false)), "MainView set position should succeed through TabletopController")
+	controller_state = main_view.call("get_tabletop_controller_state")
+	var controller_positions: Dictionary = controller_state.get("tabletop_card_positions", {})
+	var facade_positions: Dictionary = main_view.call("get_tabletop_card_positions")
+	_assert_equal(controller_positions.get("mat:1", Vector2.ZERO), Vector2(8, 8), "TabletopController should clamp positions reached through MainView")
+	_assert_equal(facade_positions.get("mat:1", Vector2.ZERO), Vector2(8, 8), "MainView position facade should mirror controller-clamped positions")
+	var organized: Dictionary = main_view.call("organize_tabletop_cards_basic")
+	_assert_true(bool(organized.get("success", false)), "MainView organize should run through TabletopController")
+	controller_state = main_view.call("get_tabletop_controller_state")
+	_assert_equal(main_view.call("get_tabletop_card_positions"), controller_state.get("tabletop_card_positions", {}), "MainView tabletop facade positions should stay identical to controller positions after organize")
+	main_view.free()
+
+
+func _test_main_view_controller_states_round_trip_through_save_state() -> void:
+	var game_state: Node = _context.get("game_state")
+	var repository: Node = _context.get("data_repository")
+	game_state.reset_state()
+	var original_recipes: Array[Dictionary] = repository.recipes.duplicate(true)
+	var timed_recipe: Dictionary = {}
+	for recipe: Dictionary in original_recipes:
+		if str(recipe.get("recipe_id", "")) == "build_ramp":
+			timed_recipe = recipe.duplicate(true)
+			break
+	_assert_true(not timed_recipe.is_empty(), "controller save round-trip test requires the starter ramp recipe")
+	if timed_recipe.is_empty():
+		return
+	timed_recipe["recipe_id"] = "save_round_trip_timed_ramp"
+	timed_recipe["time_cost_sec"] = 3.0
+	repository.recipes = _prepend_test_recipe(timed_recipe, original_recipes)
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	_assert_true(main_view.has_method("get_tabletop_controller_state"), "MainView should expose tabletop controller state")
+	_assert_true(main_view.has_method("get_stack_action_controller_state"), "MainView should expose stack action controller state")
+	if not main_view.has_method("get_tabletop_controller_state") or not main_view.has_method("get_stack_action_controller_state"):
+		repository.recipes = original_recipes
+		main_view.free()
+		return
+	main_view.set("tabletop_card_ids", {
+		"permit:1": "ramp_blueprint",
+		"mat:1": "lumber_pack"
+	})
+	main_view.set("tabletop_card_positions", {
+		"permit:1": Vector2(120, 140),
+		"mat:1": Vector2(126, 148)
+	})
+	main_view.set("tabletop_card_z", {"permit:1": 1, "mat:1": 2})
+	main_view.set("_tabletop_next_z", 3)
+	var started: Dictionary = main_view.call("drop_tabletop_card_instances_on", "mat:1", "permit:1")
+	_assert_equal(str(started.get("message", "")), "tabletop_craft_in_progress", "timed tabletop stack should create stack-controller pending state")
+	var save_state: Dictionary = main_view.call("_build_ui_save_state")
+	_assert_true(save_state.has("tabletop_controller_state"), "UI save state should include TabletopController state")
+	_assert_true(save_state.has("stack_action_controller_state"), "UI save state should include StackActionController state")
+	var saved_tabletop: Dictionary = save_state.get("tabletop_controller_state", {})
+	_assert_equal(str(Dictionary(saved_tabletop.get("tabletop_card_ids", {})).get("permit:1", "")), "ramp_blueprint", "saved TabletopController state should include tabletop card ids")
+	var save_manager: Node = _context.get("save_manager")
+	var normalized: Dictionary = save_manager.call("_normalize_ui_state", save_state)
+	var normalized_tabletop: Dictionary = normalized.get("tabletop_controller_state", {})
+	var normalized_controller_positions: Dictionary = normalized_tabletop.get("tabletop_card_positions", {})
+	var normalized_permit_position: Dictionary = normalized_controller_positions.get("permit:1", {})
+	_assert_equal(float(normalized_permit_position.get("x", 0.0)), 120.0, "SaveManager should normalize nested TabletopController x position for JSON")
+	_assert_equal(float(normalized_permit_position.get("y", 0.0)), 140.0, "SaveManager should normalize nested TabletopController y position for JSON")
+	var saved_stack: Dictionary = save_state.get("stack_action_controller_state", {})
+	var pending: Dictionary = saved_stack.get("pending_craft", {})
+	_assert_true(Array(pending.get("instance_ids", [])).has("permit:1"), "saved StackActionController state should include pending permit instance")
+	_assert_true(Array(pending.get("instance_ids", [])).has("mat:1"), "saved StackActionController state should include pending material instance")
+	var restored: Control = main_scene.instantiate()
+	restored.call("_apply_ui_save_state", save_state)
+	var restored_tabletop_state: Dictionary = restored.call("get_tabletop_controller_state")
+	_assert_equal(restored.call("get_tabletop_card_positions"), restored_tabletop_state.get("tabletop_card_positions", {}), "restored MainView facade should mirror TabletopController positions")
+	var restored_stack_state: Dictionary = restored.call("get_stack_action_controller_state")
+	_assert_true(not Dictionary(restored_stack_state.get("pending_craft", {})).is_empty(), "restored StackActionController should keep pending timed craft")
+	var finished: Dictionary = restored.call("finish_tabletop_timed_craft_now")
+	_assert_true(bool(finished.get("success", false)), "restored timed stack craft should finish through StackActionController state")
+	var restored_ids: Dictionary = restored.call("get_tabletop_card_ids")
+	_assert_true(restored_ids.values().has("community_ramp"), "restored timed stack craft should produce the expected result")
+	repository.recipes = original_recipes
+	main_view.free()
+	restored.free()
+
+
+func _test_card_pack_shop_module_buttons_and_purchase_signal_contract() -> void:
+	var script: Script = load("res://scripts/ui/modules/CardPackShop.gd")
+	_assert_true(script != null, "CardPackShop module script should exist")
+	if script == null:
+		return
+	var shop: Control = script.new()
+	_assert_true(shop.has_signal("purchase_requested"), "CardPackShop should emit purchase_requested instead of buying directly")
+	_assert_true(shop.has_method("configure_packs"), "CardPackShop should expose configure_packs")
+	_assert_true(shop.has_method("refresh_state"), "CardPackShop should expose refresh_state")
+	_assert_true(shop.has_method("get_contract"), "CardPackShop should expose a testable layout contract")
+	if not shop.has_method("configure_packs"):
+		shop.free()
+		return
+	shop.call("configure_packs", CARD_PACK_SYSTEM.get_pack_definitions(), ["starter_pack", "governance_pack"])
+	shop.call("refresh_state", {"funds": 2, "flowers": 1, "day_count": 1, "trust": 0})
+	var contract: Dictionary = shop.call("get_contract")
+	_assert_equal(str(contract.get("region", "")), "TopPackShop", "CardPackShop contract should identify the top shop region")
+	_assert_equal(int(contract.get("button_count", 0)), 2, "CardPackShop should create one button per configured primary pack")
+	_assert_equal(int(contract.get("affordable_count", -1)), 1, "CardPackShop should count currently affordable packs")
+	_assert_equal(int(contract.get("locked_count", -1)), 1, "CardPackShop should count locked or unaffordable packs")
+	shop.free()
+
+
+func _test_os_click_helper_script_exposes_visible_lookup_contract() -> void:
+	var script: Script = load("res://tests/helpers/os_click_helpers.gd")
+	_assert_true(script != null, "OS click helper script should exist")
+	if script == null:
+		return
+	var helper: RefCounted = script.new()
+	for method_name in [
+		"find_visible_button_with_text",
+		"find_visible_button_containing",
+		"visible_button_texts",
+		"find_primary_action_button_for_card",
+		"nearest_visible_scroll_container",
+		"push_viewport_click",
+		"scroll_control_into_view"
+	]:
+		_assert_true(helper.has_method(method_name), "OS click helper should expose %s" % method_name)
+	var root := Control.new()
+	root.name = "HelperRoot"
+	var visible_button := Button.new()
+	visible_button.text = "Visible Action"
+	root.add_child(visible_button)
+	var hidden_parent := Control.new()
+	hidden_parent.visible = false
+	root.add_child(hidden_parent)
+	var hidden_button := Button.new()
+	hidden_button.text = "Hidden Action"
+	hidden_parent.add_child(hidden_button)
+	_assert_equal(helper.call("find_visible_button_with_text", root, "Visible Action"), visible_button, "OS helper should find visible buttons by exact text")
+	_assert_equal(helper.call("find_visible_button_containing", root, "Action"), visible_button, "OS helper should prefer visible buttons for fragment lookup")
+	_assert_true(not Array(helper.call("visible_button_texts", root)).has("Hidden Action"), "OS helper should not report buttons hidden outside the visible tree")
+	var scroll := ScrollContainer.new()
+	root.add_child(scroll)
+	var nested := Button.new()
+	nested.text = "Nested"
+	scroll.add_child(nested)
+	_assert_equal(helper.call("nearest_visible_scroll_container", nested), scroll, "OS helper should find the nearest visible scroll container")
+	root.free()
+
+
+func _test_tabletop_drawer_module_state_and_lazy_refresh_contract() -> void:
+	var script: Script = load("res://scripts/ui/modules/TabletopDrawer.gd")
+	_assert_true(script != null, "TabletopDrawer module script should exist")
+	if script == null:
+		return
+	var drawer: Control = script.new()
+	_assert_true(drawer.has_method("configure_drawers"), "TabletopDrawer should configure drawer ids")
+	_assert_true(drawer.has_method("open_drawer"), "TabletopDrawer should open a drawer")
+	_assert_true(drawer.has_method("close_drawer"), "TabletopDrawer should close the active drawer")
+	_assert_true(drawer.has_method("mark_drawer_refreshed"), "TabletopDrawer should track lazy drawer refreshes")
+	_assert_true(drawer.has_method("get_state"), "TabletopDrawer should expose state")
+	if not drawer.has_method("configure_drawers"):
+		drawer.free()
+		return
+	drawer.call("configure_drawers", ["quick_options", "status", "board"])
+	var closed: Dictionary = drawer.call("get_state")
+	_assert_equal(str(closed.get("active_drawer", "")), "", "TabletopDrawer should default closed")
+	_assert_true(not bool(closed.get("visible", true)), "TabletopDrawer should default hidden")
+	var opened: Dictionary = drawer.call("open_drawer", "status")
+	_assert_true(bool(opened.get("success", false)), "TabletopDrawer should open known drawers")
+	var state: Dictionary = drawer.call("get_state")
+	_assert_equal(str(state.get("active_drawer", "")), "status", "TabletopDrawer state should track the active drawer")
+	_assert_true(bool(state.get("visible", false)), "TabletopDrawer should be visible after open")
+	_assert_true(Array(state.get("dirty_drawers", [])).has("status"), "TabletopDrawer should mark newly opened drawer dirty until refreshed")
+	drawer.call("mark_drawer_refreshed", "status")
+	state = drawer.call("get_state")
+	_assert_true(not Array(state.get("dirty_drawers", [])).has("status"), "TabletopDrawer refreshed drawer should leave the dirty set")
+	_assert_true(not Array(state.get("dirty_drawers", [])).has("board"), "TabletopDrawer should not dirty hidden drawers")
+	drawer.call("close_drawer")
+	closed = drawer.call("get_state")
+	_assert_equal(str(closed.get("active_drawer", "")), "", "TabletopDrawer close should clear active drawer")
+	_assert_true(not bool(closed.get("visible", true)), "TabletopDrawer close should hide the drawer layer")
+	drawer.free()
+
+
+func _built_facilities_contains_card(built: Array, card_id: String, cell_index: int) -> bool:
+	for entry_variant in built:
+		if typeof(entry_variant) != TYPE_DICTIONARY:
+			continue
+		var entry: Dictionary = entry_variant
+		if str(entry.get("card_id", "")) == card_id and int(entry.get("cell_index", -999)) == cell_index:
+			return true
+	return false
 
 
 func _test_card_view_stacklands_title_bar_palette() -> void:
@@ -2381,20 +3741,115 @@ func _test_main_view_defaults_to_live_ui_instead_of_reference_overlay() -> void:
 	main_view.free()
 
 
-func _test_main_view_wraps_primary_layout_in_a_page_scroll_container() -> void:
+func _test_main_view_uses_fixed_stacklands_first_screen() -> void:
 	var main_scene: PackedScene = load("res://scenes/Main.tscn")
 	var main_view: Control = main_scene.instantiate()
 	main_view.call("_build_ui")
-	var page_scroll_container: ScrollContainer = main_view.get("page_scroll_container")
-	_assert_true(page_scroll_container != null, "main view should build a page scroll container for tall layouts")
-	if page_scroll_container == null:
+	_assert_true(main_view.has_method("get_tabletop_first_screen_layout_contract"), "main view should expose the fixed Stacklands first-screen layout contract")
+	if not main_view.has_method("get_tabletop_first_screen_layout_contract"):
 		main_view.free()
 		return
+	var contract: Dictionary = main_view.call("get_tabletop_first_screen_layout_contract")
+	_assert_equal(str(contract.get("mode", "")), "fixed_stacklands", "first screen should use a fixed Stacklands-style layout instead of a scrolling dashboard")
+	_assert_true(not bool(contract.get("uses_primary_scroll", true)), "primary first-screen layout should not depend on page scrolling")
+	_assert_equal(str(contract.get("board_role", "")), "desktop_record_drawer", "board should be folded into a desktop record drawer")
+	for region_name in ["ResourceHud", "TopPackShop", "TasksPanel", "PlaymatPanel", "ToolbarStrip"]:
+		_assert_true(main_view.has_node(region_name), "fixed first screen should expose %s" % region_name)
+	var playmat_rect: Rect2 = contract.get("playmat_rect", Rect2())
+	var left_rect: Rect2 = contract.get("left_sidebar_rect", Rect2())
+	var hud_rect: Rect2 = contract.get("hud_rect", Rect2())
+	_assert_true(playmat_rect.size.x >= 820 and playmat_rect.size.y >= 440, "playmat should dominate the 1280x720 first screen")
+	_assert_true(playmat_rect.get_area() > left_rect.get_area() * 3.0, "playmat area should be much larger than the left task sidebar")
+	_assert_true(playmat_rect.position.y > hud_rect.position.y + hud_rect.size.y - 1.0, "playmat should sit below the compact top HUD")
+	var default_hidden: Array = contract.get("default_hidden_panels", [])
+	for panel_id in ["quick_options", "residents", "status", "end_day", "board"]:
+		_assert_true(default_hidden.has(panel_id), "legacy panel %s should be hidden behind drawers by default" % panel_id)
 	var main_content_root: Control = main_view.get("main_content_root")
-	_assert_true(main_content_root != null, "main view should still expose its main content root")
+	_assert_true(main_content_root != null, "main view should still expose a main content root")
 	if main_content_root != null:
 		var parent := main_content_root.get_parent_control()
-		_assert_true(parent == page_scroll_container, "main content root should live inside the page scroll container")
+		_assert_true(not (parent is ScrollContainer), "main content root should not live inside a primary page scroll container")
+	main_view.free()
+
+
+func _test_main_view_drawers_default_closed_and_open_from_toolbar() -> void:
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	_assert_true(main_view.has_method("get_tabletop_drawer_state"), "main view should expose drawer state for folded legacy panels")
+	_assert_true(main_view.has_method("open_tabletop_drawer"), "main view should open tabletop drawers from toolbar or side tabs")
+	_assert_true(main_view.has_method("close_tabletop_drawer"), "main view should close tabletop drawers")
+	if not main_view.has_method("get_tabletop_drawer_state"):
+		main_view.free()
+		return
+	var closed: Dictionary = main_view.call("get_tabletop_drawer_state")
+	_assert_equal(str(closed.get("active_drawer", "")), "", "drawers should be closed by default")
+	_assert_true(not bool(closed.get("visible", true)), "drawer layer should not be visible by default")
+	if main_view.has_method("open_tabletop_drawer"):
+		var opened: Dictionary = main_view.call("open_tabletop_drawer", "status")
+		_assert_true(bool(opened.get("success", false)), "status drawer should open")
+		var state_after_open: Dictionary = main_view.call("get_tabletop_drawer_state")
+		_assert_equal(str(state_after_open.get("active_drawer", "")), "status", "drawer state should record the opened panel")
+		_assert_true(bool(state_after_open.get("visible", false)), "drawer layer should be visible after opening")
+		_assert_true(bool(state_after_open.get("uses_drawer_scroll", false)), "drawer contents should scroll inside the folded drawer on a 1280x720 first screen")
+		var drawer_viewport_rect: Rect2 = state_after_open.get("viewport_rect", Rect2())
+		_assert_true(drawer_viewport_rect.size.y <= 268.0, "drawer scroll viewport should stay inside the visible drawer frame")
+	if main_view.has_method("close_tabletop_drawer"):
+		main_view.call("close_tabletop_drawer")
+		var state_after_close: Dictionary = main_view.call("get_tabletop_drawer_state")
+		_assert_equal(str(state_after_close.get("active_drawer", "")), "", "drawer state should clear after closing")
+		_assert_true(not bool(state_after_close.get("visible", true)), "drawer layer should hide after closing")
+	main_view.free()
+
+
+func _test_main_view_basic_tabletop_organize_groups_idle_cards() -> void:
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	_assert_true(main_view.has_method("organize_tabletop_cards_basic"), "main view should expose basic tabletop organize")
+	if not main_view.has_method("organize_tabletop_cards_basic"):
+		main_view.free()
+		return
+	main_view.set("tabletop_card_ids", {
+		"mat:1": "lumber_pack",
+		"permit:1": "ramp_blueprint",
+		"facility:1": "community_ramp",
+		"node:1": "garden_plot"
+	})
+	main_view.set("tabletop_card_positions", {
+		"mat:1": Vector2(40, 40),
+		"permit:1": Vector2(42, 42),
+		"facility:1": Vector2(44, 44),
+		"node:1": Vector2(46, 46)
+	})
+	main_view.set("tabletop_card_z", {"mat:1": 1, "permit:1": 2, "facility:1": 3, "node:1": 4})
+	var result: Dictionary = main_view.call("organize_tabletop_cards_basic")
+	_assert_true(bool(result.get("success", false)), "basic organize should succeed")
+	_assert_true(int(result.get("moved_count", 0)) >= 4, "basic organize should move all idle tabletop cards")
+	_assert_equal(str(result.get("mode", "")), "type_columns", "basic organize should use stable type columns")
+	var positions: Dictionary = main_view.call("get_tabletop_card_positions")
+	_assert_true(_unique_vector2_count(positions.values()) >= 4, "organized cards should no longer overlap exactly")
+	_assert_true(_vector2_from_test(positions.get("permit:1", Vector2.ZERO)).x < _vector2_from_test(positions.get("mat:1", Vector2.ZERO)).x, "permits should sort before materials")
+	main_view.free()
+
+
+func _test_main_view_drag_feedback_exposes_stack_snap() -> void:
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	_assert_true(main_view.has_method("preview_tabletop_stack_snap"), "main view should expose stack snap preview for drag feedback")
+	_assert_true(main_view.has_method("get_tabletop_drag_feedback_state"), "main view should expose tabletop drag feedback state")
+	if not main_view.has_method("preview_tabletop_stack_snap") or not main_view.has_method("get_tabletop_drag_feedback_state"):
+		main_view.free()
+		return
+	main_view.set("tabletop_card_ids", {"permit:1": "ramp_blueprint", "mat:1": "lumber_pack"})
+	main_view.set("tabletop_card_positions", {"permit:1": Vector2(200, 180), "mat:1": Vector2(260, 180)})
+	main_view.set("tabletop_card_z", {"permit:1": 1, "mat:1": 2})
+	var preview: Dictionary = main_view.call("preview_tabletop_stack_snap", "permit:1", Vector2(262, 184))
+	_assert_true(bool(preview.get("can_snap", false)), "dragging near a tabletop card should expose snap feedback")
+	_assert_equal(str(preview.get("target_instance_id", "")), "mat:1", "snap feedback should identify the nearest target card")
+	_assert_equal(str(preview.get("feedback", "")), "stack_snap", "snap feedback should use a stable code")
+	var state: Dictionary = main_view.call("get_tabletop_drag_feedback_state")
+	_assert_equal(str(state.get("target_instance_id", "")), "mat:1", "drag feedback state should remember the snap target")
+	_assert_true(bool(state.get("visible", false)), "drag feedback should become visible after preview")
 	main_view.free()
 
 
@@ -3097,6 +4552,32 @@ func _test_main_view_board_place_uses_light_drag_refresh() -> void:
 	main_view.free()
 
 
+func _test_main_view_light_refresh_facades_avoid_full_ui_rebuild() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	_assert_true(main_view.has_method("refresh_tabletop_only"), "main view should expose refresh_tabletop_only")
+	_assert_true(main_view.has_method("refresh_drawer_only"), "main view should expose refresh_drawer_only")
+	_assert_true(main_view.has_method("refresh_resources_only"), "main view should expose refresh_resources_only")
+	_assert_true(main_view.has_method("get_refresh_counters"), "main view should expose refresh counters for performance tests")
+	if not main_view.has_method("refresh_tabletop_only") or not main_view.has_method("get_refresh_counters"):
+		main_view.free()
+		return
+	var before: Dictionary = main_view.call("get_refresh_counters")
+	main_view.call("refresh_tabletop_only")
+	main_view.call("refresh_resources_only")
+	main_view.call("refresh_drawer_only", "status")
+	var after: Dictionary = main_view.call("get_refresh_counters")
+	_assert_equal(int(after.get("full", 0)), int(before.get("full", 0)), "local refresh facades should not count as full UI rebuilds")
+	_assert_equal(int(after.get("tabletop", 0)), int(before.get("tabletop", 0)) + 1, "refresh_tabletop_only should refresh only the tabletop layer")
+	_assert_equal(int(after.get("resources", 0)), int(before.get("resources", 0)) + 1, "refresh_resources_only should refresh only resource HUD state")
+	_assert_equal(int(after.get("drawer", 0)), int(before.get("drawer", 0)) + 1, "refresh_drawer_only should refresh only the requested drawer")
+	var drawer_state: Dictionary = main_view.call("get_tabletop_drawer_state")
+	_assert_true(not bool(drawer_state.get("visible", true)), "refresh_drawer_only should not open hidden drawers as a side effect")
+	main_view.free()
+
+
 func _test_main_view_contextual_tutorial_coachmark_contract() -> void:
 	var game_state: Node = _context.get("game_state")
 	game_state.reset_state()
@@ -3110,6 +4591,9 @@ func _test_main_view_contextual_tutorial_coachmark_contract() -> void:
 		return
 	var progress: Dictionary = game_state.get_tutorial_progress()
 	progress["completed_day_minus_one"] = true
+	# The Stacklands opening flow requires a pack to be opened before the legacy
+	# bulletin -> craft -> place -> demand chain takes over.
+	game_state.get_state()["card_pack_open_count"] = 1
 	var pick_hint: Dictionary = main_view.call("get_active_tutorial_coachmark")
 	_assert_equal(str(pick_hint.get("target", "")), "bulletin", "before the first pick, coachmark should target the bulletin cards")
 	_assert_true(str(pick_hint.get("body", "")).length() > 0, "pick coachmark should say what to do in the bulletin")
@@ -3589,6 +5073,20 @@ func _contains_available_recipe_pair(card_ids: Array[String], recipes: Array[Dic
 	return false
 
 
+func _recipe_exists(recipes: Array[Dictionary], recipe_id: String) -> bool:
+	for recipe: Dictionary in recipes:
+		if str(recipe.get("recipe_id", "")) == recipe_id:
+			return true
+	return false
+
+
+func _recipe_by_id(recipes: Array[Dictionary], recipe_id: String) -> Dictionary:
+	for recipe: Dictionary in recipes:
+		if str(recipe.get("recipe_id", "")) == recipe_id:
+			return recipe
+	return {}
+
+
 func _card_list_contains_id(cards: Array[Dictionary], card_id: String) -> bool:
 	for card: Dictionary in cards:
 		if str(card.get("card_id", "")) == card_id:
@@ -3601,6 +5099,42 @@ func _goal_completed(goals: Array[Dictionary], goal_id: String) -> bool:
 		if str(goal.get("id", "")) == goal_id:
 			return bool(goal.get("completed", false))
 	return false
+
+
+func _objective_completed(objectives: Array, objective_id: String) -> bool:
+	for objective_variant in objectives:
+		if typeof(objective_variant) != TYPE_DICTIONARY:
+			continue
+		var objective: Dictionary = objective_variant
+		if str(objective.get("id", "")) == objective_id:
+			return bool(objective.get("completed", false))
+	return false
+
+
+func _objective_unlocked(objectives: Array, objective_id: String) -> bool:
+	for objective_variant in objectives:
+		if typeof(objective_variant) != TYPE_DICTIONARY:
+			continue
+		var objective: Dictionary = objective_variant
+		if str(objective.get("id", "")) == objective_id:
+			return bool(objective.get("unlocked", false))
+	return false
+
+
+func _count_card_id(card_ids: Dictionary, card_id: String) -> int:
+	var count := 0
+	for value_variant in card_ids.values():
+		if str(value_variant) == card_id:
+			count += 1
+	return count
+
+
+func _first_instance_id_for_card(card_ids: Dictionary, card_id: String) -> String:
+	for instance_id_variant in card_ids.keys():
+		var instance_id := str(instance_id_variant)
+		if str(card_ids.get(instance_id_variant, "")) == card_id:
+			return instance_id
+	return ""
 
 
 func _lines_contain(lines: PackedStringArray, needle: String) -> bool:
@@ -3753,6 +5287,37 @@ func _shape_catalog_key(shape: Array) -> String:
 			return "X5"
 		_:
 			return "unknown"
+
+
+func _make_test_tabletop_card(card_id: String, card_name: String, card_type: String, tags: Array = []) -> Dictionary:
+	return {
+		"card_id": card_id,
+		"name": card_name,
+		"type": card_type,
+		"tags": tags.duplicate(true),
+		"unlock_day": 1,
+		"rarity": "common"
+	}
+
+
+func _prepend_test_recipe(recipe: Dictionary, existing_recipes: Array[Dictionary]) -> Array[Dictionary]:
+	var result: Array[Dictionary] = [recipe]
+	result.append_array(existing_recipes)
+	return result
+
+
+func _vector2_from_test(value: Variant) -> Vector2:
+	if typeof(value) == TYPE_VECTOR2:
+		return value
+	return Vector2.ZERO
+
+
+func _unique_vector2_count(values: Array) -> int:
+	var seen := {}
+	for value in values:
+		var pos := _vector2_from_test(value)
+		seen["%d,%d" % [int(round(pos.x)), int(round(pos.y))]] = true
+	return seen.size()
 
 
 func _normalized_shape_signature(shape: Array) -> String:

@@ -235,7 +235,32 @@ func _normalize_ui_state(ui_state_variant: Variant) -> Dictionary:
 	ui_state["tabletop_card_positions"] = _vector2_json_dictionary(ui_state.get("tabletop_card_positions", {}))
 	ui_state["tabletop_card_z"] = _int_dictionary(ui_state.get("tabletop_card_z", {}))
 	ui_state["tabletop_next_z"] = int(ui_state.get("tabletop_next_z", 1))
+	if typeof(ui_state.get("tabletop_controller_state", {})) == TYPE_DICTIONARY:
+		ui_state["tabletop_controller_state"] = _normalize_tabletop_controller_state(ui_state.get("tabletop_controller_state", {}))
+	if typeof(ui_state.get("stack_action_controller_state", {})) == TYPE_DICTIONARY:
+		ui_state["stack_action_controller_state"] = (ui_state.get("stack_action_controller_state", {}) as Dictionary).duplicate(true)
 	return ui_state
+
+
+func _normalize_tabletop_controller_state(state_variant: Variant) -> Dictionary:
+	if typeof(state_variant) != TYPE_DICTIONARY:
+		return {}
+	var state: Dictionary = (state_variant as Dictionary).duplicate(true)
+	state["tabletop_card_ids"] = _string_dictionary(state.get("tabletop_card_ids", {}))
+	state["tabletop_card_positions"] = _vector2_json_dictionary(state.get("tabletop_card_positions", {}))
+	state["tabletop_card_z"] = _int_dictionary(state.get("tabletop_card_z", {}))
+	state["tabletop_next_z"] = int(state.get("tabletop_next_z", 1))
+	var play_area := _vector2_from_variant(state.get("play_area_size", Vector2.ZERO))
+	state["play_area_size"] = {"x": play_area.x, "y": play_area.y}
+	if typeof(state.get("drag_feedback_state", {})) == TYPE_DICTIONARY:
+		var feedback: Dictionary = (state.get("drag_feedback_state", {}) as Dictionary).duplicate(true)
+		if feedback.has("position"):
+			var feedback_position := _vector2_from_variant(feedback.get("position", Vector2.ZERO))
+			feedback["position"] = {"x": feedback_position.x, "y": feedback_position.y}
+		state["drag_feedback_state"] = feedback
+	else:
+		state["drag_feedback_state"] = {}
+	return state
 
 
 func _string_array(source: Variant) -> Array[String]:

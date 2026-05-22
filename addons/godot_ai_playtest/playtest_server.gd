@@ -46,6 +46,10 @@ signal command_received(method: String, params: Dictionary)
 
 
 func _ready() -> void:
+	if OS.get_environment("RFT_DISABLE_AUTOMATION_SERVERS") == "1":
+		print("[PlaytestServer] Disabled for local test run")
+		set_process(false)
+		return
 	if not OS.is_debug_build():
 		print("[PlaytestServer] Disabled in release build")
 		set_process(false)
