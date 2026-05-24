@@ -243,7 +243,7 @@ func _ready() -> void:
 	_apply_phase3_settings(SettingsManager.settings)
 	AudioManager.play_bgm(audio_bgm_id_for_phase("day"))
 	if TutorialManager.should_show_day_minus_one() and OS.get_environment("RFT_CAPTURE_VIEWPORT_PNG").is_empty():
-		_open_day_minus_one_scene()
+		_open_day_minus_one_scene(true)
 	else:
 		_start_new_day_cycle(true)
 	_refresh_tutorial_overlay()
@@ -3187,38 +3187,36 @@ func _build_first_screen_tasks_panel() -> void:
 
 
 func _render_tasks_panel_into(list: Control) -> void:
-	var title := Label.new()
-	title.name = "TasksTitle"
-	title.text = "任务清单"
-	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", LIGHT_SURFACE_PRIMARY_TEXT)
-	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	list.add_child(title)
+	_add_tasks_panel_label(list, "TasksTitle", "任务清单", 18, LIGHT_SURFACE_PRIMARY_TEXT)
+	var guidance: Dictionary = get_tutorial_guidance_state()
+	if bool(guidance.get("visible", false)):
+		_render_live_tutorial_guidance(list, guidance)
+		return
+	_render_opening_task_objectives(list)
+	_render_facility_recipe_section(list)
 
-	var objectives_header := Label.new()
-	objectives_header.name = "TaskGroupHeader"
-	objectives_header.text = "📋 教程目标"
-	objectives_header.add_theme_font_size_override("font_size", 13)
-	objectives_header.add_theme_color_override("font_color", Color(0.42, 0.30, 0.12))
-	objectives_header.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	list.add_child(objectives_header)
+
+func _render_opening_task_objectives(list: Control) -> void:
+	_add_tasks_panel_label(list, "TaskGroupHeader", "📋 教程目标", 13, Color(0.42, 0.30, 0.12))
 	for line in _build_tasks_panel_lines():
-		var label := Label.new()
-		label.name = "TaskRow"
-		label.text = str(line)
-		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		label.add_theme_font_size_override("font_size", 12)
-		label.add_theme_color_override("font_color", LIGHT_SURFACE_PRIMARY_TEXT)
-		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		list.add_child(label)
+		_add_tasks_panel_label(list, "TaskRow", str(line), 12, LIGHT_SURFACE_PRIMARY_TEXT, true)
 
-	var facilities_header := Label.new()
-	facilities_header.name = "TaskGroupHeader"
-	facilities_header.text = "🏗 可建设施"
-	facilities_header.add_theme_font_size_override("font_size", 13)
-	facilities_header.add_theme_color_override("font_color", Color(0.42, 0.30, 0.12))
-	facilities_header.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	list.add_child(facilities_header)
+
+func _render_live_tutorial_guidance(list: Control, guidance: Dictionary) -> void:
+	_add_tasks_panel_label(list, "TaskGroupHeader", "当前一步", 13, Color(0.42, 0.30, 0.12))
+	for line in [
+		"现在做什么：%s" % str(guidance.get("title", "")),
+		"为什么做：%s" % str(guidance.get("reason", "")),
+		"去哪里做：%s" % str(guidance.get("where", ""))
+	]:
+		_add_tasks_panel_label(list, "TaskRow", line, 12, LIGHT_SURFACE_PRIMARY_TEXT, true)
+	_add_tasks_panel_label(list, "TaskGroupHeader", "四步进度", 12, LIGHT_SURFACE_MUTED_TEXT)
+	for progress_line_variant in guidance.get("progress_lines", PackedStringArray()):
+		_add_tasks_panel_label(list, "TaskRow", str(progress_line_variant), 12, LIGHT_SURFACE_PRIMARY_TEXT, true)
+
+
+func _render_facility_recipe_section(list: Control) -> void:
+	_add_tasks_panel_label(list, "TaskGroupHeader", "🏗 可建设施", 13, Color(0.42, 0.30, 0.12))
 	var facility_rows_scroll := ScrollContainer.new()
 	facility_rows_scroll.name = "FacilityRowsScroll"
 	facility_rows_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -3255,6 +3253,18 @@ func _render_tasks_panel_into(list: Control) -> void:
 		button.pressed.connect(_on_facility_recipe_row_pressed.bind(recipe_id))
 		row_slot.add_child(button)
 		_apply_facility_recipe_row_style(button, recipe_id == _active_facility_highlight_id)
+
+
+func _add_tasks_panel_label(list: Control, name: String, text: String, font_size: int, color: Color, wrap: bool = false) -> void:
+	var label := Label.new()
+	label.name = name
+	label.text = text
+	if wrap:
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", color)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	list.add_child(label)
 
 
 func _build_first_screen_playmat() -> void:
@@ -3439,8 +3449,10 @@ func _build_drawer_quick_options() -> void:
 	quick_buttons.add_theme_constant_override("v_separation", 6)
 	content.add_child(quick_buttons)
 	var tutorial_button := Button.new()
-	tutorial_button.text = "Guide"
-	tutorial_button.pressed.connect(_open_day_minus_one_scene)
+	tutorial_button.text = "回看引导"
+	tutorial_button.pressed.connect(func() -> void:
+		_open_day_minus_one_scene(false)
+	)
 	quick_buttons.add_child(tutorial_button)
 	var theme_button := Button.new()
 	theme_button.text = "Theme"
@@ -3885,8 +3897,10 @@ func _build_ui() -> void:
 	event_close_button.pressed.connect(_dismiss_announcement)
 	event_button_row.add_child(event_close_button)
 	var event_tutorial_button := Button.new()
-	event_tutorial_button.text = "智能事件"
-	event_tutorial_button.pressed.connect(_open_day_minus_one_scene)
+	event_tutorial_button.text = "回看引导"
+	event_tutorial_button.pressed.connect(func() -> void:
+		_open_day_minus_one_scene(false)
+	)
 	event_button_row.add_child(event_tutorial_button)
 
 	var bulletin_panel_parts := _create_panel("公告栏", Vector2(0, 150))
@@ -4377,6 +4391,71 @@ func _build_tasks_panel_lines() -> PackedStringArray:
 	if lines.is_empty():
 		lines.append("· 暂无任务")
 	return lines
+
+
+func get_tutorial_guidance_state() -> Dictionary:
+	var progress: Dictionary = GameState.get_tutorial_progress()
+	var progress_lines: PackedStringArray = _tutorial_progress_lines(progress)
+	if not bool(progress.get("welcome_seen", false)):
+		return {"visible": false, "progress_lines": progress_lines}
+	if TutorialManager.is_first_guidance_complete():
+		return {"visible": false, "progress_lines": progress_lines}
+	var coachmark: Dictionary = get_active_tutorial_coachmark()
+	var target := str(coachmark.get("target", ""))
+	if coachmark.is_empty() or target == "tutorial":
+		return {"visible": false, "progress_lines": progress_lines}
+	var copy: Dictionary = _tutorial_step_copy(target)
+	if copy.is_empty():
+		return {"visible": false, "progress_lines": progress_lines}
+	copy["visible"] = true
+	copy["target"] = target
+	copy["progress_lines"] = progress_lines
+	return copy
+
+
+func _tutorial_progress_lines(progress: Dictionary) -> PackedStringArray:
+	return PackedStringArray([
+		"%s 选卡" % ("[x]" if bool(progress.get("first_pick_done", false)) else "[ ]"),
+		"%s 合成" % ("[x]" if bool(progress.get("first_craft_done", false)) else "[ ]"),
+		"%s 摆放" % ("[x]" if bool(progress.get("first_place_done", false)) else "[ ]"),
+		"%s 解决需求" % ("[x]" if bool(progress.get("first_problem_done", false)) else "[ ]")
+	])
+
+
+func _tutorial_step_copy(target: String) -> Dictionary:
+	match target:
+		"card_pack":
+			return {
+				"title": "先打开起手卡包",
+				"reason": "先拿到可用卡牌，后面才有东西可以摆上桌。",
+				"where": "顶部卡包栏"
+			}
+		"bulletin":
+			return {
+				"title": "先从公告栏拿 1 张卡",
+				"reason": "这是每天行动的起点，卡会进入你的手牌。",
+				"where": "顶部公告栏"
+			}
+		"hand_quick_craft", "craft", "hand":
+			return {
+				"title": "把配方卡放到合成区",
+				"reason": "先做出设施，后面才有东西可摆。",
+				"where": "手牌和合成区"
+			}
+		"hand_facility", "board":
+			return {
+				"title": "把设施拖到桌面区域",
+				"reason": "设施落地后才能开始参与产出和服务。",
+				"where": "手牌中的设施卡和中间桌面"
+			}
+		"demand", "next_day":
+			return {
+				"title": "处理居民需求",
+				"reason": "未处理的需求会在结算时带来压力。",
+				"where": "需求卡和对应服务建筑"
+			}
+		_:
+			return {}
 
 
 func _build_facility_recipe_lines() -> PackedStringArray:
@@ -5235,21 +5314,22 @@ func _apply_ui_save_state(ui_state: Dictionary) -> void:
 	_refresh_tabletop_layer()
 
 
-func _open_day_minus_one_scene() -> void:
+func _open_day_minus_one_scene(start_cycle_on_finish: bool = false) -> void:
 	if day_minus_one_view != null:
 		return
 	day_minus_one_view = DAY_MINUS_ONE_SCENE.instantiate()
 	add_child(day_minus_one_view)
 	if day_minus_one_view.has_signal("finished"):
-		day_minus_one_view.connect("finished", Callable(self, "_on_day_minus_one_finished"))
+		day_minus_one_view.connect("finished", Callable(self, "_on_day_minus_one_finished").bind(start_cycle_on_finish))
 
 
-func _on_day_minus_one_finished() -> void:
+func _on_day_minus_one_finished(start_cycle_on_finish: bool = false) -> void:
 	if day_minus_one_view != null:
 		day_minus_one_view.queue_free()
 	day_minus_one_view = null
-	_start_new_day_cycle(true)
-	_append_report_line("新手教程完成，已进入正式第 1 天。")
+	if start_cycle_on_finish:
+		_start_new_day_cycle(true)
+		_append_report_line("新手引导开始，已进入正式第 1 天。")
 	_refresh_tutorial_overlay()
 	_update_all_ui()
 
@@ -7045,7 +7125,9 @@ func _refresh_status_header_ui(state: Dictionary) -> void:
 		rotate_build_button.text = "旋转 %d°" % get_pending_build_rotation()
 		var drag_def := _current_drag_card_def()
 		rotate_build_button.disabled = is_dragging and (drag_def.is_empty() or not bool(drag_def.get("can_rotate", false)))
-	tutorial_hint_label.text = "教程提示: %s" % TutorialManager.get_active_inline_hint()
+	if tutorial_hint_label != null:
+		tutorial_hint_label.text = "教程提示: %s" % TutorialManager.get_active_inline_hint()
+		tutorial_hint_label.visible = false
 	if bulletin_paid_mode_enabled(state):
 		bulletin_status_label.text = "5张明牌，仅含材料和建筑许可；可免费拿1张，其余可花小红花购买。%s" % selection_status
 	else:
@@ -8239,19 +8321,9 @@ func _animate_board_cell(cell_index: int) -> void:
 
 
 func _refresh_tutorial_overlay() -> void:
-	if not is_inside_tree() or tutorial_overlay == null:
+	if tutorial_overlay == null:
 		return
-	tutorial_overlay.visible = TutorialManager.should_show_day_minus_one() and OS.get_environment("RFT_CAPTURE_VIEWPORT_PNG").is_empty()
-	if not tutorial_overlay.visible:
-		return
-	tutorial_overlay_title_label.text = str(DataRepository.tutorial.get("day_minus_one", {}).get("title", "新手教程"))
-	var lines: PackedStringArray = []
-	lines.append(str(DataRepository.tutorial.get("day_minus_one", {}).get("subtitle", "")))
-	for step in TutorialManager.get_day_minus_one_steps():
-		lines.append("")
-		lines.append("[b]%s[/b]" % str(step.get("title", "")))
-		lines.append(str(step.get("body", "")))
-	tutorial_overlay_body_label.text = "\n".join(lines)
+	tutorial_overlay.visible = false
 
 
 func _update_debug_panel() -> void:

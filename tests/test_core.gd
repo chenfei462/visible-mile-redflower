@@ -154,6 +154,8 @@ func run(context: Dictionary) -> PackedStringArray:
 	_test_main_view_light_refresh_facades_avoid_full_ui_rebuild()
 	_test_main_view_land_unlock_and_bulletin_action_contract()
 	_test_main_view_contextual_tutorial_coachmark_contract()
+	_test_main_view_live_tutorial_guidance_contract()
+	_test_main_view_tutorial_replay_does_not_restart_day_cycle()
 	_test_tutorial_and_resident_cards_use_dark_text_on_light_surfaces()
 	_test_tabletop_layout_spec_and_panel_stylebox_contract()
 	_test_left_panel_subcontroller_scenes_contract()
@@ -4745,6 +4747,59 @@ func _test_main_view_contextual_tutorial_coachmark_contract() -> void:
 		_assert_true(bool(visual.get("demand_targets_card", false)), "demand tutorial target should resolve to the concrete demand card, not the whole container")
 		_assert_true(bool(visual.get("tracks_scroll", false)), "tutorial pointer should recompute its screen position after the page scrolls")
 		_assert_true(bool(visual.get("repositions_same_target", false)), "tutorial pointer should update even when the active tutorial target name has not changed")
+	main_view.free()
+
+
+func _test_main_view_live_tutorial_guidance_contract() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var progress: Dictionary = game_state.get_tutorial_progress()
+	progress["welcome_seen"] = true
+	progress["completed_day_minus_one"] = true
+	game_state.get_state()["card_pack_open_count"] = 1
+
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+
+	_assert_true(main_view.has_method("get_tutorial_guidance_state"), "main view should expose the live current-step card state")
+	if not main_view.has_method("get_tutorial_guidance_state"):
+		main_view.free()
+		return
+	var guidance: Dictionary = main_view.call("get_tutorial_guidance_state")
+	_assert_true(bool(guidance.get("visible", false)), "the live onboarding card should stay visible while first-time milestones remain")
+	_assert_equal(str(guidance.get("target", "")), "bulletin", "the live onboarding card should align with the current coachmark target")
+	_assert_true(str(guidance.get("where", "")).contains("公告栏"), "the live onboarding card should tell the player where to act")
+	_assert_equal(Array(guidance.get("progress_lines", [])).size(), 4, "the live onboarding card should summarize all four first-time milestones")
+
+	var overlay: Control = main_view.get("tutorial_overlay")
+	_assert_true(overlay == null or not overlay.visible, "the legacy full tutorial overlay should stay hidden once live guidance takes over")
+	var hint_label: Label = main_view.get("tutorial_hint_label")
+	_assert_true(hint_label == null or not hint_label.visible, "the duplicate top tutorial hint should stay hidden")
+
+	progress["first_pick_done"] = true
+	progress["first_craft_done"] = true
+	progress["first_place_done"] = true
+	progress["first_problem_done"] = true
+	var retired: Dictionary = main_view.call("get_tutorial_guidance_state")
+	_assert_true(not bool(retired.get("visible", true)), "the live onboarding card should retire after the four first-time milestones")
+	main_view.free()
+
+
+func _test_main_view_tutorial_replay_does_not_restart_day_cycle() -> void:
+	var game_state: Node = _context.get("game_state")
+	game_state.reset_state()
+	var progress: Dictionary = game_state.get_tutorial_progress()
+	progress["welcome_seen"] = true
+	progress["completed_day_minus_one"] = true
+	game_state.get_state()["day_count"] = 4
+
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	main_view.call("_open_day_minus_one_scene", false)
+	main_view.call("_on_day_minus_one_finished", false)
+	_assert_equal(int(game_state.get_state().get("day_count", 0)), 4, "replaying the guide from the drawer should not restart the current day")
 	main_view.free()
 
 
