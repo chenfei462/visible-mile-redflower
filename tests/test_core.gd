@@ -65,6 +65,7 @@ func run(context: Dictionary) -> PackedStringArray:
 	_test_new_day_bulletin_refresh()
 	_test_tutorial_progress()
 	_test_tutorial_progress_welcome_state_contract()
+	_test_day_minus_one_view_welcome_contract()
 	_test_v04_flower_unlock_and_board_v2_defaults()
 	_test_board_v5_save_migration_preserves_unlocked_area()
 	_test_tetris_legacy_board_v4_save_reset()
@@ -1464,6 +1465,22 @@ func _test_tutorial_progress_welcome_state_contract() -> void:
 	var restored_progress: Dictionary = restored.get("tutorial_progress", {})
 	_assert_true(restored_progress.has("welcome_seen"), "save restore should backfill the new tutorial flags")
 	_assert_true(bool(restored_progress.get("first_pick_done", false)), "save restore should preserve existing tutorial milestones")
+
+
+func _test_day_minus_one_view_welcome_contract() -> void:
+	var tutorial_manager: Node = _context.get("tutorial_manager")
+	var scene: PackedScene = load("res://scenes/DayMinusOne.tscn")
+	var view: Control = scene.instantiate()
+	_assert_true(view.has_method("get_welcome_card_content"), "Day -1 view should expose welcome-card copy for tests and UI wiring")
+	if not view.has_method("get_welcome_card_content"):
+		view.free()
+		return
+	var copy: Dictionary = view.call("get_welcome_card_content")
+	_assert_true(str(copy.get("primary_action", "")).contains("开始"), "welcome card should use a start-guidance primary action")
+	_assert_true(str(copy.get("secondary_action", "")).contains("跳过"), "welcome card should keep a skip action")
+	_assert_equal(Array(copy.get("step_titles", [])).size(), tutorial_manager.get_day_minus_one_steps().size(), "welcome card should summarize each tutorial step once")
+	_assert_true(str(copy.get("body", "")).contains("一步一步"), "welcome card should promise guided play in the main view")
+	view.free()
 
 
 func _test_key_day_event_trigger() -> void:
