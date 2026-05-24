@@ -64,6 +64,7 @@ func run(context: Dictionary) -> PackedStringArray:
 	_test_pick_craft_place_flow()
 	_test_new_day_bulletin_refresh()
 	_test_tutorial_progress()
+	_test_tutorial_progress_welcome_state_contract()
 	_test_v04_flower_unlock_and_board_v2_defaults()
 	_test_board_v5_save_migration_preserves_unlocked_area()
 	_test_tetris_legacy_board_v4_save_reset()
@@ -1438,6 +1439,31 @@ func _test_tutorial_progress() -> void:
 	tutorial_manager.mark_action("problem")
 	var progress: Dictionary = game_state.get_tutorial_progress()
 	_assert_true(bool(progress.get("first_problem_done", false)), "tutorial progress should track first problem resolution")
+
+
+func _test_tutorial_progress_welcome_state_contract() -> void:
+	var tutorial_manager: Node = _context.get("tutorial_manager")
+	var game_state: Node = _context.get("game_state")
+	var save_manager: Node = _context.get("save_manager")
+	game_state.reset_state()
+	tutorial_manager.reload_data()
+
+	var defaults: Dictionary = game_state.get_tutorial_progress()
+	_assert_true(defaults.has("welcome_seen"), "tutorial progress should expose a separate welcome_seen flag")
+	_assert_true(not bool(defaults.get("welcome_seen", true)), "new games should start with the welcome card unseen")
+	_assert_true(tutorial_manager.should_show_day_minus_one(), "new games should still show the welcome card")
+
+	game_state.community_state["tutorial_progress"] = {"completed_day_minus_one": true}
+	var normalized: Dictionary = game_state.call("ensure_tutorial_progress_defaults")
+	_assert_true(bool(normalized.get("welcome_seen", false)), "legacy completed Day -1 saves should map to welcome_seen")
+	_assert_true(not tutorial_manager.should_show_day_minus_one(), "legacy completed Day -1 saves should not reopen the welcome card")
+
+	var restored: Dictionary = save_manager.call("_restore_community_state", {
+		"tutorial_progress": {"first_pick_done": true}
+	})
+	var restored_progress: Dictionary = restored.get("tutorial_progress", {})
+	_assert_true(restored_progress.has("welcome_seen"), "save restore should backfill the new tutorial flags")
+	_assert_true(bool(restored_progress.get("first_pick_done", false)), "save restore should preserve existing tutorial milestones")
 
 
 func _test_key_day_event_trigger() -> void:

@@ -1,6 +1,14 @@
 extends Node
 
 const BOARD_RULES := preload("res://scripts/core/BoardRules.gd")
+const TUTORIAL_PROGRESS_DEFAULTS := {
+	"welcome_seen": false,
+	"completed_day_minus_one": false,
+	"first_pick_done": false,
+	"first_craft_done": false,
+	"first_place_done": false,
+	"first_problem_done": false
+}
 
 var community_state: Dictionary = {}
 var last_settlement_lines: PackedStringArray = []
@@ -70,13 +78,7 @@ func reset_state() -> void:
 		"resident_need_entities": [],
 		"day_rollover_pending": false,
 		"day_minus_one_mode": false,
-		"tutorial_progress": {
-			"completed_day_minus_one": false,
-			"first_pick_done": false,
-			"first_craft_done": false,
-			"first_place_done": false,
-			"first_problem_done": false
-		}
+		"tutorial_progress": TUTORIAL_PROGRESS_DEFAULTS.duplicate(true)
 	}
 	last_settlement_lines.clear()
 
@@ -113,13 +115,35 @@ func get_state() -> Dictionary:
 
 
 func get_tutorial_progress() -> Dictionary:
-	return community_state.get("tutorial_progress", {})
+	return ensure_tutorial_progress_defaults()
+
+
+func ensure_tutorial_progress_defaults(progress: Dictionary = {}) -> Dictionary:
+	var target: Dictionary = progress
+	var should_store := progress.is_empty()
+	if should_store:
+		if typeof(community_state.get("tutorial_progress", {})) != TYPE_DICTIONARY:
+			community_state["tutorial_progress"] = {}
+		target = community_state.get("tutorial_progress", {})
+	for key_variant in target.keys():
+		var key: String = str(key_variant)
+		target[key] = bool(target.get(key))
+	for key_variant in TUTORIAL_PROGRESS_DEFAULTS.keys():
+		var key: String = str(key_variant)
+		if not target.has(key):
+			target[key] = bool(TUTORIAL_PROGRESS_DEFAULTS.get(key))
+	if bool(target.get("completed_day_minus_one", false)):
+		target["welcome_seen"] = true
+	if should_store:
+		community_state["tutorial_progress"] = target
+	return target
 
 
 func mark_tutorial_flag(flag_name: String) -> void:
 	var tutorial_progress: Dictionary = get_tutorial_progress()
-	if tutorial_progress.has(flag_name):
-		tutorial_progress[flag_name] = true
+	if not tutorial_progress.has(flag_name):
+		tutorial_progress[flag_name] = false
+	tutorial_progress[flag_name] = true
 
 
 func add_active_problem(problem_state: Dictionary) -> void:
