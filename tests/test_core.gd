@@ -104,6 +104,7 @@ func run(context: Dictionary) -> PackedStringArray:
 	_test_main_view_tabletop_free_move_preserves_drag_pointer_offset()
 	_test_main_view_tabletop_auto_craft_records_feedback()
 	_test_main_view_tabletop_timed_recipe_waits_before_result()
+	_test_main_view_tabletop_timed_recipe_cancels_when_card_dragged_out()
 	_test_main_view_tabletop_resource_node_production_preserves_worker_and_node()
 	_test_main_view_tabletop_live_resource_node_chain_outputs()
 	_test_main_view_tabletop_facility_production_creates_collectable_funds_cards()
@@ -3452,6 +3453,10 @@ func _test_main_view_tabletop_timed_recipe_waits_before_result() -> void:
 		_assert_true(bool(progress_before_finish.get("pending", false)), "timed tabletop progress should be pending before completion")
 		_assert_equal(str(progress_before_finish.get("recipe_id", "")), "timed_build_ramp", "timed tabletop progress should report the recipe id")
 		_assert_true(float(progress_before_finish.get("time_cost_sec", 0.0)) > 0.0, "timed tabletop progress should expose the recipe duration")
+		main_view.set("_tabletop_crafting_progress_sec", 0.05)
+		var progress_midway: Dictionary = main_view.call("get_tabletop_stack_progress_state")
+		_assert_true(float(progress_midway.get("progress", 0.0)) > 0.4 and float(progress_midway.get("progress", 0.0)) < 0.6, "tabletop stack progress should reflect mid-craft progress_sec ratio")
+		_assert_true(float(progress_midway.get("progress_sec", 0.0)) > 0.04, "tabletop stack progress should expose progress_sec field")
 	main_view.call("finish_tabletop_timed_craft_now")
 	repository.recipes = original_recipes
 	var ids_after_finish: Dictionary = main_view.call("get_tabletop_card_ids")
@@ -3462,6 +3467,50 @@ func _test_main_view_tabletop_timed_recipe_waits_before_result() -> void:
 	if main_view.has_method("get_tabletop_stack_progress_state"):
 		var progress_after_finish: Dictionary = main_view.call("get_tabletop_stack_progress_state")
 		_assert_true(not bool(progress_after_finish.get("pending", true)), "timed tabletop progress should clear after completion")
+	main_view.free()
+
+
+func _test_main_view_tabletop_timed_recipe_cancels_when_card_dragged_out() -> void:
+	var game_state: Node = _context.get("game_state")
+	var repository: Node = _context.get("data_repository")
+	game_state.reset_state()
+	var original_recipes: Array[Dictionary] = repository.recipes.duplicate(true)
+	var timed_recipes: Array[Dictionary] = original_recipes.duplicate(true)
+	var timed_recipe: Dictionary = {}
+	for recipe: Dictionary in timed_recipes:
+		if str(recipe.get("recipe_id", "")) == "build_ramp":
+			timed_recipe = recipe.duplicate(true)
+			break
+	if timed_recipe.is_empty():
+		return
+	timed_recipe["recipe_id"] = "timed_build_ramp_for_cancel"
+	timed_recipe["time_cost_sec"] = 5.0
+	timed_recipes.push_front(timed_recipe)
+	repository.recipes = timed_recipes
+	var main_scene: PackedScene = load("res://scenes/Main.tscn")
+	var main_view: Control = main_scene.instantiate()
+	main_view.set_hand_cards_state(["ramp_blueprint", "lumber_pack"], ["bulletin_free", "bulletin_free"], [0, 0])
+	var placed_permit: Dictionary = main_view.call("place_hand_card_on_tabletop", 0, Vector2(120, 140))
+	var anchor_instance_id := str(placed_permit.get("instance_id", ""))
+	main_view.set("drag_card_id", "lumber_pack")
+	main_view.set("drag_source_zone", "hand")
+	main_view.set("drag_source_index", 0)
+	main_view.set("is_dragging", true)
+	main_view.call("_drop_from_hand", {
+		"type": "tabletop_card",
+		"target_instance_id": anchor_instance_id,
+		"position": Vector2(126, 148)
+	})
+	var progress_pending: Dictionary = main_view.call("get_tabletop_stack_progress_state")
+	_assert_true(bool(progress_pending.get("pending", false)), "drag-out cancel test setup should leave a pending craft")
+	var cancel_result: Dictionary = main_view.call("cancel_tabletop_timed_craft")
+	_assert_equal(str(cancel_result.get("message", "")), "tabletop_craft_cancelled", "cancel_tabletop_timed_craft should record a cancelled message")
+	var progress_after_cancel: Dictionary = main_view.call("get_tabletop_stack_progress_state")
+	_assert_true(not bool(progress_after_cancel.get("pending", true)), "tabletop pending craft should be cleared after cancel")
+	_assert_equal(float(progress_after_cancel.get("progress_sec", -1.0)), 0.0, "progress_sec should reset to 0 after cancel")
+	var ids_after_cancel: Dictionary = main_view.call("get_tabletop_card_ids")
+	_assert_equal(ids_after_cancel.size(), 2, "cards should remain on tabletop after cancel (only craft is cancelled)")
+	repository.recipes = original_recipes
 	main_view.free()
 
 

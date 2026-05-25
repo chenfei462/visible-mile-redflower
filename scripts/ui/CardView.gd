@@ -120,6 +120,9 @@ var _footprint_preview_state := {
 	"occupied_cells": [],
 	"root_cell": Vector2i.ZERO
 }
+var _craft_progress: float = 0.0
+var _craft_progress_sec: float = 0.0
+var _craft_time_cost_sec: float = 0.0
 
 
 func _ready() -> void:
@@ -1071,3 +1074,40 @@ func _play_audio_cue(sfx_id: String) -> void:
 
 func is_picked_up() -> bool:
 	return _picked_up
+
+
+func set_craft_progress(progress: float, progress_sec: float, time_cost_sec: float) -> void:
+	var clamped := clampf(progress, 0.0, 1.0)
+	if is_equal_approx(_craft_progress, clamped) and is_equal_approx(_craft_progress_sec, progress_sec) and is_equal_approx(_craft_time_cost_sec, time_cost_sec):
+		return
+	_craft_progress = clamped
+	_craft_progress_sec = progress_sec
+	_craft_time_cost_sec = time_cost_sec
+	queue_redraw()
+
+
+func get_craft_progress_state() -> Dictionary:
+	return {
+		"progress": _craft_progress,
+		"progress_sec": _craft_progress_sec,
+		"time_cost_sec": _craft_time_cost_sec
+	}
+
+
+func _draw() -> void:
+	if _craft_progress <= 0.0 or _craft_time_cost_sec <= 0.0:
+		return
+	var radius := minf(size.x, size.y) * 0.22
+	var center := Vector2(size.x * 0.5, size.y * 0.55)
+	var bg_color := Color(0.05, 0.05, 0.05, 0.45)
+	draw_circle(center, radius + 2.0, bg_color)
+	draw_arc(center, radius, -PI * 0.5, -PI * 0.5 + TAU * _craft_progress, 28, Color(0.98, 0.86, 0.42, 0.95), 3.5)
+	draw_arc(center, radius, -PI * 0.5 + TAU * _craft_progress, -PI * 0.5 + TAU, 28, Color(1.0, 1.0, 1.0, 0.25), 1.5)
+	var remaining := maxf(0.0, _craft_time_cost_sec - _craft_progress_sec)
+	var text := "%.1fs" % remaining
+	var font := ThemeDB.fallback_font
+	if font == null:
+		return
+	var font_size := 11
+	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
+	draw_string(font, center + Vector2(-text_size.x * 0.5, text_size.y * 0.35), text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, Color(1.0, 1.0, 1.0, 0.95))

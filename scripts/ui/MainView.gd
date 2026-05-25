@@ -233,7 +233,10 @@ var _stack_prices: Array[int] = []
 var _stack_crafting_recipe_id: String = ""
 var _stack_crafting_tween: Tween
 var _tabletop_crafting_tween: Tween
+var _tabletop_crafting_progress_sec: float = 0.0
 var _tabletop_pending_craft: Dictionary = {}
+var _tabletop_card_view_by_instance: Dictionary = {}
+var _last_craft_anchor_instance_id: String = ""
 var _hovered_linked_craft_card_id := ""
 const STACK_MAX_SLOTS := 4
 
@@ -295,6 +298,7 @@ func _reset_transient_runtime_state(clear_runtime_nodes: bool) -> void:
 	if _tabletop_crafting_tween != null and _tabletop_crafting_tween.is_valid():
 		_tabletop_crafting_tween.kill()
 	_tabletop_crafting_tween = null
+	_tabletop_crafting_progress_sec = 0.0
 	_tabletop_pending_craft.clear()
 	floating_notifiers.clear()
 	last_craft_failure_feedback.clear()
@@ -403,6 +407,7 @@ func _input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	advance_runtime_clock(delta)
+	_push_tabletop_craft_progress_to_anchor()
 
 
 func _assign_string_array(target: Array[String], value: Variant) -> void:
@@ -681,17 +686,49 @@ func get_tabletop_drag_feedback_state() -> Dictionary:
 
 func get_tabletop_stack_progress_state() -> Dictionary:
 	if _tabletop_pending_craft.is_empty():
-		return {"pending": false, "progress": 0.0}
+		return {"pending": false, "progress": 0.0, "progress_sec": 0.0, "time_cost_sec": 0.0}
 	var recipe: Dictionary = _tabletop_pending_craft.get("recipe", {})
+	var time_cost := float(_tabletop_pending_craft.get("time_cost_sec", recipe.get("time_cost_sec", 0.0)))
+	var progress_sec := clampf(_tabletop_crafting_progress_sec, 0.0, time_cost if time_cost > 0.0 else _tabletop_crafting_progress_sec)
+	var progress := 0.0
+	if time_cost > 0.0:
+		progress = clampf(progress_sec / time_cost, 0.0, 1.0)
 	return {
 		"pending": true,
 		"recipe_id": str(recipe.get("recipe_id", "")),
 		"result_card_id": str(recipe.get("result_card_id", "")),
 		"input_instance_ids": Array(_tabletop_pending_craft.get("instance_ids", [])).duplicate(),
-		"time_cost_sec": float(recipe.get("time_cost_sec", 0.0)),
-		"progress": 0.0,
+		"anchor_instance_id": str(_tabletop_pending_craft.get("anchor_instance_id", "")),
+		"time_cost_sec": time_cost,
+		"progress_sec": progress_sec,
+		"progress": progress,
 		"message": "tabletop_craft_in_progress"
 	}
+
+
+func _push_tabletop_craft_progress_to_anchor() -> void:
+	if _tabletop_pending_craft.is_empty():
+		if not _last_craft_anchor_instance_id.is_empty():
+			var prev_view: Control = _tabletop_card_view_by_instance.get(_last_craft_anchor_instance_id)
+			if prev_view != null and is_instance_valid(prev_view) and prev_view.has_method("set_craft_progress"):
+				prev_view.call("set_craft_progress", 0.0, 0.0, 0.0)
+			_last_craft_anchor_instance_id = ""
+		return
+	var anchor_id := str(_tabletop_pending_craft.get("anchor_instance_id", ""))
+	if anchor_id.is_empty():
+		return
+	var anchor_view: Control = _tabletop_card_view_by_instance.get(anchor_id)
+	if anchor_view == null or not is_instance_valid(anchor_view):
+		return
+	if not anchor_view.has_method("set_craft_progress"):
+		return
+	var recipe: Dictionary = _tabletop_pending_craft.get("recipe", {})
+	var time_cost := float(_tabletop_pending_craft.get("time_cost_sec", recipe.get("time_cost_sec", 0.0)))
+	var progress := 0.0
+	if time_cost > 0.0:
+		progress = clampf(_tabletop_crafting_progress_sec / time_cost, 0.0, 1.0)
+	anchor_view.call("set_craft_progress", progress, _tabletop_crafting_progress_sec, time_cost)
+	_last_craft_anchor_instance_id = anchor_id
 
 
 func purchase_card_pack_to_tabletop(pack_id: String) -> Dictionary:
@@ -944,6 +981,30 @@ func place_resident_need_on_tabletop(need_id: String, position: Vector2) -> Dict
 
 func finish_tabletop_timed_craft_now() -> Dictionary:
 	return _finish_tabletop_timed_craft()
+
+
+func cancel_tabletop_timed_craft(reason: String = "tabletop_craft_cancelled") -> Dictionary:
+	if _tabletop_pending_craft.is_empty():
+		return {"success": false, "message": "no_tabletop_craft_in_progress"}
+	if _tabletop_crafting_tween != null and _tabletop_crafting_tween.is_valid():
+		_tabletop_crafting_tween.kill()
+	_tabletop_crafting_tween = null
+	var pending := _tabletop_pending_craft.duplicate(true)
+	_tabletop_pending_craft.clear()
+	_tabletop_crafting_progress_sec = 0.0
+	if stack_action_controller != null:
+		stack_action_controller.set("pending_craft", {})
+	var anchor_id := str(pending.get("anchor_instance_id", ""))
+	if not anchor_id.is_empty():
+		var anchor_view: Control = _tabletop_card_view_by_instance.get(anchor_id)
+		if anchor_view != null and is_instance_valid(anchor_view) and anchor_view.has_method("set_craft_progress"):
+			anchor_view.call("set_craft_progress", 0.0, 0.0, 0.0)
+	_last_craft_anchor_instance_id = ""
+	var recipe: Dictionary = pending.get("recipe", {})
+	var input_ids: Array = Array(pending.get("instance_ids", []))
+	_record_tabletop_craft_feedback(false, input_ids, recipe, str(recipe.get("result_card_id", "")), reason)
+	_append_report_line("桌面合成中止")
+	return last_tabletop_craft_feedback.duplicate(true)
 
 
 func bring_tabletop_card_to_front(instance_id: String) -> int:
@@ -2211,11 +2272,13 @@ func _try_auto_craft_tabletop_stack(instance_ids: Array[String], anchor_instance
 func _start_tabletop_timed_craft(instance_ids: Array[String], recipe: Dictionary, anchor_instance_id: String, time_cost: float) -> Dictionary:
 	if _tabletop_crafting_tween != null and _tabletop_crafting_tween.is_valid():
 		_tabletop_crafting_tween.kill()
+	_tabletop_crafting_progress_sec = 0.0
 	var copied_ids := Array(instance_ids)
 	_tabletop_pending_craft = {
 		"instance_ids": copied_ids.duplicate(),
 		"recipe": recipe.duplicate(true),
-		"anchor_instance_id": anchor_instance_id
+		"anchor_instance_id": anchor_instance_id,
+		"time_cost_sec": time_cost
 	}
 	AudioManager.play_sfx(audio_sfx_id_for_action("craft_start"))
 	_append_report_line("桌面合成进行中：%s" % _format_card_id_list(_card_ids_for_tabletop_instances(copied_ids)))
@@ -2223,9 +2286,10 @@ func _start_tabletop_timed_craft(instance_ids: Array[String], recipe: Dictionary
 	if not is_inside_tree():
 		return last_tabletop_craft_feedback.duplicate(true)
 	if bool(SettingsManager.get_value("reduce_motion")) or time_cost <= 0.0:
+		_tabletop_crafting_progress_sec = time_cost
 		return _finish_tabletop_timed_craft()
 	_tabletop_crafting_tween = create_tween()
-	_tabletop_crafting_tween.tween_interval(time_cost)
+	_tabletop_crafting_tween.tween_property(self, "_tabletop_crafting_progress_sec", time_cost, time_cost)
 	_tabletop_crafting_tween.tween_callback(Callable(self, "_finish_tabletop_timed_craft"))
 	return last_tabletop_craft_feedback.duplicate(true)
 
@@ -2240,6 +2304,7 @@ func _finish_tabletop_timed_craft() -> Dictionary:
 	_tabletop_crafting_tween = null
 	var pending := _tabletop_pending_craft.duplicate(true)
 	_tabletop_pending_craft.clear()
+	_tabletop_crafting_progress_sec = 0.0
 	var ids: Array[String] = []
 	for instance_id_variant in Array(pending.get("instance_ids", [])):
 		ids.append(str(instance_id_variant))
@@ -2596,6 +2661,7 @@ func _refresh_tabletop_layer() -> void:
 	if tabletop_layer == null:
 		return
 	_clear_children(tabletop_layer)
+	_tabletop_card_view_by_instance.clear()
 	var groups: Dictionary = get_tabletop_stack_groups()
 	var top_by_group: Dictionary = {}
 	for instance_id_variant in groups.keys():
@@ -2632,6 +2698,7 @@ func _refresh_tabletop_layer() -> void:
 		if card_view.has_signal("primary_action_requested"):
 			card_view.primary_action_requested.connect(_on_card_primary_action)
 		tabletop_layer.add_child(card_view)
+		_tabletop_card_view_by_instance[instance_id] = card_view
 		var stack_root := str(groups.get(instance_id, ""))
 		if not stack_root.is_empty() and instance_id != str(top_by_group.get(stack_root, "")):
 			if card_view.has_method("set_peek_only"):
@@ -5866,6 +5933,11 @@ func _begin_drag(card_id: String, zone: String, item_index: int, pointer_offset:
 	drag_tabletop_instance_id = _tabletop_instance_id_for_index(item_index) if zone == "tabletop" else ""
 	drag_pointer_offset = pointer_offset
 	drag_source_view = card_view
+
+	if zone == "tabletop" and not drag_tabletop_instance_id.is_empty() and not _tabletop_pending_craft.is_empty():
+		var pending_ids: Array = Array(_tabletop_pending_craft.get("instance_ids", []))
+		if pending_ids.has(drag_tabletop_instance_id):
+			cancel_tabletop_timed_craft()
 
 	var card_def: Dictionary = DataRepository.cards_by_id.get(card_id, {})
 	if bool(card_def.get("board_placeable", false)):
