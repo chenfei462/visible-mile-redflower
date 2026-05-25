@@ -218,7 +218,7 @@
     "result_card_id": "lumber_pack",
     "result_type": "material",
     "unlock_day": 1,
-    "time_cost_sec": 1.5,
+    "time_cost_sec": 2.5,
     "preserve_ingredient_types": [
       "resident",
       "resource_node"
@@ -233,7 +233,7 @@
     "result_card_id": "convenience_supplies",
     "result_type": "material",
     "unlock_day": 1,
-    "time_cost_sec": 1.5,
+    "time_cost_sec": 2.5,
     "preserve_ingredient_types": [
       "resident",
       "resource_node"
@@ -248,7 +248,7 @@
     "result_card_id": "info_notes",
     "result_type": "material",
     "unlock_day": 1,
-    "time_cost_sec": 1.5,
+    "time_cost_sec": 2.5,
     "preserve_ingredient_types": [
       "resident",
       "resource_node"
@@ -268,7 +268,7 @@
     ],
     "result_type": "material",
     "unlock_day": 1,
-    "time_cost_sec": 1.5,
+    "time_cost_sec": 2.5,
     "preserve_ingredient_types": [
       "resident",
       "facility"

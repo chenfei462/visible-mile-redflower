@@ -1097,17 +1097,19 @@ func get_craft_progress_state() -> Dictionary:
 func _draw() -> void:
 	if _craft_progress <= 0.0 or _craft_time_cost_sec <= 0.0:
 		return
-	var radius := minf(size.x, size.y) * 0.22
+	var radius := minf(size.x, size.y) * 0.34
 	var center := Vector2(size.x * 0.5, size.y * 0.55)
-	var bg_color := Color(0.05, 0.05, 0.05, 0.45)
-	draw_circle(center, radius + 2.0, bg_color)
-	draw_arc(center, radius, -PI * 0.5, -PI * 0.5 + TAU * _craft_progress, 28, Color(0.98, 0.86, 0.42, 0.95), 3.5)
-	draw_arc(center, radius, -PI * 0.5 + TAU * _craft_progress, -PI * 0.5 + TAU, 28, Color(1.0, 1.0, 1.0, 0.25), 1.5)
+	draw_circle(center, radius + 6.0, Color(0.0, 0.0, 0.0, 0.55))
+	draw_circle(center, radius + 3.0, Color(0.18, 0.14, 0.08, 0.85))
+	draw_arc(center, radius, -PI * 0.5, -PI * 0.5 + TAU, 36, Color(1.0, 1.0, 1.0, 0.30), 2.0)
+	draw_arc(center, radius, -PI * 0.5, -PI * 0.5 + TAU * _craft_progress, 36, Color(1.0, 0.86, 0.34, 1.0), 5.0)
 	var remaining := maxf(0.0, _craft_time_cost_sec - _craft_progress_sec)
 	var text := "%.1fs" % remaining
 	var font := ThemeDB.fallback_font
 	if font == null:
 		return
-	var font_size := 11
+	var font_size := 14
 	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
-	draw_string(font, center + Vector2(-text_size.x * 0.5, text_size.y * 0.35), text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, Color(1.0, 1.0, 1.0, 0.95))
+	var text_pos := center + Vector2(-text_size.x * 0.5, text_size.y * 0.32)
+	draw_string(font, text_pos + Vector2(0, 1), text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, Color(0, 0, 0, 0.95))
+	draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, Color(1.0, 0.97, 0.78, 1.0))
