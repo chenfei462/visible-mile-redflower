@@ -16,6 +16,47 @@ const FOOTPRINT_CELL_SIZE := 10
 const BOARD_RULES := preload("res://scripts/core/BoardRules.gd")
 
 
+class CraftProgressOverlay extends Control:
+	var progress: float = 0.0
+	var progress_sec: float = 0.0
+	var time_cost_sec: float = 0.0
+
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		set_anchors_preset(Control.PRESET_FULL_RECT)
+
+
+	func set_progress(p: float, sec: float, total: float) -> void:
+		if is_equal_approx(progress, p) and is_equal_approx(progress_sec, sec) and is_equal_approx(time_cost_sec, total):
+			return
+		progress = clampf(p, 0.0, 1.0)
+		progress_sec = sec
+		time_cost_sec = total
+		queue_redraw()
+
+
+	func _draw() -> void:
+		if progress <= 0.0 or time_cost_sec <= 0.0:
+			return
+		var radius := minf(size.x, size.y) * 0.34
+		var center := Vector2(size.x * 0.5, size.y * 0.55)
+		draw_circle(center, radius + 6.0, Color(0.0, 0.0, 0.0, 0.55))
+		draw_circle(center, radius + 3.0, Color(0.18, 0.14, 0.08, 0.85))
+		draw_arc(center, radius, -PI * 0.5, -PI * 0.5 + TAU, 36, Color(1.0, 1.0, 1.0, 0.30), 2.0)
+		draw_arc(center, radius, -PI * 0.5, -PI * 0.5 + TAU * progress, 36, Color(1.0, 0.86, 0.34, 1.0), 5.0)
+		var remaining := maxf(0.0, time_cost_sec - progress_sec)
+		var text := "%.1fs" % remaining
+		var font := ThemeDB.fallback_font
+		if font == null:
+			return
+		var font_size := 14
+		var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
+		var text_pos := center + Vector2(-text_size.x * 0.5, text_size.y * 0.32)
+		draw_string(font, text_pos + Vector2(0, 1), text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, Color(0, 0, 0, 0.95))
+		draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, Color(1.0, 0.97, 0.78, 1.0))
+
+
 class FootprintPreviewCell:
 	extends Control
 
@@ -123,6 +164,7 @@ var _footprint_preview_state := {
 var _craft_progress: float = 0.0
 var _craft_progress_sec: float = 0.0
 var _craft_time_cost_sec: float = 0.0
+var _craft_progress_overlay: CraftProgressOverlay
 
 
 func _ready() -> void:
@@ -359,6 +401,9 @@ func _ensure_ui() -> void:
 	badge_style.set_corner_radius_all(8)
 	_stack_badge_label.add_theme_stylebox_override("normal", badge_style)
 	add_child(_stack_badge_label)
+	_craft_progress_overlay = CraftProgressOverlay.new()
+	add_child(_craft_progress_overlay)
+	move_child(_craft_progress_overlay, get_child_count() - 1)
 	_apply_label_scaling()
 
 
@@ -1083,7 +1128,8 @@ func set_craft_progress(progress: float, progress_sec: float, time_cost_sec: flo
 	_craft_progress = clamped
 	_craft_progress_sec = progress_sec
 	_craft_time_cost_sec = time_cost_sec
-	queue_redraw()
+	if _craft_progress_overlay != null and is_instance_valid(_craft_progress_overlay):
+		_craft_progress_overlay.set_progress(clamped, progress_sec, time_cost_sec)
 
 
 func get_craft_progress_state() -> Dictionary:
@@ -1095,21 +1141,4 @@ func get_craft_progress_state() -> Dictionary:
 
 
 func _draw() -> void:
-	if _craft_progress <= 0.0 or _craft_time_cost_sec <= 0.0:
-		return
-	var radius := minf(size.x, size.y) * 0.34
-	var center := Vector2(size.x * 0.5, size.y * 0.55)
-	draw_circle(center, radius + 6.0, Color(0.0, 0.0, 0.0, 0.55))
-	draw_circle(center, radius + 3.0, Color(0.18, 0.14, 0.08, 0.85))
-	draw_arc(center, radius, -PI * 0.5, -PI * 0.5 + TAU, 36, Color(1.0, 1.0, 1.0, 0.30), 2.0)
-	draw_arc(center, radius, -PI * 0.5, -PI * 0.5 + TAU * _craft_progress, 36, Color(1.0, 0.86, 0.34, 1.0), 5.0)
-	var remaining := maxf(0.0, _craft_time_cost_sec - _craft_progress_sec)
-	var text := "%.1fs" % remaining
-	var font := ThemeDB.fallback_font
-	if font == null:
-		return
-	var font_size := 14
-	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
-	var text_pos := center + Vector2(-text_size.x * 0.5, text_size.y * 0.32)
-	draw_string(font, text_pos + Vector2(0, 1), text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, Color(0, 0, 0, 0.95))
-	draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, Color(1.0, 0.97, 0.78, 1.0))
+	pass
