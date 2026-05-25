@@ -29,7 +29,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	_setup_runtime()
-	_run_day_one_core_loop()
+	await _run_day_one_core_loop()
 	_run_remaining_days()
 	_verify_demand_rules_isolated()
 	_verify_end_state()
@@ -84,11 +84,36 @@ func _run_day_one_core_loop() -> void:
 	state["manpower"] = 10
 	state["funds"] = 20
 	state["current_problem_tokens"] = 10
+	var main_scene: PackedScene = ResourceLoader.load("res://scenes/Main.tscn", "", ResourceLoader.CACHE_MODE_IGNORE)
+	var main_view: Control = main_scene.instantiate()
+	main_view.call("_build_ui")
+	var first_pack: Dictionary = main_view.call("purchase_card_pack_to_tabletop", "starter_pack")
+	_assert_true(bool(first_pack.get("success", false)), "day 1 full smoke should buy the starter pack onto the tabletop")
+	_assert_equal(int(state.get("card_pack_open_count", 0)), 1, "day 1 full smoke should count the first pack purchase")
+	var tabletop_ids: Dictionary = main_view.call("get_tabletop_card_ids")
+	for guaranteed_id in ["neighbor_helper", "scrap_wood_pile", "lumber_pack", "community_funds"]:
+		_assert_true(tabletop_ids.values().has(guaranteed_id), "day 1 full smoke should reveal %s from the starter pack" % guaranteed_id)
+	var resident_instance_id := _tabletop_instance_id_for_card(tabletop_ids, "neighbor_helper")
+	var resource_instance_id := _tabletop_instance_id_for_card(tabletop_ids, "scrap_wood_pile")
+	var opening_stack: Dictionary = main_view.call("drop_tabletop_card_instances_on", resident_instance_id, resource_instance_id)
+	_assert_equal(str(opening_stack.get("message", "")), "tabletop_craft_in_progress", "day 1 full smoke should start the opening tabletop resident stack")
+	main_view.call("finish_tabletop_timed_craft_now")
+	var opening_feedback: Dictionary = main_view.call("get_last_tabletop_craft_feedback")
+	_assert_true(bool(opening_feedback.get("success", false)), "day 1 full smoke should finish the opening tabletop resident stack")
+	_assert_equal(str(opening_feedback.get("recipe_id", "")), "gather_lumber_from_scrap", "day 1 opening tabletop chain should produce the first lumber result")
+	tabletop_ids = main_view.call("get_tabletop_card_ids")
+	var funds_instance_id := _tabletop_instance_id_for_card(tabletop_ids, "community_funds")
+	_assert_true(not funds_instance_id.is_empty(), "day 1 full smoke should expose a collectable community funds card")
+	if not funds_instance_id.is_empty():
+		var collect_result: Dictionary = main_view.call("collect_tabletop_funds_card", funds_instance_id)
+		_assert_true(bool(collect_result.get("success", false)), "day 1 full smoke should collect tabletop funds before the next pack")
+	_assert_true(int(state.get("collected_tabletop_funds", 0)) >= 1, "day 1 full smoke should record tabletop fund collection")
+	var second_pack: Dictionary = main_view.call("purchase_card_pack_to_tabletop", "starter_pack")
+	_assert_true(bool(second_pack.get("success", false)), "day 1 full smoke should buy a second pack after collecting funds")
+	_assert_equal(int(state.get("card_pack_open_count", 0)), 2, "day 1 full smoke should count the second pack purchase")
 	bulletin_cards = ["ramp_blueprint", "lumber_pack", "volunteer_poster", "", ""]
-	var pick_limit: int = int(data_repository.day_sequence.get("player_card_choices_per_day", 3))
-	_assert_true(PROTOTYPE_RULES.pick_bulletin_card(bulletin_cards, hand_cards, state, 0, pick_limit).get("success", false), "day 1 should pick ramp building permit")
-	_assert_true(PROTOTYPE_RULES.pick_bulletin_card(bulletin_cards, hand_cards, state, 1, pick_limit).get("success", false), "day 1 should pick lumber pack")
-	_assert_true(PROTOTYPE_RULES.pick_bulletin_card(bulletin_cards, hand_cards, state, 2, pick_limit).get("success", false), "day 1 should pick volunteer poster")
+	hand_cards.append_array(["ramp_blueprint", "lumber_pack", "volunteer_poster"])
+	bulletin_cards = ["", "", "", "", ""]
 
 	_assert_true(PROTOTYPE_RULES.move_hand_card_to_craft(hand_cards, craft_slots, hand_cards.find("ramp_blueprint"), data_repository.recipes, int(state.get("trust", 0))).get("success", false), "day 1 should move building permit to craft")
 	var craft_result: Dictionary = PROTOTYPE_RULES.move_hand_card_to_craft(hand_cards, craft_slots, hand_cards.find("lumber_pack"), data_repository.recipes, int(state.get("trust", 0)))
@@ -102,6 +127,7 @@ func _run_day_one_core_loop() -> void:
 	_assert_true(bool(placement.get("success", false)), "day 1 should place crafted facility")
 	_assert_equal(str(state.get("board_cells", [])[service_index].get("occupied_card_id", "")), str(craft_result.get("result_card_id", "")), "placed facility should occupy board cell")
 	_assert_true(save_manager.save_slot(2, _ui_state()).get("success", false), "manual save should succeed after day 1 placement")
+	await _dispose_main_view(main_view)
 	game_state.reset_state()
 	var loaded: Dictionary = save_manager.load_slot(2)
 	_assert_true(bool(loaded.get("success", false)), "manual load should succeed after day 1 placement")
@@ -117,11 +143,10 @@ func _run_remaining_days() -> void:
 			failures.append("full smoke exceeded expected day loop guard")
 			return
 		var state: Dictionary = game_state.get_state()
-		var unlocked_cards: Array[Dictionary] = data_repository.get_cards_unlocked_for_trust(int(state.get("trust", 0)))
-		bulletin_cards = PROTOTYPE_RULES.generate_daily_bulletin(unlocked_cards, current_bulletin_offset, int(data_repository.day_sequence.get("bulletin_cards_per_day", 5)))
-		current_bulletin_offset += bulletin_cards.size()
+		bulletin_cards.clear()
 		day_cycle.resolve_sunrise()
-		_assert_equal(Array(state.get("resident_need_entities", [])).size(), resident_count, "every sunrise should spawn one resident need entity per resident")
+		var expected_need_count: int = mini(resident_count, int(state.get("day_count", 1)) + 1)
+		_assert_equal(Array(state.get("resident_need_entities", [])).size(), expected_need_count, "sunrise should spawn the opening demand ramp before reaching one need per resident")
 		for entity_variant in state.get("resident_need_entities", []):
 			var entity: Dictionary = entity_variant
 			_assert_equal(int(entity.get("service_capacity", -1)), 2, "service capacity must remain 2 across the infinite day loop")
@@ -163,7 +188,7 @@ func _verify_demand_rules_isolated() -> void:
 		{"resident_id": "demand_r3", "name": "需求3", "need_tags": ["care"]}
 	]
 	var capped_state := {
-		"day_count": 1,
+		"day_count": 3,
 		"moral": 10,
 		"moral_max": 20,
 		"flowers": 10,
@@ -179,7 +204,7 @@ func _verify_demand_rules_isolated() -> void:
 	_assert_equal(int(capped_result.get("unmet_count", -1)), 1, "smoke: third need overflowing capacity must stay unmet")
 
 	var no_building_state := {
-		"day_count": 1,
+		"day_count": 3,
 		"moral": 10,
 		"moral_max": 20,
 		"flowers": 10,
@@ -258,6 +283,24 @@ func _prepare_shape_cells_for_card(state: Dictionary, card_id: String, board_ind
 		return
 	for index: int in occupied_indices:
 		BOARD_RULES.change_cell_zone(cells, index, target_zone)
+
+
+func _tabletop_instance_id_for_card(card_ids: Dictionary, card_id: String) -> String:
+	for instance_id_variant in card_ids.keys():
+		var instance_id := str(instance_id_variant)
+		if str(card_ids.get(instance_id, "")) == card_id:
+			return instance_id
+	return ""
+
+
+func _dispose_main_view(main_view: Control) -> void:
+	if main_view == null or not is_instance_valid(main_view):
+		return
+	if main_view.has_method("cleanup_for_smoke_test"):
+		main_view.call("cleanup_for_smoke_test")
+		await process_frame
+	main_view.free()
+	await process_frame
 
 
 func _assert_true(condition: bool, message: String) -> void:

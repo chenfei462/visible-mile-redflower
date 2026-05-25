@@ -47,7 +47,7 @@ func _run() -> void:
 	var free_button: Button = os_click_helpers.call("find_primary_action_button_for_card", main_view, "ramp_blueprint", "bulletin", str(free_action_state.get("label", "")))
 	if free_button == null:
 		_write_result(false, "free pick button not found; action=%s buttons=%s" % [str(free_action_state), str(os_click_helpers.call("visible_button_texts", main_view))])
-		quit(1)
+		await _cleanup_and_quit(1)
 		return
 	await os_click_helpers.call("scroll_control_into_view", self, free_button, main_view.get("page_scroll_container") as ScrollContainer)
 	var free_click := free_button.get_global_rect().get_center()
@@ -72,7 +72,7 @@ func _run() -> void:
 			int(game_state.get_state().get("selected_cards_today", 0)),
 			int(game_state.get_state().get("flowers", 0))
 		])
-		quit(1)
+		await _cleanup_and_quit(1)
 		return
 
 	var paid_button: Button = os_click_helpers.call("find_primary_action_button_for_card", main_view, "lumber_pack", "bulletin", str(paid_action_state.get("label", "")))
@@ -83,7 +83,7 @@ func _run() -> void:
 			str(main_view.get("bulletin_cards")),
 			str(paid_action_state)
 		])
-		quit(1)
+		await _cleanup_and_quit(1)
 		return
 	await os_click_helpers.call("scroll_control_into_view", self, paid_button, main_view.get("page_scroll_container") as ScrollContainer)
 	var paid_click := paid_button.get_global_rect().get_center()
@@ -115,7 +115,7 @@ func _run() -> void:
 				str(hand_sources),
 				str(paid_return)
 			])
-			quit(0 if ok else 1)
+			await _cleanup_and_quit(0 if ok else 1)
 			return
 
 	_write_result(false, "timeout state=%s hand=%s sources=%s bulletin=%s" % [
@@ -124,7 +124,7 @@ func _run() -> void:
 		str(main_view.get("hand_card_sources")),
 		str(main_view.get("bulletin_cards"))
 	])
-	quit(1)
+	await _cleanup_and_quit(1)
 
 
 func _write_target(free_click: Vector2, paid_click: Vector2) -> void:
@@ -143,3 +143,15 @@ func _write_result(ok: bool, message: String) -> void:
 		"ok": ok,
 		"message": message
 	}))
+
+
+func _cleanup_and_quit(exit_code: int) -> void:
+	if main_view != null and is_instance_valid(main_view):
+		if main_view.has_method("cleanup_for_smoke_test"):
+			main_view.call("cleanup_for_smoke_test")
+		if main_view.get_parent() != null:
+			main_view.get_parent().remove_child(main_view)
+		main_view.free()
+		main_view = null
+	await process_frame
+	quit(exit_code)

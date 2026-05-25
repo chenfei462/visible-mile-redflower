@@ -30,10 +30,11 @@ func load_progress() -> void:
 	if typeof(parsed) != TYPE_DICTIONARY:
 		_emit_progress()
 		return
-	for key_variant in progress.keys():
-		var key: String = str(key_variant)
-		if parsed.has(key):
-			progress[key] = bool(parsed.get(key))
+	var parsed_dict: Dictionary = parsed
+	for key: String in ["welcome_seen", "completed_day_minus_one"]:
+		if parsed_dict.has(key):
+			progress[key] = bool(parsed_dict.get(key))
+	GameState.ensure_tutorial_progress_defaults(progress)
 	_emit_progress()
 
 
@@ -43,10 +44,11 @@ func should_show_day_minus_one() -> bool:
 	if FileAccess.file_exists("user://automation_skip_tutorial.flag"):
 		return false
 	var progress: Dictionary = GameState.get_tutorial_progress()
-	return bool(DataRepository.day_sequence.get("tutorial_scene_enabled", true)) and not bool(progress.get("completed_day_minus_one", false))
+	return bool(DataRepository.day_sequence.get("tutorial_scene_enabled", true)) and not bool(progress.get("welcome_seen", false))
 
 
 func complete_day_minus_one() -> void:
+	GameState.mark_tutorial_flag("welcome_seen")
 	GameState.mark_tutorial_flag("completed_day_minus_one")
 	_save_progress()
 	_emit_progress()
@@ -82,6 +84,14 @@ func get_day_minus_one_steps() -> Array:
 	return day_minus_one_config.get("steps", [])
 
 
+func is_first_guidance_complete() -> bool:
+	var progress: Dictionary = GameState.get_tutorial_progress()
+	return bool(progress.get("first_pick_done", false)) \
+		and bool(progress.get("first_craft_done", false)) \
+		and bool(progress.get("first_place_done", false)) \
+		and bool(progress.get("first_problem_done", false))
+
+
 func _emit_progress() -> void:
 	emit_signal("tutorial_progress_changed", GameState.get_tutorial_progress())
 
@@ -90,4 +100,8 @@ func _save_progress() -> void:
 	var file := FileAccess.open(PROGRESS_PATH, FileAccess.WRITE)
 	if file == null:
 		return
-	file.store_string(JSON.stringify(GameState.get_tutorial_progress()))
+	var progress: Dictionary = GameState.get_tutorial_progress()
+	file.store_string(JSON.stringify({
+		"welcome_seen": bool(progress.get("welcome_seen", false)),
+		"completed_day_minus_one": bool(progress.get("completed_day_minus_one", false))
+	}))

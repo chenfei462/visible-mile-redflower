@@ -71,8 +71,15 @@ func _build_payload(slot_id: int, ui_state: Dictionary) -> Dictionary:
 		"community_state": GameState.get_state().duplicate(true),
 		"tutorial_progress": GameState.get_tutorial_progress().duplicate(true),
 		"ai_settings": AIDirector.settings.duplicate(true),
-		"ui_state": _normalize_ui_state(ui_state)
+		"ui_state": _strip_legacy_save_keys(_normalize_ui_state(ui_state))
 	}
+
+
+func _strip_legacy_save_keys(ui_state: Dictionary) -> Dictionary:
+	var cleaned: Dictionary = ui_state.duplicate(true)
+	for legacy_key: String in ["bulletin_cards", "bulletin_card_prices"]:
+		cleaned.erase(legacy_key)
+	return cleaned
 
 
 func _restore_payload(payload: Dictionary) -> void:
@@ -82,6 +89,7 @@ func _restore_payload(payload: Dictionary) -> void:
 	var tutorial_progress: Dictionary = payload.get("tutorial_progress", {})
 	if not tutorial_progress.is_empty():
 		GameState.community_state["tutorial_progress"] = tutorial_progress.duplicate(true)
+	GameState.ensure_tutorial_progress_defaults(GameState.community_state.get("tutorial_progress", {}))
 	var ai_settings: Dictionary = payload.get("ai_settings", {})
 	if not ai_settings.is_empty():
 		AIDirector.apply_settings(ai_settings, false)
@@ -165,6 +173,12 @@ func _restore_community_state(saved_state: Dictionary) -> Dictionary:
 		restored["weekly_reports"] = []
 	if typeof(restored.get("resident_interactions", [])) != TYPE_ARRAY:
 		restored["resident_interactions"] = []
+	if typeof(restored.get("tutorial_progress", {})) != TYPE_DICTIONARY:
+		restored["tutorial_progress"] = {}
+	var original_progress: Dictionary = GameState.community_state.get("tutorial_progress", {}).duplicate(true)
+	GameState.community_state["tutorial_progress"] = restored.get("tutorial_progress", {}).duplicate(true)
+	restored["tutorial_progress"] = GameState.ensure_tutorial_progress_defaults(restored.get("tutorial_progress", {})).duplicate(true)
+	GameState.community_state["tutorial_progress"] = original_progress
 	if not restored.has("land_unlock_stage"):
 		restored["land_unlock_stage"] = BOARD_RULES.land_unlock_stage_from_cells(restored.get("board_cells", []))
 	_clear_legacy_runtime_state(restored)

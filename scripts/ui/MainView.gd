@@ -72,6 +72,14 @@ const FIRST_SCREEN_TOOLBAR_RECT := Rect2(Vector2(456, 652), Vector2(368, 54))
 const FIRST_SCREEN_SELL_RECT := Rect2(Vector2(270, 194), Vector2(84, 30))
 const TABLETOP_DRAWER_IDS := ["quick_options", "residents", "status", "end_day", "board", "settings", "codex"]
 const SETTINGS_MODAL_Z_INDEX := 1000
+const OPENING_OBJECTIVE_IDS := [
+	"buy_pack",
+	"assign_resident",
+	"collect_funds",
+	"buy_next_pack",
+	"build_facility",
+	"handle_resident_need"
+]
 
 var resource_bar: Label
 var resource_chip_flowers: Label
@@ -150,6 +158,7 @@ var _drag_finish_refresh_mode := "full"
 var _drag_finish_board_index := -1
 var _drag_finish_refresh_recipe_codex := false
 var _board_hover_highlight_indices: Array[int] = []
+var resident_need_drag_highlight_state: Dictionary = {"visible": false, "root_indices": [], "occupied_indices": [], "need_id": "", "feedback": ""}
 var _page_scroll_dragging := false
 var _page_scroll_drag_anchor := Vector2.ZERO
 var _page_scroll_start_vertical := 0
@@ -225,6 +234,7 @@ var _stack_crafting_recipe_id: String = ""
 var _stack_crafting_tween: Tween
 var _tabletop_crafting_tween: Tween
 var _tabletop_pending_craft: Dictionary = {}
+var _hovered_linked_craft_card_id := ""
 const STACK_MAX_SLOTS := 4
 
 
@@ -243,13 +253,19 @@ func _ready() -> void:
 	_apply_phase3_settings(SettingsManager.settings)
 	AudioManager.play_bgm(audio_bgm_id_for_phase("day"))
 	if TutorialManager.should_show_day_minus_one() and OS.get_environment("RFT_CAPTURE_VIEWPORT_PNG").is_empty():
-		_open_day_minus_one_scene()
+		_open_day_minus_one_scene(true)
 	else:
 		_start_new_day_cycle(true)
 	_refresh_tutorial_overlay()
-	_append_report_line("把公告栏里的卡拖到手牌，再把设施放到棋盘上。每天日出后都会出现居民需求卡，F9 可打开智能设置并查看回退记录。")
+	_append_report_line("先开起手卡包，让桌面的起手卡动起来；看到社区资金后记得点“收”，再开下一包并把设施真正放到地图上。每天开局还会出现居民需求卡，F9 可打开智能设置并查看回退记录。")
 	_update_all_ui()
 	call_deferred("_maybe_capture_viewport_snapshot")
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		_disconnect_external_signals()
+		_reset_transient_runtime_state(false)
 
 
 func _exit_tree() -> void:
@@ -258,16 +274,54 @@ func _exit_tree() -> void:
 
 func cleanup_for_smoke_test() -> void:
 	_disconnect_external_signals()
-	_clear_transient_animations()
-	if day_minus_one_view != null and is_instance_valid(day_minus_one_view):
-		day_minus_one_view.queue_free()
-		day_minus_one_view = null
-	if tutorial_pointer != null and is_instance_valid(tutorial_pointer):
-		tutorial_pointer.queue_free()
-		tutorial_pointer = null
-	if unlock_banner != null and is_instance_valid(unlock_banner):
-		unlock_banner.queue_free()
-		unlock_banner = null
+	_reset_transient_runtime_state(true)
+
+
+func _reset_transient_runtime_state(clear_runtime_nodes: bool) -> void:
+	if craft_slot_guidance_tween != null and craft_slot_guidance_tween.is_valid():
+		craft_slot_guidance_tween.kill()
+	craft_slot_guidance_tween = null
+	craft_slot_guidance_active = false
+	for panel: PanelContainer in craft_slot_panels:
+		if panel != null and is_instance_valid(panel):
+			panel.self_modulate = Color.WHITE
+	if _stack_crafting_tween != null and _stack_crafting_tween.is_valid():
+		_stack_crafting_tween.kill()
+	_stack_crafting_tween = null
+	_stack_crafting_recipe_id = ""
+	if _stack_progress_bar != null and is_instance_valid(_stack_progress_bar):
+		_stack_progress_bar.visible = false
+		_stack_progress_bar.value = 0.0
+	if _tabletop_crafting_tween != null and _tabletop_crafting_tween.is_valid():
+		_tabletop_crafting_tween.kill()
+	_tabletop_crafting_tween = null
+	_tabletop_pending_craft.clear()
+	floating_notifiers.clear()
+	last_craft_failure_feedback.clear()
+	last_tabletop_craft_feedback.clear()
+	if clear_runtime_nodes:
+		_clear_transient_animations()
+		if day_minus_one_view != null and is_instance_valid(day_minus_one_view):
+			day_minus_one_view.queue_free()
+		if tutorial_pointer != null and is_instance_valid(tutorial_pointer):
+			tutorial_pointer.queue_free()
+		if unlock_banner != null and is_instance_valid(unlock_banner):
+			unlock_banner.queue_free()
+		_cancel_drag()
+	else:
+		drag_preview = null
+		drag_source_view = null
+		is_dragging = false
+		drag_card_id = ""
+		drag_source_zone = ""
+		drag_source_index = -1
+		drag_pointer_offset = Vector2.ZERO
+		drag_tabletop_instance_id = ""
+		_update_board_highlights(-1)
+	day_minus_one_view = null
+	tutorial_pointer = null
+	tutorial_pointer_target = ""
+	unlock_banner = null
 
 
 func _disconnect_external_signals() -> void:
@@ -1439,21 +1493,38 @@ func get_active_tutorial_coachmark() -> Dictionary:
 	if TutorialManager.should_show_day_minus_one() or day_minus_one_view != null:
 		return {
 			"target": "tutorial",
-			"title": "先看一遍样例流程",
-			"body": "这里会按顺序演示选卡、合成、放置，以及怎样照看居民需求。"
+			"title": "先看一遍今天的开局节奏",
+			"body": "这里会按顺序演示开包、操作起手卡、收资金、再开一包、落地设施，以及怎样处理居民需求。"
+		}
+	var objectives := get_tasks_panel_objectives()
+	var current := _current_opening_objective(objectives)
+	if not current.is_empty():
+		var objective_id := str(current.get("id", ""))
+		var target := _opening_tutorial_target_for_objective(objective_id)
+		var copy: Dictionary = _opening_guidance_copy(objective_id, target)
+		var body := str(copy.get("action", ""))
+		if body.is_empty():
+			body = str(current.get("detail", ""))
+		var reason := str(copy.get("reason", ""))
+		if not reason.is_empty():
+			body = "%s %s" % [body, reason]
+		return {
+			"target": target,
+			"title": str(copy.get("title", current.get("title", ""))),
+			"body": body
 		}
 	var progress: Dictionary = GameState.get_tutorial_progress()
 	if int(GameState.get_state().get("card_pack_open_count", 0)) <= 0:
 		return {
 			"target": "card_pack",
 			"title": "第一步：打开起手卡包",
-			"body": "在顶部卡包栏点 “Starter Pack” 拿到 4 张入门卡，桌面才会有牌可玩。"
+			"body": "在顶部卡包栏点“Starter Pack”，先把第一批起手卡开到桌面。"
 		}
 	if not bool(progress.get("first_pick_done", false)):
 		return {
-			"target": "bulletin",
-			"title": "第一步：从公告栏选卡",
-			"body": "把公告栏里的卡拖进配方手册。先拿到素材，后面才有东西可合成。"
+			"target": "tabletop_opening_cards",
+			"title": "第一步：先用桌面上的起手卡",
+			"body": "先让桌面的起手卡动起来：把居民卡叠到资源点上，或先整理这些起手卡。桌面开始运转后，后面才会产出社区资金。"
 		}
 	if not bool(progress.get("first_craft_done", false)):
 		if _has_quick_craftable_hand_card():
@@ -1478,24 +1549,24 @@ func get_active_tutorial_coachmark() -> Dictionary:
 			return {
 				"target": "hand_facility",
 				"title": "第三步：拖动设施卡",
-				"body": "设施卡已经在手册里了。把它拖到右侧地图的已解锁格子上。"
+				"body": "设施卡已经在手册里了。把它拖到右侧地图发亮的已解锁格子上，真正落地后才算建成。"
 			}
 		return {
 			"target": "board",
 			"title": "第三步：放到地图",
-			"body": "设施合成后会回到手册，再拖到社区地图上完成建设。"
+			"body": "设施合成后会回到手册，再把它拖到社区地图发亮的空地上；真正落地才算完成建设。"
 		}
 	if not bool(progress.get("first_problem_done", false)):
 		if not Array(GameState.get_state().get("resident_need_entities", [])).is_empty():
 			return {
 				"target": "demand",
-				"title": "第四步：照看居民需求",
-				"body": "每天开局都会出现居民需求。优先用服务建筑接待；没有对应建筑时，前两次可用小红花兜底。"
+				"title": "第四步：处理居民需求",
+				"body": "先看需求卡写的服务方向，再把它拖到对应服务建筑上；没有对应建筑时，今天前两次可用小红花兜底。"
 			}
 		return {
 			"target": "next_day",
 			"title": "继续推进到下一天",
-			"body": "进入下一天后，桌面会刷新新的居民需求，请先安排服务容量和兜底用的小红花。"
+			"body": "把今天推进到下一天，桌面才会刷新新的居民需求；记得先预留服务容量和兜底用的小红花。"
 		}
 	return {}
 
@@ -2544,14 +2615,20 @@ func _refresh_tabletop_layer() -> void:
 		if card_def.is_empty():
 			continue
 		var card_view: Control = CARD_VIEW_SCENE.instantiate()
-		var highlighted := _highlighted_recipe_card_ids.has(card_id)
-		card_view.configure(card_def, "tabletop", index, "tabletop", highlighted)
+		var linked_state := get_linked_craft_highlight_state(_hovered_linked_craft_card_id) if not _hovered_linked_craft_card_id.is_empty() else {}
+		var highlighted := _highlighted_recipe_card_ids.has(card_id) or card_id == _hovered_linked_craft_card_id
+		card_view.configure(card_def, "tabletop", index, _card_playability_text(card_id, "tabletop", ""), highlighted)
+		if card_view.has_method("set_linked_craft_state") and not linked_state.is_empty():
+			var linked_ids: Array = Array(linked_state.get("linked_card_ids", []))
+			var dimmed_ids: Array = Array(linked_state.get("dimmed_card_ids", []))
+			card_view.call("set_linked_craft_state", linked_ids.has(card_id), dimmed_ids.has(card_id))
 		if _is_community_funds_card_id(card_id) and card_view.has_method("set_primary_action"):
 			card_view.call("set_primary_action", "收", true)
 		card_view.position = _vector2_from_variant(tabletop_card_positions.get(instance_id, Vector2(24 + index * 18, 26 + index * 10)))
 		card_view.z_index = 0
 		card_view.mouse_filter = Control.MOUSE_FILTER_STOP
 		card_view.drag_requested.connect(_handle_card_view_drag_request.bind(card_view))
+		card_view.mouse_entered.connect(_on_tabletop_card_mouse_entered.bind(card_id))
 		if card_view.has_signal("primary_action_requested"):
 			card_view.primary_action_requested.connect(_on_card_primary_action)
 		tabletop_layer.add_child(card_view)
@@ -2559,6 +2636,8 @@ func _refresh_tabletop_layer() -> void:
 		if not stack_root.is_empty() and instance_id != str(top_by_group.get(stack_root, "")):
 			if card_view.has_method("set_peek_only"):
 				card_view.call("set_peek_only", true)
+	if not tabletop_layer.mouse_exited.is_connected(_on_tabletop_layer_mouse_exited):
+		tabletop_layer.mouse_exited.connect(_on_tabletop_layer_mouse_exited)
 
 
 func _roll_daily_bulletin_prices(state: Dictionary) -> void:
@@ -2674,11 +2753,26 @@ func format_problem_progress_summary(problem_state: Dictionary) -> String:
 	var need_tags := Array(problem_state.get("need_tags", []))
 	var service_capacity := int(problem_state.get("service_capacity", 2))
 	var need_label := _need_display_label(need_tags)
-	return "居民需求：%s 需要 %s。服务建筑容量 %d；没有对应建筑时，今日前两次可用小红花兜底（1/2朵）。" % [
+	var guidance := format_demand_resolution_guidance(problem_state)
+	var guidance_suffix := "" if guidance.is_empty() else "%s。" % guidance
+	return "居民需求：%s 需要 %s。服务建筑容量 %d；%s没有对应建筑时，今日前两次可用小红花兜底（1/2朵）。" % [
 		resident_name,
 		need_label,
-		service_capacity
+		service_capacity,
+		guidance_suffix
 	]
+
+
+func format_demand_resolution_guidance(need_entity: Dictionary, state: Dictionary = {}) -> String:
+	var source_state := state if not state.is_empty() else GameState.get_state()
+	var need_tags := Array(need_entity.get("need_tags", []))
+	var built_names := _matching_built_facility_names_for_need(need_tags, source_state)
+	if not built_names.is_empty():
+		return "可拖到：%s" % "、".join(built_names)
+	var candidate_names := _candidate_facility_names_for_need(need_tags, source_state)
+	if not candidate_names.is_empty():
+		return "可建造：%s" % "、".join(candidate_names)
+	return ""
 
 
 func _pending_resident_need_entities(state: Dictionary = {}) -> Array[Dictionary]:
@@ -2725,6 +2819,7 @@ func _build_demand_card_def(need_entity: Dictionary) -> Dictionary:
 	var resident_name := str(need_entity.get("resident_name", "居民"))
 	var need_tags := Array(need_entity.get("need_tags", []))
 	var service_capacity := int(need_entity.get("service_capacity", 2))
+	var guidance := format_demand_resolution_guidance(need_entity)
 	return {
 		"card_id": "demand_%s" % str(need_entity.get("need_id", resident_name)),
 		"type": "demand",
@@ -2733,6 +2828,7 @@ func _build_demand_card_def(need_entity: Dictionary) -> Dictionary:
 		"rarity": "common",
 		"tags": need_tags,
 		"service_capacity": service_capacity,
+		"resolution_guidance": guidance,
 		"resident_links": [resident_name],
 		"description": format_problem_progress_summary(need_entity)
 	}
@@ -2746,6 +2842,87 @@ func _format_demand_card_extra_text(need_entity: Dictionary) -> String:
 		need_tags,
 		service_capacity
 	]
+
+
+func _matching_built_facility_names_for_need(need_tags: Array, state: Dictionary) -> PackedStringArray:
+	var direct_names := PackedStringArray()
+	var fallback_names := PackedStringArray()
+	for built_variant in state.get("built_facilities", []):
+		if typeof(built_variant) != TYPE_DICTIONARY:
+			continue
+		var built: Dictionary = built_variant
+		var facility_card_id := str(built.get("card_id", built.get("occupied_card_id", "")))
+		if facility_card_id.is_empty():
+			continue
+		var card_def: Dictionary = DataRepository.cards_by_id.get(facility_card_id, {})
+		if not _facility_matches_need_for_guidance(card_def, need_tags):
+			continue
+		var facility_name := _card_name(facility_card_id)
+		if _facility_directly_matches_need(card_def, need_tags):
+			_append_unique_limited(direct_names, facility_name, 3)
+		else:
+			_append_unique_limited(fallback_names, facility_name, 3)
+	var names := PackedStringArray()
+	for value: String in direct_names:
+		_append_unique_limited(names, value, 3)
+	for value: String in fallback_names:
+		_append_unique_limited(names, value, 3)
+	return names
+
+
+func _candidate_facility_names_for_need(need_tags: Array, state: Dictionary) -> PackedStringArray:
+	var direct_names := PackedStringArray()
+	var fallback_names := PackedStringArray()
+	var unlock_progress := _recipe_unlock_progress(state)
+	for recipe: Dictionary in DataRepository.recipes:
+		if DataRepository.unlock_progress_for_day(int(recipe.get("unlock_day", 1))) > unlock_progress:
+			continue
+		var result_card_id := str(recipe.get("result_card_id", ""))
+		if result_card_id.is_empty():
+			continue
+		var card_def: Dictionary = DataRepository.cards_by_id.get(result_card_id, {})
+		if str(card_def.get("type", "")) != "facility":
+			continue
+		if not _facility_matches_need_for_guidance(card_def, need_tags):
+			continue
+		var facility_name := _card_name(result_card_id)
+		if _facility_directly_matches_need(card_def, need_tags):
+			_append_unique_limited(direct_names, facility_name, 3)
+		else:
+			_append_unique_limited(fallback_names, facility_name, 3)
+	var names := PackedStringArray()
+	for value: String in direct_names:
+		_append_unique_limited(names, value, 3)
+	for value: String in fallback_names:
+		_append_unique_limited(names, value, 3)
+	return names
+
+
+func _facility_matches_need_for_guidance(card_def: Dictionary, need_tags: Array) -> bool:
+	return _facility_directly_matches_need(card_def, need_tags) or _facility_is_general_service(card_def)
+
+
+func _facility_directly_matches_need(card_def: Dictionary, need_tags: Array) -> bool:
+	var facility_tags: Array = card_def.get("tags", [])
+	var synergy_group := str(card_def.get("synergy_group", ""))
+	for tag_variant in need_tags:
+		var tag := str(tag_variant)
+		if tag.is_empty():
+			continue
+		if facility_tags.has(tag) or synergy_group == tag:
+			return true
+	return false
+
+
+func _facility_is_general_service(card_def: Dictionary) -> bool:
+	var facility_tags: Array = card_def.get("tags", [])
+	return facility_tags.has("service") or str(card_def.get("synergy_group", "")) == "service"
+
+
+func _append_unique_limited(values: PackedStringArray, value: String, limit: int) -> void:
+	if value.is_empty() or values.has(value) or values.size() >= limit:
+		return
+	values.append(value)
 
 
 func format_facility_yield_summary(card_id: String, board_index: int = -1) -> String:
@@ -3187,38 +3364,38 @@ func _build_first_screen_tasks_panel() -> void:
 
 
 func _render_tasks_panel_into(list: Control) -> void:
-	var title := Label.new()
-	title.name = "TasksTitle"
-	title.text = "任务清单"
-	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", LIGHT_SURFACE_PRIMARY_TEXT)
-	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	list.add_child(title)
+	_add_tasks_panel_label(list, "TasksTitle", "任务清单", 18, LIGHT_SURFACE_PRIMARY_TEXT)
+	var guidance: Dictionary = get_tutorial_guidance_state()
+	if bool(guidance.get("visible", false)):
+		_render_live_tutorial_guidance(list, guidance)
+		return
+	_render_opening_task_objectives(list)
+	_render_facility_recipe_section(list)
 
-	var objectives_header := Label.new()
-	objectives_header.name = "TaskGroupHeader"
-	objectives_header.text = "📋 教程目标"
-	objectives_header.add_theme_font_size_override("font_size", 13)
-	objectives_header.add_theme_color_override("font_color", Color(0.42, 0.30, 0.12))
-	objectives_header.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	list.add_child(objectives_header)
+
+func _render_opening_task_objectives(list: Control) -> void:
+	_add_tasks_panel_label(list, "TaskGroupHeader", "📋 教程目标", 13, Color(0.42, 0.30, 0.12))
 	for line in _build_tasks_panel_lines():
-		var label := Label.new()
-		label.name = "TaskRow"
-		label.text = str(line)
-		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		label.add_theme_font_size_override("font_size", 12)
-		label.add_theme_color_override("font_color", LIGHT_SURFACE_PRIMARY_TEXT)
-		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		list.add_child(label)
+		_add_tasks_panel_label(list, "TaskRow", str(line), 12, LIGHT_SURFACE_PRIMARY_TEXT, true)
 
-	var facilities_header := Label.new()
-	facilities_header.name = "TaskGroupHeader"
-	facilities_header.text = "🏗 可建设施"
-	facilities_header.add_theme_font_size_override("font_size", 13)
-	facilities_header.add_theme_color_override("font_color", Color(0.42, 0.30, 0.12))
-	facilities_header.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	list.add_child(facilities_header)
+
+func _render_live_tutorial_guidance(list: Control, guidance: Dictionary) -> void:
+	_add_tasks_panel_label(list, "TaskGroupHeader", "当前一步", 13, Color(0.42, 0.30, 0.12))
+	for line in [
+		"现在做什么：%s" % str(guidance.get("title", "")),
+		"具体怎么做：%s" % str(guidance.get("action", "")),
+		"做到这一步就算完成：%s" % str(guidance.get("done_when", "")),
+		"为什么做：%s" % str(guidance.get("reason", "")),
+		"去哪里做：%s" % str(guidance.get("where", ""))
+	]:
+		_add_tasks_panel_label(list, "TaskRow", line, 12, LIGHT_SURFACE_PRIMARY_TEXT, true)
+	_add_tasks_panel_label(list, "TaskGroupHeader", "四步进度", 12, LIGHT_SURFACE_MUTED_TEXT)
+	for progress_line_variant in guidance.get("progress_lines", PackedStringArray()):
+		_add_tasks_panel_label(list, "TaskRow", str(progress_line_variant), 12, LIGHT_SURFACE_PRIMARY_TEXT, true)
+
+
+func _render_facility_recipe_section(list: Control) -> void:
+	_add_tasks_panel_label(list, "TaskGroupHeader", "🏗 可建设施", 13, Color(0.42, 0.30, 0.12))
 	var facility_rows_scroll := ScrollContainer.new()
 	facility_rows_scroll.name = "FacilityRowsScroll"
 	facility_rows_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -3255,6 +3432,18 @@ func _render_tasks_panel_into(list: Control) -> void:
 		button.pressed.connect(_on_facility_recipe_row_pressed.bind(recipe_id))
 		row_slot.add_child(button)
 		_apply_facility_recipe_row_style(button, recipe_id == _active_facility_highlight_id)
+
+
+func _add_tasks_panel_label(list: Control, name: String, text: String, font_size: int, color: Color, wrap: bool = false) -> void:
+	var label := Label.new()
+	label.name = name
+	label.text = text
+	if wrap:
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", color)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	list.add_child(label)
 
 
 func _build_first_screen_playmat() -> void:
@@ -3439,8 +3628,10 @@ func _build_drawer_quick_options() -> void:
 	quick_buttons.add_theme_constant_override("v_separation", 6)
 	content.add_child(quick_buttons)
 	var tutorial_button := Button.new()
-	tutorial_button.text = "Guide"
-	tutorial_button.pressed.connect(_open_day_minus_one_scene)
+	tutorial_button.text = "回看引导"
+	tutorial_button.pressed.connect(func() -> void:
+		_open_day_minus_one_scene(false)
+	)
 	quick_buttons.add_child(tutorial_button)
 	var theme_button := Button.new()
 	theme_button.text = "Theme"
@@ -3480,15 +3671,12 @@ func _build_drawer_quick_options() -> void:
 	var bulletin_parts := _create_panel("Bulletin", Vector2(0, 120))
 	bulletin_panel = bulletin_parts["panel"]
 	bulletin_panel.add_theme_stylebox_override("panel", _cork_panel_style())
-	content.add_child(bulletin_panel)
-	var bulletin_content: VBoxContainer = bulletin_parts["content"]
+	bulletin_panel.visible = false
 	bulletin_status_label = Label.new()
 	bulletin_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	bulletin_content.add_child(bulletin_status_label)
 	bulletin_container = HFlowContainer.new()
 	bulletin_container.add_theme_constant_override("h_separation", 8)
 	bulletin_container.add_theme_constant_override("v_separation", 8)
-	bulletin_content.add_child(bulletin_container)
 
 
 func _build_drawer_residents() -> void:
@@ -3885,26 +4073,11 @@ func _build_ui() -> void:
 	event_close_button.pressed.connect(_dismiss_announcement)
 	event_button_row.add_child(event_close_button)
 	var event_tutorial_button := Button.new()
-	event_tutorial_button.text = "智能事件"
-	event_tutorial_button.pressed.connect(_open_day_minus_one_scene)
+	event_tutorial_button.text = "回看引导"
+	event_tutorial_button.pressed.connect(func() -> void:
+		_open_day_minus_one_scene(false)
+	)
 	event_button_row.add_child(event_tutorial_button)
-
-	var bulletin_panel_parts := _create_panel("公告栏", Vector2(0, 150))
-	bulletin_panel = bulletin_panel_parts["panel"]
-	bulletin_panel.add_theme_stylebox_override("panel", _cork_panel_style())
-	bulletin_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	left_top_row.add_child(bulletin_panel)
-	var bulletin_content: VBoxContainer = bulletin_panel_parts["content"]
-	bulletin_status_label = Label.new()
-	bulletin_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	bulletin_status_label.add_theme_font_size_override("font_size", 13)
-	bulletin_content.add_child(bulletin_status_label)
-	bulletin_container = HFlowContainer.new()
-	bulletin_container.add_theme_constant_override("h_separation", 8)
-	bulletin_container.add_theme_constant_override("v_separation", 8)
-	bulletin_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bulletin_container.custom_minimum_size = Vector2(0, 156)
-	bulletin_content.add_child(bulletin_container)
 
 	var hand_panel_parts := _create_panel("配方手册", Vector2(RECIPE_HANDBOOK_MIN_WIDTH, 140))
 	hand_panel = hand_panel_parts["panel"]
@@ -4379,6 +4552,191 @@ func _build_tasks_panel_lines() -> PackedStringArray:
 	return lines
 
 
+func get_tutorial_guidance_state() -> Dictionary:
+	var progress: Dictionary = GameState.get_tutorial_progress()
+	var objectives := get_tasks_panel_objectives()
+	var progress_lines: PackedStringArray = _tutorial_progress_lines(objectives)
+	if not bool(progress.get("welcome_seen", false)):
+		return {"visible": false, "progress_lines": progress_lines}
+	if _opening_objectives_complete(objectives):
+		return {"visible": false, "progress_lines": progress_lines}
+	var current := _current_opening_objective(objectives)
+	if current.is_empty():
+		return {"visible": false, "progress_lines": progress_lines}
+	var objective_id := str(current.get("id", ""))
+	var target := _opening_tutorial_target_for_objective(objective_id)
+	if target.is_empty():
+		return {"visible": false, "progress_lines": progress_lines}
+	var copy: Dictionary = _opening_guidance_copy(objective_id, target)
+	if copy.is_empty():
+		return {"visible": false, "progress_lines": progress_lines}
+	copy["visible"] = true
+	copy["target"] = target
+	copy["progress_lines"] = progress_lines
+	return copy
+
+
+func _tutorial_progress_lines(objectives: Array) -> PackedStringArray:
+	var lines := PackedStringArray()
+	for objective_variant in objectives:
+		if typeof(objective_variant) != TYPE_DICTIONARY:
+			continue
+		var objective: Dictionary = objective_variant
+		var title := str(objective.get("title", ""))
+		if title.is_empty():
+			continue
+		var status := "[x]" if bool(objective.get("completed", false)) else ("[>]" if bool(objective.get("current", false)) else "[ ]")
+		lines.append("%s %s" % [status, title])
+	return lines
+
+
+func _opening_guidance_copy(objective_id: String, target: String) -> Dictionary:
+	match objective_id:
+		"collect_funds":
+			return {
+				"title": "先把社区资金收进来",
+				"action": "先点社区资金卡上的“收”按钮；如果你更习惯拖动，也可以把这张卡拖到顶部绿色“资金”数值旁边。",
+				"done_when": "看到顶部绿色“资金” +1，而且这张社区资金卡从桌面消失，就算完成。",
+				"reason": "拿到这笔资金，你才能再开下一个卡包。",
+				"where": "中间桌面的社区资金卡；顶部绿色“资金”数值在最上方资源栏里"
+			}
+		"buy_next_pack":
+			var pack_hint := _opening_missing_facility_pack_hint()
+			return {
+				"title": "继续开包补齐设施牌",
+				"action": "继续打开能补出设施的卡包，直到你看到设施卡，或看到一对能合成设施的牌。%s" % pack_hint,
+				"done_when": "桌面或手牌里出现设施卡，或出现一对能直接合成设施的牌，就算完成。",
+				"reason": "先把设施线补齐，后面才能真正把设施落到地图上。",
+				"where": "顶部卡包栏"
+			}
+		_:
+			return _tutorial_step_copy(target)
+
+
+func _opening_tutorial_target_for_objective(objective_id: String) -> String:
+	match objective_id:
+		"buy_pack":
+			return "card_pack"
+		"assign_resident":
+			return "tabletop_opening_cards"
+		"collect_funds":
+			return "tabletop_funds"
+		"buy_next_pack":
+			return "card_pack"
+		"build_facility":
+			if _hand_has_placeable_facility():
+				return "hand_facility"
+			if _has_quick_craftable_hand_card():
+				return "hand_quick_craft"
+			if craft_slots.size() == 1:
+				return "craft"
+			if not hand_cards.is_empty():
+				return "hand"
+			return "board"
+		"handle_resident_need":
+			return "demand" if not _pending_resident_need_entities().is_empty() else "next_day"
+		_:
+			return ""
+
+
+func _current_opening_objective(objectives: Array) -> Dictionary:
+	for objective_variant in objectives:
+		if typeof(objective_variant) != TYPE_DICTIONARY:
+			continue
+		var objective: Dictionary = objective_variant
+		if bool(objective.get("current", false)):
+			return objective
+	return {}
+
+
+func _opening_objectives_complete(objectives: Array) -> bool:
+	for objective_variant in objectives:
+		if typeof(objective_variant) != TYPE_DICTIONARY:
+			continue
+		var objective: Dictionary = objective_variant
+		if not bool(objective.get("completed", false)):
+			return false
+	return not objectives.is_empty()
+
+
+func _tutorial_step_copy(target: String) -> Dictionary:
+	match target:
+		"card_pack":
+			return {
+				"title": "先打开起手卡包",
+				"action": "点顶部卡包栏里的 Starter Pack，先把第一批起手卡开到桌面。",
+				"done_when": "看到 4 张起手卡出现在桌面或手牌区，就算完成。",
+				"reason": "先拿到可用卡牌，后面才有东西可以摆上桌。",
+				"where": "顶部卡包栏"
+			}
+		"bulletin", "tabletop_opening_cards":
+			return {
+				"title": "先用桌面上的起手卡",
+				"action": "先拖动桌面上的起手卡：把居民卡叠到资源点上，或先整理这些起手卡的位置。",
+				"done_when": "桌面开始产出新结果，或你已经实际拖动过一张起手卡去操作，就算完成。",
+				"reason": "这批起手卡就是你开局的第一组可操作资源，先让它们开始运转，后面才有资金和后续设施。",
+				"where": "中间桌面上那几张开包后出现的起手卡"
+			}
+		"hand_quick_craft":
+			return {
+				"title": "点“合”做出设施",
+				"action": "看手牌里带“合”的卡，直接点一下“合”，系统会自动配对并开始合成。",
+				"done_when": "手牌里出现新设施卡，或合成结果已经弹出，就算完成。",
+				"reason": "先把设施做出来，后面才有东西可以真正放到地图上。",
+				"where": "手牌区里带“合”的卡"
+			}
+		"craft":
+			return {
+				"title": "把第二张配方卡补进合成区",
+				"action": "把另一张匹配的材料卡拖到合成区空位里，凑成一对。",
+				"done_when": "两张材料都放进合成区，并出现设施结果，就算完成。",
+				"reason": "先把设施做出来，后面才有东西可以真正放到地图上。",
+				"where": "手牌区和中间合成区"
+			}
+		"hand":
+			return {
+				"title": "把配方卡放到合成区",
+				"action": "从手牌里选两张能配成设施的卡，拖到中间合成区；如果卡上有“合”，也可以直接点。",
+				"done_when": "合成区凑齐一对材料，并生成设施卡，就算完成。",
+				"reason": "先把设施做出来，后面才有东西可以真正放到地图上。",
+				"where": "手牌和合成区"
+			}
+		"hand_facility":
+			return {
+				"title": "把设施拖到地图上",
+				"action": "按住手牌里的设施卡，拖到中间地图上发亮的可放置格子。",
+				"done_when": "设施从手牌离开，并真正落到棋盘或地图格子里，就算完成。",
+				"reason": "设施落地后才能开始参与产出和服务。",
+				"where": "手牌中的设施卡和中间地图发亮的格子"
+			}
+		"board":
+			return {
+				"title": "把设施拖到地图上",
+				"action": "如果设施已经合成出来，就把它从桌面或手牌拖到地图发亮的空地上。",
+				"done_when": "看到设施真正落在棋盘或地图上，就算完成。",
+				"reason": "设施落地后才能开始参与产出和服务。",
+				"where": "桌面或手牌里的设施卡，以及中间地图发亮的格子"
+			}
+		"demand":
+			return {
+				"title": "处理居民需求",
+				"action": "先看需求卡写的服务方向，再把需求卡拖到对应服务建筑；如果界面给出可直接处理的按钮，也可以直接点。",
+				"done_when": "这张需求不再显示为待处理，或已经被建筑接待，就算完成。",
+				"reason": "未处理的需求会在结算时带来压力。",
+				"where": "需求卡和对应服务建筑"
+			}
+		"next_day":
+			return {
+				"title": "推进到下一天等需求出现",
+				"action": "点右侧或底部的下一天按钮，先把今天推进完。",
+				"done_when": "桌面出现新的居民需求卡后，就算完成这一步。",
+				"reason": "未处理的需求会在结算时带来压力。",
+				"where": "下一天按钮和新出现的需求卡"
+			}
+		_:
+			return {}
+
+
 func _build_facility_recipe_lines() -> PackedStringArray:
 	var lines := PackedStringArray()
 	for entry in _build_facility_recipe_entries():
@@ -4492,16 +4850,22 @@ func get_tasks_panel_objectives() -> Array:
 	_sync_tabletop_facade_from_controller()
 	var state := GameState.get_state()
 	var pack_count := int(state.get("card_pack_open_count", 0))
-	var assigned_complete := _opening_task_resident_assigned()
-	var collect_complete := int(state.get("collected_tabletop_funds", 0)) > 0
-	var facility_complete := _opening_task_facility_built(state)
 	var need_complete := _opening_task_resident_need_handled(state)
+	var facility_complete := _opening_task_facility_built(state) or need_complete
+	var facility_path_ready := _opening_has_actionable_facility_path(state) or facility_complete
+	var second_pack_complete := facility_path_ready
+	var collect_complete := int(state.get("collected_tabletop_funds", 0)) > 0 or second_pack_complete
+	var assigned_complete := _opening_task_resident_assigned() or collect_complete
+	var first_pack_complete := pack_count >= 1 or assigned_complete
+	var next_pack_detail := DataRepository.get_string("tasks", "buy_next_pack_detail", "继续开包，直到手里出现设施卡，或出现一对能合成设施的牌。")
+	if collect_complete and not facility_path_ready:
+		next_pack_detail = _opening_buy_next_pack_detail()
 	var objectives := [
 		{
 			"id": "buy_pack",
 			"title": DataRepository.get_string("tasks", "buy_pack_title", "购买首个卡包"),
 			"detail": DataRepository.get_string("tasks", "buy_pack_detail", "在顶部卡包栏打开入门卡包。"),
-			"completed": pack_count >= 1,
+			"completed": first_pack_complete,
 			"unlocked": true,
 			"current": false
 		},
@@ -4510,13 +4874,13 @@ func get_tasks_panel_objectives() -> Array:
 			"title": DataRepository.get_string("tasks", "assign_resident_title", "安排居民"),
 			"detail": DataRepository.get_string("tasks", "assign_resident_detail", "把居民叠到资源点或设施上。"),
 			"completed": assigned_complete,
-			"unlocked": pack_count >= 1 or assigned_complete,
+			"unlocked": first_pack_complete or assigned_complete,
 			"current": false
 		},
 		{
 			"id": "collect_funds",
 			"title": DataRepository.get_string("tasks", "collect_funds_title", "收取资金"),
-			"detail": DataRepository.get_string("tasks", "collect_funds_detail", "把社区资金卡收进顶栏资金。"),
+			"detail": DataRepository.get_string("tasks", "collect_funds_detail", "点“社区资金”卡上的“收”按钮，把这笔资金收进来。"),
 			"completed": collect_complete,
 			"unlocked": assigned_complete or _tabletop_has_community_funds_card() or collect_complete,
 			"current": false
@@ -4524,9 +4888,9 @@ func get_tasks_panel_objectives() -> Array:
 		{
 			"id": "buy_next_pack",
 			"title": DataRepository.get_string("tasks", "buy_next_pack_title", "购买下一个卡包"),
-			"detail": DataRepository.get_string("tasks", "buy_next_pack_detail", "用收到的资金再开一个卡包。"),
-			"completed": pack_count >= 2,
-			"unlocked": collect_complete or pack_count >= 2,
+			"detail": next_pack_detail,
+			"completed": second_pack_complete,
+			"unlocked": collect_complete or second_pack_complete,
 			"current": false
 		},
 		{
@@ -4534,7 +4898,7 @@ func get_tasks_panel_objectives() -> Array:
 			"title": DataRepository.get_string("tasks", "build_facility_title", "建造设施"),
 			"detail": DataRepository.get_string("tasks", "build_facility_detail", "新建或落地一处社区设施。"),
 			"completed": facility_complete,
-			"unlocked": pack_count >= 2 or facility_complete,
+			"unlocked": second_pack_complete or facility_complete,
 			"current": false
 		},
 		{
@@ -4576,13 +4940,191 @@ func _tabletop_has_community_funds_card() -> bool:
 
 
 func _opening_task_facility_built(state: Dictionary) -> bool:
-	if not Array(state.get("built_facilities", [])).is_empty():
-		return true
-	for card_id_variant in tabletop_card_ids.values():
-		var card_def: Dictionary = _tabletop_card_def_for_id(str(card_id_variant))
-		if str(card_def.get("type", "")) == "facility" or bool(card_def.get("board_placeable", false)):
+	for built_variant in state.get("built_facilities", []):
+		if typeof(built_variant) != TYPE_DICTIONARY:
+			continue
+		var built: Dictionary = built_variant
+		if int(built.get("root_cell", built.get("cell_index", -1))) >= 0:
 			return true
 	return false
+
+
+func _opening_has_actionable_facility_path(state: Dictionary = {}) -> bool:
+	var source_state := state if not state.is_empty() else GameState.get_state()
+	return _opening_has_unplaced_facility_card(source_state) or _opening_has_ready_facility_recipe(source_state)
+
+
+func _opening_has_unplaced_facility_card(state: Dictionary = {}) -> bool:
+	var source_state := state if not state.is_empty() else GameState.get_state()
+	for card_id_variant in hand_cards:
+		if _card_id_is_placeable_facility(str(card_id_variant)):
+			return true
+	for card_id_variant in tabletop_card_ids.values():
+		if _card_id_is_placeable_facility(str(card_id_variant)):
+			return true
+	for built_variant in source_state.get("built_facilities", []):
+		if typeof(built_variant) != TYPE_DICTIONARY:
+			continue
+		var built: Dictionary = built_variant
+		if int(built.get("root_cell", built.get("cell_index", -1))) >= 0:
+			continue
+		if _card_id_is_placeable_facility(str(built.get("card_id", ""))):
+			return true
+	return false
+
+
+func _opening_has_ready_facility_recipe(state: Dictionary = {}) -> bool:
+	var source_state := state if not state.is_empty() else GameState.get_state()
+	if _has_quick_craftable_hand_card():
+		return true
+	return _tabletop_has_facility_recipe_ready(source_state)
+
+
+func _tabletop_has_facility_recipe_ready(state: Dictionary = {}) -> bool:
+	var source_state := state if not state.is_empty() else GameState.get_state()
+	var instance_ids: Array = tabletop_card_ids.keys()
+	if instance_ids.size() < 2:
+		return false
+	var inventory := BOARD_RULES.ensure_inventory(source_state)
+	var unlock_progress := _recipe_unlock_progress(source_state)
+	for first_index: int in range(instance_ids.size()):
+		var first_card_id := str(tabletop_card_ids.get(str(instance_ids[first_index]), ""))
+		if first_card_id.is_empty():
+			continue
+		for second_index: int in range(first_index + 1, instance_ids.size()):
+			var second_card_id := str(tabletop_card_ids.get(str(instance_ids[second_index]), ""))
+			if second_card_id.is_empty():
+				continue
+			var recipe := RECIPE_RULES.find_matching_recipe_for_cards(
+				[first_card_id, second_card_id],
+				DataRepository.recipes,
+				unlock_progress,
+				DataRepository.cards_by_id,
+				inventory
+			)
+			if recipe.is_empty():
+				continue
+			if _recipe_creates_placeable_facility(recipe):
+				return true
+	return false
+
+
+func _recipe_creates_placeable_facility(recipe: Dictionary) -> bool:
+	for result_id_variant in _result_card_ids_for_recipe(recipe):
+		if _card_id_is_placeable_facility(str(result_id_variant)):
+			return true
+	return false
+
+
+func _card_id_is_placeable_facility(card_id: String) -> bool:
+	if card_id.is_empty():
+		return false
+	var card_def: Dictionary = DataRepository.cards_by_id.get(card_id, {})
+	return str(card_def.get("type", "")) == "facility" or bool(card_def.get("board_placeable", false))
+
+
+func _opening_buy_next_pack_detail() -> String:
+	return "继续开包，直到桌面或手里出现设施卡，或出现一对能合成设施的牌。%s" % _opening_missing_facility_pack_hint()
+
+
+func _opening_missing_facility_pack_hint() -> String:
+	var missing_side := _opening_missing_facility_recipe_side()
+	if missing_side == "material":
+		return "现在这桌已经有许可牌，但还缺能合成设施的材料，优先开 Material Pack 补齐配方。"
+	if missing_side == "building_permit":
+		return "现在这桌已经有材料，但还缺对应的许可，优先开 Permit Pack 补一张方案。"
+	var has_material := _opening_visible_card_type_count("material") > 0
+	var has_permit := _opening_visible_card_type_count("building_permit") > 0
+	if has_material and not has_permit:
+		return "现在这桌主要是材料，优先开 Permit Pack 补一张设施方案。"
+	if has_permit and not has_material:
+		return "现在这桌已经有方案，优先开 Material Pack 补齐材料。"
+	return "优先补能开出设施方案、现成设施，或缺的那张配方牌。"
+
+
+func _opening_missing_facility_recipe_side() -> String:
+	var visible_card_ids := _opening_visible_card_ids()
+	if visible_card_ids.is_empty():
+		return ""
+	var visible_counts := _count_card_ids(visible_card_ids)
+	var missing_material_count := 0
+	var missing_permit_count := 0
+	for recipe_variant in DataRepository.recipes:
+		if typeof(recipe_variant) != TYPE_DICTIONARY:
+			continue
+		var recipe: Dictionary = recipe_variant
+		if not _recipe_creates_placeable_facility(recipe):
+			continue
+		var missing_types := _opening_missing_types_for_recipe(recipe, visible_counts)
+		if missing_types.size() != 1:
+			continue
+		var missing_type := str(missing_types[0])
+		if missing_type == "material":
+			missing_material_count += 1
+		elif missing_type == "building_permit":
+			missing_permit_count += 1
+	if missing_material_count > 0 and missing_permit_count == 0:
+		return "material"
+	if missing_permit_count > 0 and missing_material_count == 0:
+		return "building_permit"
+	return ""
+
+
+func _opening_missing_types_for_recipe(recipe: Dictionary, visible_counts: Dictionary) -> PackedStringArray:
+	var missing_types := PackedStringArray()
+	var recipe_counts := _count_card_ids(_string_array(recipe.get("ingredient_card_ids", [])))
+	for card_id_variant in recipe_counts.keys():
+		var card_id := str(card_id_variant)
+		var needed := int(recipe_counts.get(card_id, 0))
+		var available := int(visible_counts.get(card_id, 0))
+		if available >= needed:
+			continue
+		var card_type := str(DataRepository.cards_by_id.get(card_id, {}).get("type", ""))
+		if not card_type.is_empty() and not missing_types.has(card_type):
+			missing_types.append(card_type)
+	return missing_types
+
+
+func _opening_visible_card_ids() -> Array[String]:
+	var visible: Array[String] = []
+	for card_id_variant in tabletop_card_ids.values():
+		var card_id := str(card_id_variant)
+		if not card_id.is_empty():
+			visible.append(card_id)
+	for card_id_variant in hand_cards:
+		var card_id := str(card_id_variant)
+		if not card_id.is_empty():
+			visible.append(card_id)
+	for card_id_variant in craft_slots:
+		var card_id := str(card_id_variant)
+		if not card_id.is_empty():
+			visible.append(card_id)
+	return visible
+
+
+func _count_card_ids(card_ids: Array[String]) -> Dictionary:
+	var counts := {}
+	for card_id in card_ids:
+		if card_id.is_empty():
+			continue
+		counts[card_id] = int(counts.get(card_id, 0)) + 1
+	return counts
+
+
+func _opening_visible_card_type_count(card_type: String) -> int:
+	if card_type.is_empty():
+		return 0
+	var count := 0
+	for card_id_variant in tabletop_card_ids.values():
+		if str(DataRepository.cards_by_id.get(str(card_id_variant), {}).get("type", "")) == card_type:
+			count += 1
+	for card_id_variant in hand_cards:
+		if str(DataRepository.cards_by_id.get(str(card_id_variant), {}).get("type", "")) == card_type:
+			count += 1
+	for card_id_variant in craft_slots:
+		if str(DataRepository.cards_by_id.get(str(card_id_variant), {}).get("type", "")) == card_type:
+			count += 1
+	return count
 
 
 func _opening_task_resident_need_handled(state: Dictionary) -> bool:
@@ -5235,21 +5777,22 @@ func _apply_ui_save_state(ui_state: Dictionary) -> void:
 	_refresh_tabletop_layer()
 
 
-func _open_day_minus_one_scene() -> void:
+func _open_day_minus_one_scene(start_cycle_on_finish: bool = false) -> void:
 	if day_minus_one_view != null:
 		return
 	day_minus_one_view = DAY_MINUS_ONE_SCENE.instantiate()
 	add_child(day_minus_one_view)
 	if day_minus_one_view.has_signal("finished"):
-		day_minus_one_view.connect("finished", Callable(self, "_on_day_minus_one_finished"))
+		day_minus_one_view.connect("finished", Callable(self, "_on_day_minus_one_finished").bind(start_cycle_on_finish))
 
 
-func _on_day_minus_one_finished() -> void:
+func _on_day_minus_one_finished(start_cycle_on_finish: bool = false) -> void:
 	if day_minus_one_view != null:
 		day_minus_one_view.queue_free()
 	day_minus_one_view = null
-	_start_new_day_cycle(true)
-	_append_report_line("新手教程完成，已进入正式第 1 天。")
+	if start_cycle_on_finish:
+		_start_new_day_cycle(true)
+		_append_report_line("新手引导开始，已进入正式第 1 天。")
 	_refresh_tutorial_overlay()
 	_update_all_ui()
 
@@ -5342,6 +5885,8 @@ func _begin_drag(card_id: String, zone: String, item_index: int, pointer_offset:
 
 	if drag_source_view != null and drag_source_view.has_method("set_dimmed"):
 		drag_source_view.set_dimmed(true)
+	if zone == "problem":
+		begin_resident_need_drag_highlight(_need_id_for_problem_drag())
 
 
 func _move_drag_preview(pointer_global_position: Vector2) -> void:
@@ -6704,6 +7249,7 @@ func _cancel_drag() -> void:
 	if drag_source_view != null and drag_source_view.has_method("set_dimmed"):
 		drag_source_view.set_dimmed(false)
 	drag_source_view = null
+	clear_resident_need_drag_highlight()
 	if drag_preview != null:
 		drag_preview.queue_free()
 	drag_preview = null
@@ -7045,7 +7591,9 @@ func _refresh_status_header_ui(state: Dictionary) -> void:
 		rotate_build_button.text = "旋转 %d°" % get_pending_build_rotation()
 		var drag_def := _current_drag_card_def()
 		rotate_build_button.disabled = is_dragging and (drag_def.is_empty() or not bool(drag_def.get("can_rotate", false)))
-	tutorial_hint_label.text = "教程提示: %s" % TutorialManager.get_active_inline_hint()
+	if tutorial_hint_label != null:
+		tutorial_hint_label.text = "教程提示: %s" % TutorialManager.get_active_inline_hint()
+		tutorial_hint_label.visible = false
 	if bulletin_paid_mode_enabled(state):
 		bulletin_status_label.text = "5张明牌，仅含材料和建筑许可；可免费拿1张，其余可花小红花购买。%s" % selection_status
 	else:
@@ -7268,6 +7816,8 @@ func _make_card_view(card_id: String, zone: String, index: int, extra_text: Stri
 				_card_name(str(quick_craft.get("result_card_id", "")))
 			]
 	card_view.drag_requested.connect(_handle_card_view_drag_request.bind(card_view))
+	if card_view.has_signal("problem_drop_requested"):
+		card_view.problem_drop_requested.connect(_handle_card_view_problem_drag_request.bind(card_view))
 	card_view.primary_action_requested.connect(_on_card_primary_action)
 	return card_view
 
@@ -7371,11 +7921,7 @@ func _card_playability_text(card_id: String, zone: String, extra_text: String = 
 	var lines := PackedStringArray()
 	if not extra_text.is_empty():
 		lines.append(extra_text)
-	var visible_ids: Array = []
-	visible_ids.append_array(hand_cards)
-	visible_ids.append_array(bulletin_cards)
-	visible_ids.append_array(craft_slots)
-	var hints: PackedStringArray = PLAYABILITY_DIRECTOR.get_recipe_hints(card_id, visible_ids, DataRepository.recipes, DataRepository.cards_by_id, _recipe_unlock_progress())
+	var hints: PackedStringArray = _card_recipe_hint_lines(card_id)
 	for hint: String in hints:
 		lines.append(hint)
 	var card_def: Dictionary = DataRepository.cards_by_id.get(card_id, {})
@@ -7395,14 +7941,84 @@ func _card_playability_text(card_id: String, zone: String, extra_text: String = 
 func _card_has_playability_hint(card_id: String, zone: String) -> bool:
 	if zone == "problem":
 		return true
-	var visible_ids: Array = []
-	visible_ids.append_array(hand_cards)
-	visible_ids.append_array(bulletin_cards)
-	visible_ids.append_array(craft_slots)
+	var visible_ids: Array = _visible_recipe_source_card_ids()
 	return PLAYABILITY_DIRECTOR.get_recipe_hints(card_id, visible_ids, DataRepository.recipes, DataRepository.cards_by_id, _recipe_unlock_progress()).size() > 0
 
 
+func _card_recipe_hint_lines(card_id: String) -> PackedStringArray:
+	var details: Array[Dictionary] = PLAYABILITY_DIRECTOR.get_recipe_match_details(
+		card_id,
+		_visible_recipe_source_card_ids(),
+		DataRepository.recipes,
+		DataRepository.cards_by_id,
+		_recipe_unlock_progress()
+	)
+	var lines := PackedStringArray()
+	if details.is_empty():
+		return lines
+	var primary: Dictionary = details[0]
+	lines.append("可与 %s 合成 -> %s" % [str(primary.get("partner_name", "")), str(primary.get("result_name", ""))])
+	if details.size() > 1:
+		lines.append("另有 %d 种可合成" % (details.size() - 1))
+	return lines
+
+
+func get_linked_craft_highlight_state(card_id: String) -> Dictionary:
+	var details: Array[Dictionary] = PLAYABILITY_DIRECTOR.get_recipe_match_details(
+		card_id,
+		_visible_recipe_source_card_ids(),
+		DataRepository.recipes,
+		DataRepository.cards_by_id,
+		_recipe_unlock_progress()
+	)
+	var linked := PackedStringArray()
+	for detail: Dictionary in details:
+		var partner_id := str(detail.get("partner_card_id", ""))
+		if not partner_id.is_empty() and not linked.has(partner_id):
+			linked.append(partner_id)
+	var dimmed := PackedStringArray()
+	for visible_id: String in _visible_recipe_source_card_ids():
+		if visible_id.is_empty() or visible_id == card_id or linked.has(visible_id):
+			continue
+		if not dimmed.has(visible_id):
+			dimmed.append(visible_id)
+	return {
+		"card_id": card_id,
+		"linked_card_ids": linked,
+		"dimmed_card_ids": dimmed
+	}
+
+
+func _visible_recipe_source_card_ids() -> Array[String]:
+	var visible: Array[String] = []
+	visible.append_array(hand_cards)
+	visible.append_array(craft_slots)
+	for card_id_variant in tabletop_card_ids.values():
+		var card_id := str(card_id_variant)
+		if not card_id.is_empty():
+			visible.append(card_id)
+	return visible
+
+
+func _on_tabletop_card_mouse_entered(card_id: String) -> void:
+	if card_id == _hovered_linked_craft_card_id:
+		return
+	_hovered_linked_craft_card_id = card_id
+	_refresh_tabletop_layer()
+
+
+func _on_tabletop_layer_mouse_exited() -> void:
+	if _hovered_linked_craft_card_id.is_empty():
+		return
+	_hovered_linked_craft_card_id = ""
+	_refresh_tabletop_layer()
+
+
 func _handle_card_view_drag_request(card_id: String, zone: String, index: int, pointer_offset: Vector2, card_view: Control) -> void:
+	_on_card_drag_requested(card_id, zone, index, pointer_offset, card_view)
+
+
+func _handle_card_view_problem_drag_request(card_id: String, zone: String, index: int, pointer_offset: Vector2, card_view: Control) -> void:
 	_on_card_drag_requested(card_id, zone, index, pointer_offset, card_view)
 
 
@@ -7461,7 +8077,7 @@ func _update_recipe_codex_ui() -> void:
 		_recipe_unlock_progress(state)
 	)
 	if entries.is_empty():
-		recipe_codex_label.text = "[b]暂无可见配方[/b]\n先从公告栏选两张有高亮提示的卡。"
+		recipe_codex_label.text = "[b]暂无可见配方[/b]\n先开包，或先让桌面的起手卡动起来，新的可合成卡会慢慢出现。"
 		return
 	var discovered_entries: Array = []
 	var clue_entries: Array = []
@@ -7679,6 +8295,9 @@ func _update_board_ui(cells: Array[Dictionary]) -> void:
 func _update_board_highlights(hover_index: int) -> void:
 	var cells: Array[Dictionary] = GameState.get_state().get("board_cells", [])
 	_clear_board_hover_highlights(cells)
+	if is_dragging and drag_source_zone == "problem":
+		_apply_resident_need_drag_highlight_to_board_cells(cells)
+		return
 	if hover_index < 0 or hover_index >= board_cell_panels.size():
 		return
 	var card_def := _current_drag_card_def()
@@ -7711,6 +8330,130 @@ func _update_board_highlights(hover_index: int) -> void:
 		border = Color(0.84, 0.48, 0.12)
 	_remember_board_hover_highlight(hover_index)
 	board_cell_panels[hover_index].add_theme_stylebox_override("panel", _panel_style(base_background, border, 18, 3))
+
+
+func begin_resident_need_drag_highlight(need_id: String) -> Dictionary:
+	var state := GameState.get_state()
+	var need_entity := _resident_need_entity_for_id(need_id, state)
+	if need_entity.is_empty():
+		clear_resident_need_drag_highlight()
+		return resident_need_drag_highlight_state.duplicate(true)
+	var cells: Array = state.get("board_cells", [])
+	var root_indices := PackedInt32Array()
+	var occupied_indices := PackedInt32Array()
+	var labels := PackedStringArray()
+	for built_variant in state.get("built_facilities", []):
+		if typeof(built_variant) != TYPE_DICTIONARY:
+			continue
+		var built: Dictionary = built_variant
+		var card_id := str(built.get("card_id", built.get("occupied_card_id", "")))
+		if card_id.is_empty():
+			continue
+		var card_def: Dictionary = DataRepository.cards_by_id.get(card_id, {})
+		if not _facility_matches_need_for_guidance(card_def, Array(need_entity.get("need_tags", []))):
+			continue
+		var root_index := _built_facility_root_index(built, cells)
+		if root_index < 0:
+			continue
+		_append_unique_int(root_indices, root_index)
+		_append_unique_limited(labels, _card_name(card_id), 3)
+		var footprint := _built_facility_occupied_indices(built, root_index, card_def)
+		for occupied_index: int in footprint:
+			_append_unique_int(occupied_indices, occupied_index)
+	resident_need_drag_highlight_state = {
+		"visible": not root_indices.is_empty(),
+		"need_id": need_id,
+		"root_indices": Array(root_indices),
+		"occupied_indices": Array(occupied_indices),
+		"label": "" if labels.is_empty() else "可接待：%s" % "、".join(labels),
+		"feedback": "resident_need_drop_targets"
+	}
+	_apply_resident_need_drag_highlight_to_board_cells(cells)
+	_sync_resident_need_drag_highlight_to_iso()
+	return resident_need_drag_highlight_state.duplicate(true)
+
+
+func clear_resident_need_drag_highlight() -> void:
+	var cells: Array[Dictionary] = GameState.get_state().get("board_cells", [])
+	_clear_board_hover_highlights(cells)
+	resident_need_drag_highlight_state = {"visible": false, "root_indices": [], "occupied_indices": [], "need_id": "", "label": "", "feedback": ""}
+	_sync_resident_need_drag_highlight_to_iso()
+
+
+func get_resident_need_drag_highlight_state() -> Dictionary:
+	return resident_need_drag_highlight_state.duplicate(true)
+
+
+func _apply_resident_need_drag_highlight_to_board_cells(cells: Array) -> void:
+	if not bool(resident_need_drag_highlight_state.get("visible", false)):
+		return
+	var highlight_background := Color(0.52, 0.86, 0.96)
+	var highlight_border := Color(0.02, 0.43, 0.64)
+	var border_width := 5 if bool(SettingsManager.get_value("high_contrast")) else 4
+	var tooltip_text := str(resident_need_drag_highlight_state.get("label", "可接待这个需求"))
+	for index_variant in resident_need_drag_highlight_state.get("occupied_indices", []):
+		var index := int(index_variant)
+		if index < 0 or index >= board_cell_panels.size() or index >= cells.size():
+			continue
+		_remember_board_hover_highlight(index)
+		board_cell_panels[index].tooltip_text = tooltip_text
+		board_cell_panels[index].add_theme_stylebox_override("panel", _panel_style(highlight_background, highlight_border, 18, border_width))
+
+
+func _sync_resident_need_drag_highlight_to_iso() -> void:
+	if iso_grid_painter == null or not iso_grid_painter.has_method("set_resident_need_target_indices"):
+		return
+	iso_grid_painter.call(
+		"set_resident_need_target_indices",
+		Array(resident_need_drag_highlight_state.get("root_indices", [])),
+		Array(resident_need_drag_highlight_state.get("occupied_indices", [])),
+		str(resident_need_drag_highlight_state.get("label", ""))
+	)
+
+
+func _resident_need_entity_for_id(need_id: String, state: Dictionary = {}) -> Dictionary:
+	if need_id.is_empty():
+		return {}
+	var source_state := state if not state.is_empty() else GameState.get_state()
+	for entity_variant in source_state.get("resident_need_entities", []):
+		if typeof(entity_variant) != TYPE_DICTIONARY:
+			continue
+		var entity: Dictionary = entity_variant
+		if str(entity.get("need_id", "")) == need_id:
+			return entity
+	return {}
+
+
+func _built_facility_root_index(built: Dictionary, cells: Array) -> int:
+	var root_index := int(built.get("root_cell", built.get("cell_index", -1)))
+	if root_index >= 0 and root_index < cells.size():
+		return root_index
+	for occupied_variant in built.get("occupied_cells", []):
+		var occupied_index := int(occupied_variant)
+		if occupied_index >= 0 and occupied_index < cells.size():
+			var cell: Dictionary = cells[occupied_index]
+			return int(cell.get("root_index", occupied_index))
+	return -1
+
+
+func _built_facility_occupied_indices(built: Dictionary, root_index: int, card_def: Dictionary) -> PackedInt32Array:
+	var indices := PackedInt32Array()
+	for occupied_variant in built.get("occupied_cells", []):
+		_append_unique_int(indices, int(occupied_variant))
+	if indices.is_empty() and root_index >= 0:
+		var rotation := int(built.get("rotation", 0))
+		for occupied_index: int in BOARD_RULES.occupied_indices_for_shape(root_index, card_def, rotation):
+			_append_unique_int(indices, occupied_index)
+	return indices
+
+
+func _append_unique_int(values: PackedInt32Array, value: int) -> void:
+	if value < 0:
+		return
+	for existing: int in values:
+		if existing == value:
+			return
+	values.append(value)
 
 
 func _apply_board_cell_base_visual(index: int, cell: Dictionary, cells: Array[Dictionary]) -> void:
@@ -7919,8 +8662,14 @@ func _show_new_unlocks(unlocked_before: PackedInt32Array) -> void:
 
 func _tutorial_target_rect(target_name: String) -> Rect2:
 	match target_name:
+		"card_pack":
+			return _card_pack_shop_rect()
 		"bulletin":
 			return bulletin_panel.get_global_rect() if bulletin_panel != null else Rect2()
+		"tabletop_opening_cards":
+			return _opening_tabletop_cards_rect()
+		"tabletop_funds":
+			return _tabletop_funds_rect()
 		"hand":
 			return hand_panel.get_global_rect() if hand_panel != null else Rect2()
 		"hand_quick_craft":
@@ -7941,6 +8690,68 @@ func _tutorial_target_rect(target_name: String) -> Rect2:
 			return next_button.get_global_rect() if next_button != null else Rect2()
 		_:
 			return Rect2()
+
+
+func _card_pack_shop_rect() -> Rect2:
+	var rect := Rect2()
+	var has_rect := false
+	for pack_id_variant in _primary_card_pack_ids():
+		var pack_id := str(pack_id_variant)
+		if not _card_pack_buttons.has(pack_id):
+			continue
+		var button: Button = _card_pack_buttons[pack_id]
+		if button == null or not is_instance_valid(button) or not button.visible:
+			continue
+		var button_rect := button.get_global_rect()
+		if button_rect.size == Vector2.ZERO:
+			continue
+		rect = button_rect if not has_rect else rect.merge(button_rect)
+		has_rect = true
+	if not has_rect:
+		return Rect2()
+	return rect.grow(8.0)
+
+
+func _opening_tabletop_cards_rect() -> Rect2:
+	if tabletop_layer == null or tabletop_card_ids.is_empty():
+		return Rect2()
+	var rect := Rect2()
+	var has_rect := false
+	for instance_id_variant in tabletop_card_ids.keys():
+		var instance_id := str(instance_id_variant)
+		var card_id := str(tabletop_card_ids.get(instance_id, ""))
+		if _is_community_funds_card_id(card_id):
+			continue
+		var local_rect := _tabletop_card_visual_rect(instance_id)
+		if local_rect.size == Vector2.ZERO:
+			continue
+		var global_rect := Rect2(tabletop_layer.get_global_rect().position + local_rect.position, local_rect.size)
+		rect = global_rect if not has_rect else rect.merge(global_rect)
+		has_rect = true
+	if not has_rect:
+		return tabletop_layer.get_global_rect()
+	return rect.grow(12.0)
+
+
+func _tabletop_funds_rect() -> Rect2:
+	if tabletop_layer == null or tabletop_card_ids.is_empty():
+		return Rect2()
+	var rect := Rect2()
+	var has_rect := false
+	for instance_id_variant in tabletop_card_ids.keys():
+		var instance_id := str(instance_id_variant)
+		var card_id := str(tabletop_card_ids.get(instance_id, ""))
+		if not _is_community_funds_card_id(card_id):
+			continue
+		var local_rect := _tabletop_card_visual_rect(instance_id)
+		if local_rect.size == Vector2.ZERO:
+			continue
+		var global_rect := Rect2(tabletop_layer.get_global_rect().position + local_rect.position, local_rect.size)
+		rect = global_rect if not has_rect else rect.merge(global_rect)
+		has_rect = true
+	if not has_rect:
+		return Rect2()
+	return rect.grow(12.0)
 
 
 func _refresh_tutorial_pointer() -> void:
@@ -8239,19 +9050,9 @@ func _animate_board_cell(cell_index: int) -> void:
 
 
 func _refresh_tutorial_overlay() -> void:
-	if not is_inside_tree() or tutorial_overlay == null:
+	if tutorial_overlay == null:
 		return
-	tutorial_overlay.visible = TutorialManager.should_show_day_minus_one() and OS.get_environment("RFT_CAPTURE_VIEWPORT_PNG").is_empty()
-	if not tutorial_overlay.visible:
-		return
-	tutorial_overlay_title_label.text = str(DataRepository.tutorial.get("day_minus_one", {}).get("title", "新手教程"))
-	var lines: PackedStringArray = []
-	lines.append(str(DataRepository.tutorial.get("day_minus_one", {}).get("subtitle", "")))
-	for step in TutorialManager.get_day_minus_one_steps():
-		lines.append("")
-		lines.append("[b]%s[/b]" % str(step.get("title", "")))
-		lines.append(str(step.get("body", "")))
-	tutorial_overlay_body_label.text = "\n".join(lines)
+	tutorial_overlay.visible = false
 
 
 func _update_debug_panel() -> void:

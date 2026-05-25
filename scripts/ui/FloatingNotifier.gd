@@ -14,6 +14,7 @@ var _message_label: Label
 var _icon_label: Label
 var _dismiss_tween: Tween
 var _resource_tween: Tween
+var _dismiss_timer: Timer
 var _dismissing := false
 var _timer_token := 0
 var _mode: String = "warning"
@@ -25,6 +26,7 @@ func _ready() -> void:
 	z_index = 900
 	modulate = Color.WHITE
 	_ensure_ui()
+	_ensure_dismiss_timer()
 	set_process(true)
 
 
@@ -45,6 +47,7 @@ func _input(event: InputEvent) -> void:
 
 func show_error(text: String, duration: float = 1.6) -> void:
 	_ensure_ui()
+	_ensure_dismiss_timer()
 	_mode = "warning"
 	_timer_token += 1
 	_dismissing = false
@@ -57,12 +60,16 @@ func show_error(text: String, duration: float = 1.6) -> void:
 	_message_label.add_theme_font_size_override("font_size", 15)
 	_message_label.text = text
 	_process(0.0)
-	if is_inside_tree() and duration > 0.0:
-		_auto_dismiss_after(duration, _timer_token)
+	if _dismiss_timer != null:
+		_dismiss_timer.stop()
+		if is_inside_tree() and duration > 0.0:
+			_dismiss_timer.wait_time = duration
+			_dismiss_timer.start()
 
 
 func show_resource_delta(icon_text: String, message_text: String, accent_color: Color, start_global_position: Vector2, duration: float = RESOURCE_DELTA_DURATION) -> void:
 	_ensure_ui()
+	_ensure_dismiss_timer()
 	_mode = "resource_delta"
 	_dismissing = false
 	fade_offset = Vector2.ZERO
@@ -87,6 +94,20 @@ func show_resource_delta(icon_text: String, message_text: String, accent_color: 
 	_resource_tween.tween_property(self, "modulate", Color(1, 1, 1, 0), duration) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	_resource_tween.chain().tween_callback(Callable(self, "queue_free"))
+
+
+func cleanup_for_smoke_test() -> void:
+	_timer_token += 1
+	if _dismiss_timer != null:
+		_dismiss_timer.stop()
+	if _dismiss_tween != null and _dismiss_tween.is_valid():
+		_dismiss_tween.kill()
+	_dismiss_tween = null
+	if _resource_tween != null and _resource_tween.is_valid():
+		_resource_tween.kill()
+	_resource_tween = null
+	_dismissing = false
+	set_process(false)
 
 
 func dismiss() -> void:
@@ -158,6 +179,15 @@ func _ensure_ui() -> void:
 	row.add_child(_message_label)
 
 
+func _ensure_dismiss_timer() -> void:
+	if _dismiss_timer != null:
+		return
+	_dismiss_timer = Timer.new()
+	_dismiss_timer.one_shot = true
+	_dismiss_timer.timeout.connect(_on_dismiss_timer_timeout)
+	add_child(_dismiss_timer)
+
+
 func _make_panel_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = WARNING_BACKGROUND
@@ -185,7 +215,9 @@ func _make_resource_delta_style(accent: Color) -> StyleBoxFlat:
 	return style
 
 
-func _auto_dismiss_after(duration: float, token: int) -> void:
-	await get_tree().create_timer(duration).timeout
-	if token == _timer_token and is_instance_valid(self):
-		dismiss()
+func _on_dismiss_timer_timeout() -> void:
+	if _mode != "warning":
+		return
+	if _dismissing:
+		return
+	dismiss()

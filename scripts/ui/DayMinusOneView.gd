@@ -47,7 +47,8 @@ func _build_ui() -> void:
 
 	body_label = RichTextLabel.new()
 	body_label.bbcode_enabled = true
-	body_label.custom_minimum_size = Vector2(0, 600)
+	body_label.custom_minimum_size = Vector2(0, 320)
+	body_label.fit_content = true
 	body_label.add_theme_color_override("default_color", LIGHT_SURFACE_PRIMARY_TEXT)
 	body_label.add_theme_color_override("font_color", LIGHT_SURFACE_PRIMARY_TEXT)
 	layout.add_child(body_label)
@@ -57,25 +58,44 @@ func _build_ui() -> void:
 	layout.add_child(button_row)
 
 	var complete_button := Button.new()
-	complete_button.text = "完成教程"
+	complete_button.text = "开始引导"
 	complete_button.pressed.connect(_on_complete_pressed)
 	button_row.add_child(complete_button)
 
 	var skip_button := Button.new()
-	skip_button.text = "跳过"
+	skip_button.text = "跳过引导"
 	skip_button.pressed.connect(_on_complete_pressed)
 	button_row.add_child(skip_button)
 
 
 func _refresh() -> void:
-	title_label.text = str(DataRepository.tutorial.get("day_minus_one", {}).get("title", "新手教程"))
+	var copy: Dictionary = get_welcome_card_content()
+	title_label.text = str(copy.get("title", ""))
+	var step_titles := PackedStringArray(copy.get("step_titles", PackedStringArray()))
 	var lines: PackedStringArray = []
-	lines.append(str(DataRepository.tutorial.get("day_minus_one", {}).get("subtitle", "")))
-	for step in TutorialManager.get_day_minus_one_steps():
-		lines.append("")
-		lines.append("[b]%s[/b]" % str(step.get("title", "")))
-		lines.append(str(step.get("body", "")))
+	lines.append(str(copy.get("subtitle", "")))
+	lines.append("")
+	lines.append(str(copy.get("body", "")))
+	lines.append("")
+	lines.append("[b]今天会经过这 %d 步：[/b]" % step_titles.size())
+	for line_variant in step_titles:
+		lines.append(str(line_variant))
 	body_label.text = "\n".join(lines)
+
+
+func get_welcome_card_content() -> Dictionary:
+	var config: Dictionary = DataRepository.tutorial.get("day_minus_one", {})
+	var step_titles := PackedStringArray()
+	for step in TutorialManager.get_day_minus_one_steps():
+		step_titles.append("• %s" % str(step.get("title", "")))
+	return {
+		"title": str(config.get("title", "新手引导")),
+		"subtitle": str(config.get("subtitle", "")),
+		"body": str(config.get("body", "今天先过一遍开局节奏：开包、操作起手卡、收资金、再开一包、落地设施、处理居民需求。进入主界面后我会一步一步带着你做。")),
+		"step_titles": step_titles,
+		"primary_action": "开始引导",
+		"secondary_action": "跳过引导"
+	}
 
 
 func get_text_color_spec() -> Dictionary:

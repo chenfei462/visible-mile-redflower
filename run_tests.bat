@@ -41,8 +41,9 @@ if errorlevel 1 exit /b %errorlevel%
 if errorlevel 1 exit /b %errorlevel%
 "%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/board_land_unlock_os_click_smoke.gd
 if errorlevel 1 exit /b %errorlevel%
-"%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/bulletin_paid_purchase_os_click_smoke.gd
-if errorlevel 1 exit /b %errorlevel%
+REM bulletin_paid_purchase_os_click_smoke skipped: bulletin UI removed in Phase B of pack-stall migration. To restore: re-enable below and rewrite for card pack shop.
+REM "%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/bulletin_paid_purchase_os_click_smoke.gd
+REM if errorlevel 1 exit /b %errorlevel%
 "%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/first_10_minutes_smoke.gd
 if errorlevel 1 exit /b %errorlevel%
 "%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/full_game_smoke.gd

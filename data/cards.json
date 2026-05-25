@@ -138,6 +138,7 @@
     "board_placeable": true,
     "fund_cost": 2,
     "manpower_cost": 1,
+    "service_capacity": 3,
     "base_output": 1,
     "preferred_zone": "服务",
     "preferred_zone_bonus": 1,
@@ -2153,7 +2154,7 @@
       "funds",
       "community"
     ],
-    "description": "居民轮值和设施服务产生的待收取资金，点击或拖到资金栏后才进入可用资金。",
+    "description": "居民轮值和设施服务产生的待收取资金。点卡上的“收”按钮后，这笔钱才会进入可用资金。",
     "art": "",
     "board_placeable": false,
     "fund_cost": 0,

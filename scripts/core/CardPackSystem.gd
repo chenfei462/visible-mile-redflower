@@ -124,13 +124,43 @@ const PACK_DEFINITIONS := {
 
 
 static func get_pack_definitions() -> Dictionary:
+	var external := _external_pack_definitions()
+	if not external.is_empty():
+		return external.duplicate(true)
 	return PACK_DEFINITIONS.duplicate(true)
 
 
+static func _external_pack_definitions() -> Dictionary:
+	var tree := Engine.get_main_loop()
+	if tree == null or not (tree is SceneTree):
+		return {}
+	var root: Node = (tree as SceneTree).root
+	if root == null:
+		return {}
+	var data_repository: Node = root.get_node_or_null("DataRepository")
+	if data_repository == null:
+		return {}
+	var packs_variant: Variant = data_repository.get("card_packs")
+	if typeof(packs_variant) != TYPE_DICTIONARY:
+		return {}
+	return packs_variant
+
+
+static func _get_pack_def(pack_id: String) -> Dictionary:
+	var external := _external_pack_definitions()
+	if external.has(pack_id):
+		var pack_variant: Variant = external[pack_id]
+		if typeof(pack_variant) == TYPE_DICTIONARY:
+			return pack_variant
+	if PACK_DEFINITIONS.has(pack_id):
+		return PACK_DEFINITIONS[pack_id]
+	return {}
+
+
 static func can_purchase(state: Dictionary, pack_id: String) -> Dictionary:
-	if not PACK_DEFINITIONS.has(pack_id):
+	var pack: Dictionary = _get_pack_def(pack_id)
+	if pack.is_empty():
 		return {"can": false, "reason": "Unknown pack."}
-	var pack: Dictionary = PACK_DEFINITIONS[pack_id]
 	var fund_cost := int(pack.get("fund_cost", 0))
 	var flower_cost := int(pack.get("flower_cost", 0))
 	var day_req := int(pack.get("unlock_day", 1))
@@ -153,7 +183,9 @@ static func open_pack(state: Dictionary, pack_id: String, cards_by_id: Dictionar
 	if rng == null:
 		rng = RandomNumberGenerator.new()
 		rng.randomize()
-	var pack: Dictionary = PACK_DEFINITIONS[pack_id]
+	var pack: Dictionary = _get_pack_def(pack_id)
+	if pack.is_empty():
+		return {"success": false, "message": "Unknown pack."}
 	var pool: Array = _filter_card_pool(cards_by_id, pack, state)
 	if pool.is_empty():
 		return {"success": false, "message": "Pack pool is empty."}

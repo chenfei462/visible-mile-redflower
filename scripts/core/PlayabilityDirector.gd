@@ -63,10 +63,10 @@ static func build_today_goals(state: Dictionary, hand_cards: Array, _craft_slots
 	]
 
 
-static func get_recipe_hints(card_id: String, visible_card_ids: Array, recipes: Array[Dictionary], cards_by_id: Dictionary, trust: int) -> PackedStringArray:
-	var hints := PackedStringArray()
+static func get_recipe_match_details(card_id: String, visible_card_ids: Array, recipes: Array[Dictionary], cards_by_id: Dictionary, trust: int) -> Array[Dictionary]:
+	var details: Array[Dictionary] = []
 	if card_id.is_empty():
-		return hints
+		return details
 	for recipe: Dictionary in recipes:
 		var unlock_day := int(recipe.get("unlock_day", DATA_REPOSITORY.unlock_day_for_requirement(int(recipe.get("unlock_trust", 0)))))
 		if DATA_REPOSITORY.unlock_progress_for_day(unlock_day) > trust:
@@ -78,7 +78,27 @@ static func get_recipe_hints(card_id: String, visible_card_ids: Array, recipes: 
 		if not visible_card_ids.has(partner_id):
 			continue
 		var result_id := str(recipe.get("result_card_id", ""))
-		hints.append("可与 %s 合成 %s" % [_card_label(partner_id, cards_by_id), _card_label(result_id, cards_by_id)])
+		var result_def: Dictionary = cards_by_id.get(result_id, {})
+		details.append({
+			"recipe_id": str(recipe.get("recipe_id", "")),
+			"partner_card_id": partner_id,
+			"partner_name": _card_label(partner_id, cards_by_id),
+			"result_card_id": result_id,
+			"result_name": _card_label(result_id, cards_by_id),
+			"is_facility_result": str(result_def.get("type", "")) == "facility" or bool(result_def.get("board_placeable", false))
+		})
+	details.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if bool(a.get("is_facility_result", false)) != bool(b.get("is_facility_result", false)):
+			return bool(a.get("is_facility_result", false))
+		return str(a.get("recipe_id", "")) < str(b.get("recipe_id", ""))
+	)
+	return details
+
+
+static func get_recipe_hints(card_id: String, visible_card_ids: Array, recipes: Array[Dictionary], cards_by_id: Dictionary, trust: int) -> PackedStringArray:
+	var hints := PackedStringArray()
+	for detail: Dictionary in get_recipe_match_details(card_id, visible_card_ids, recipes, cards_by_id, trust):
+		hints.append("可与 %s 合成 %s" % [str(detail.get("partner_name", "")), str(detail.get("result_name", ""))])
 	return hints
 
 

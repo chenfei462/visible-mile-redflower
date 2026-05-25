@@ -1,0 +1,122 @@
+{
+  "packs": {
+    "starter_pack": {
+      "display_name": "Starter Pack",
+      "description": "Opening resident, resource, material, and collectable funds cards.",
+      "fund_cost": 2,
+      "flower_cost": 0,
+      "card_count": 4,
+      "unlock_day": 1,
+      "unlock_trust": 0,
+      "types": ["resident", "resource_node", "material", "building_permit"],
+      "required_tags": [],
+      "excluded_tags": ["support", "problem"],
+      "guaranteed_card_ids": ["neighbor_helper", "scrap_wood_pile", "lumber_pack", "community_funds"],
+      "rarity_weights": {"common": 75, "uncommon": 20, "rare": 5}
+    },
+    "material_pack": {
+      "display_name": "Material Pack",
+      "description": "3 material cards for tabletop building.",
+      "fund_cost": 2,
+      "flower_cost": 0,
+      "card_count": 3,
+      "unlock_day": 1,
+      "unlock_trust": 0,
+      "types": ["material"],
+      "required_tags": ["material"],
+      "excluded_tags": ["support", "problem"],
+      "rarity_weights": {"common": 70, "uncommon": 25, "rare": 5}
+    },
+    "resident_pack": {
+      "display_name": "Resident Pack",
+      "description": "Resident workers, resource nodes, and community cards for the opening loop.",
+      "fund_cost": 3,
+      "flower_cost": 0,
+      "card_count": 3,
+      "unlock_day": 1,
+      "unlock_trust": 0,
+      "types": ["resident", "resource_node", "material", "building_permit", "facility"],
+      "required_tags": ["resident", "worker", "resource_node", "community", "service"],
+      "excluded_tags": ["problem"],
+      "rarity_weights": {"common": 65, "uncommon": 30, "rare": 5}
+    },
+    "permit_pack": {
+      "display_name": "Permit Pack",
+      "description": "3 building permit cards.",
+      "fund_cost": 3,
+      "flower_cost": 0,
+      "card_count": 3,
+      "unlock_day": 1,
+      "unlock_trust": 0,
+      "types": ["building_permit"],
+      "required_tags": [],
+      "excluded_tags": ["support", "problem"],
+      "rarity_weights": {"common": 65, "uncommon": 30, "rare": 5}
+    },
+    "service_pack": {
+      "display_name": "Service Pack",
+      "description": "Community service cards for care, access, and communication.",
+      "fund_cost": 4,
+      "flower_cost": 0,
+      "card_count": 3,
+      "unlock_day": 6,
+      "unlock_trust": 0,
+      "types": ["material", "building_permit", "facility"],
+      "required_tags": ["service", "care", "community"],
+      "excluded_tags": ["problem"],
+      "rarity_weights": {"common": 55, "uncommon": 35, "rare": 10}
+    },
+    "governance_pack": {
+      "display_name": "Governance Pack",
+      "description": "Late stage governance and organization cards.",
+      "fund_cost": 5,
+      "flower_cost": 0,
+      "card_count": 3,
+      "unlock_day": 11,
+      "unlock_trust": 0,
+      "types": ["material", "building_permit", "facility"],
+      "required_tags": ["organization", "communication", "service"],
+      "excluded_tags": ["problem"],
+      "rarity_weights": {"common": 40, "uncommon": 40, "rare": 20}
+    },
+    "basic_pack": {
+      "display_name": "Basic Pack",
+      "description": "Legacy alias for the starter pack.",
+      "fund_cost": 2,
+      "flower_cost": 0,
+      "card_count": 3,
+      "unlock_day": 1,
+      "unlock_trust": 0,
+      "types": ["material", "building_permit"],
+      "required_tags": [],
+      "excluded_tags": ["support", "problem"],
+      "rarity_weights": {"common": 70, "uncommon": 25, "rare": 5}
+    },
+    "volunteer_pack": {
+      "display_name": "Volunteer Pack",
+      "description": "Legacy alias for community volunteer cards.",
+      "fund_cost": 3,
+      "flower_cost": 0,
+      "card_count": 3,
+      "unlock_day": 1,
+      "unlock_trust": 0,
+      "types": ["material", "building_permit", "facility"],
+      "required_tags": ["volunteer", "community", "service"],
+      "excluded_tags": ["problem"],
+      "rarity_weights": {"common": 60, "uncommon": 30, "rare": 10}
+    },
+    "accessibility_pack": {
+      "display_name": "Accessibility Pack",
+      "description": "Legacy alias for access and care cards.",
+      "fund_cost": 4,
+      "flower_cost": 0,
+      "card_count": 3,
+      "unlock_day": 6,
+      "unlock_trust": 5,
+      "types": ["building_permit", "material", "facility"],
+      "required_tags": ["accessibility", "care", "safety"],
+      "excluded_tags": ["problem"],
+      "rarity_weights": {"common": 40, "uncommon": 40, "rare": 20}
+    }
+  }
+}

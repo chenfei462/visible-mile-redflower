@@ -27,6 +27,10 @@ const SELECTION_INFO_TEXT_COLOR := Color(0.20, 0.14, 0.08, 1.0)
 const NEXT_UNLOCK_FILL_COLOR := Color(0.86, 0.70, 0.34, 0.94)
 const NEXT_UNLOCK_BORDER_COLOR := Color(0.71, 0.42, 0.08, 0.98)
 const NEXT_UNLOCK_HATCH_COLOR := Color(1.0, 0.97, 0.86, 0.34)
+const NEED_TARGET_FILL_COLOR := Color(0.22, 0.78, 0.92, 0.34)
+const NEED_TARGET_BORDER_COLOR := Color(0.02, 0.46, 0.64, 0.96)
+const NEED_TARGET_INFO_BG_COLOR := Color(0.84, 0.96, 0.98, 0.96)
+const NEED_TARGET_INFO_TEXT_COLOR := Color(0.05, 0.25, 0.34, 1.0)
 
 var tile_size := DEFAULT_TILE_SIZE
 var preferred_tile_size := DEFAULT_TILE_SIZE
@@ -42,6 +46,9 @@ var _root_cell_offset := Vector2i.ZERO
 var _selected_cell_index := -1
 var _selected_root_index := -1
 var _selected_label_text := ""
+var _need_target_root_indices := PackedInt32Array()
+var _need_target_occupied_indices := PackedInt32Array()
+var _need_target_label_text := ""
 
 
 func _ready() -> void:
@@ -55,6 +62,7 @@ func _exit_tree() -> void:
 
 func _draw() -> void:
 	_draw_board_grid()
+	_draw_resident_need_target_feedback()
 	_draw_selection_feedback()
 	if _drag_active:
 		_draw_hover_preview(get_hover_preview_state())
@@ -90,6 +98,37 @@ func set_selected_cell_index(index: int, label_text: String = "") -> void:
 	_selected_root_index = _facility_root_index_for_cell(_selected_cell_index)
 	_selected_label_text = label_text if _selected_cell_index != -1 else ""
 	queue_redraw()
+
+
+func set_resident_need_target_indices(root_indices: Array, occupied_indices: Array, label_text: String = "") -> void:
+	_need_target_root_indices.clear()
+	_need_target_occupied_indices.clear()
+	for root_variant in root_indices:
+		_append_unique_int(_need_target_root_indices, int(root_variant))
+	for occupied_variant in occupied_indices:
+		_append_unique_int(_need_target_occupied_indices, int(occupied_variant))
+	_need_target_label_text = label_text
+	queue_redraw()
+
+
+func get_resident_need_target_visual_state() -> Dictionary:
+	if _need_target_root_indices.is_empty() or _need_target_occupied_indices.is_empty():
+		return {
+			"visible": false,
+			"root_indices": [],
+			"occupied_indices": [],
+			"label": ""
+		}
+	return {
+		"visible": true,
+		"root_indices": Array(_need_target_root_indices),
+		"occupied_indices": Array(_need_target_occupied_indices),
+		"label": _need_target_label_text,
+		"fill_color": NEED_TARGET_FILL_COLOR,
+		"border_color": NEED_TARGET_BORDER_COLOR,
+		"info_rect": _need_target_info_rect(),
+		"draw_inline_info_card": not _need_target_label_text.is_empty()
+	}
 
 
 func get_selection_visual_state() -> Dictionary:
@@ -324,12 +363,17 @@ func get_cell_visual_state(index: int) -> Dictionary:
 			border_color = LOCKED_BORDER_COLOR
 			hatch_color = LOCKED_HATCH_COLOR
 			draw_locked_hatch = true
+	var is_need_target := _need_target_occupied_indices.has(index)
+	if is_need_target:
+		fill_color = fill_color.lerp(NEED_TARGET_FILL_COLOR, 0.72)
+		border_color = NEED_TARGET_BORDER_COLOR
 	return {
 		"fill_color": fill_color,
 		"border_color": border_color,
 		"hatch_color": hatch_color,
 		"draw_locked_hatch": draw_locked_hatch,
-		"is_unlocked": is_unlocked
+		"is_unlocked": is_unlocked,
+		"is_resident_need_target": is_need_target
 	}
 
 
@@ -508,6 +552,27 @@ func _selection_info_rect(root_index: int, card_id: String) -> Rect2:
 	return Rect2(info_position, info_size)
 
 
+func _need_target_info_rect() -> Rect2:
+	if _need_target_root_indices.is_empty():
+		return Rect2()
+	var root_index := int(_need_target_root_indices[0])
+	if root_index < 0 or root_index >= _board_cells.size():
+		return Rect2()
+	var card_id := str(_board_cells[root_index].get("occupied_card_id", ""))
+	var visual_rect := _facility_visual_hit_rect(root_index, card_id)
+	var info_size := Vector2(maxf(tile_size.x * 1.64, 112.0), maxf(tile_size.y * 0.78, 26.0))
+	var info_position := Vector2(
+		visual_rect.position.x + visual_rect.size.x * 0.5 - info_size.x * 0.5,
+		visual_rect.position.y - info_size.y - tile_size.y * 0.12
+	)
+	var canvas_size := get_size()
+	if canvas_size.x > 0.0:
+		info_position.x = clampf(info_position.x, 4.0, maxf(4.0, canvas_size.x - info_size.x - 4.0))
+	if canvas_size.y > 0.0:
+		info_position.y = clampf(info_position.y, 4.0, maxf(4.0, canvas_size.y - info_size.y - 4.0))
+	return Rect2(info_position, info_size)
+
+
 func _draw_selection_feedback() -> void:
 	var state := get_selection_visual_state()
 	if not bool(state.get("visible", false)):
@@ -537,6 +602,37 @@ func _draw_selection_feedback() -> void:
 			info_rect.size.x - 12.0,
 			font_size,
 			SELECTION_INFO_TEXT_COLOR
+		)
+
+
+func _draw_resident_need_target_feedback() -> void:
+	var state := get_resident_need_target_visual_state()
+	if not bool(state.get("visible", false)):
+		return
+	var fill_color: Color = state.get("fill_color", NEED_TARGET_FILL_COLOR)
+	var border_color: Color = state.get("border_color", NEED_TARGET_BORDER_COLOR)
+	for index_variant in state.get("occupied_indices", []):
+		var index := int(index_variant)
+		if index < 0:
+			continue
+		var tile := Vector2i(index % board_size, int(index / float(board_size)))
+		var polygon := tile_polygon(tile)
+		draw_colored_polygon(polygon, fill_color)
+		_draw_dashed_polyline(polygon, border_color, maxf(2.4, tile_size.y * 0.09), 8.0, 4.0)
+	var info_rect: Rect2 = state.get("info_rect", Rect2())
+	if info_rect.size != Vector2.ZERO and str(state.get("label", "")).length() > 0:
+		draw_rect(info_rect, NEED_TARGET_INFO_BG_COLOR, true)
+		draw_rect(info_rect, border_color, false, maxf(1.3, tile_size.y * 0.04))
+		var font: Font = get_theme_default_font()
+		var font_size := maxi(11, int(tile_size.y * 0.38))
+		draw_string(
+			font,
+			info_rect.position + Vector2(6.0, info_rect.size.y * 0.66),
+			str(state.get("label", "")),
+			HORIZONTAL_ALIGNMENT_CENTER,
+			info_rect.size.x - 12.0,
+			font_size,
+			NEED_TARGET_INFO_TEXT_COLOR
 		)
 
 
@@ -690,6 +786,15 @@ func _draw_locked_hatch(points: PackedVector2Array, color: Color) -> void:
 		var start := left.lerp(top, t)
 		var end := bottom.lerp(right, t)
 		draw_line(start, end, color, 1.4)
+
+
+func _append_unique_int(values: PackedInt32Array, value: int) -> void:
+	if value < 0:
+		return
+	for existing: int in values:
+		if existing == value:
+			return
+	values.append(value)
 
 
 func _draw_dashed_line(from: Vector2, to: Vector2, color: Color, width: float, dash_length: float, gap_length: float) -> void:

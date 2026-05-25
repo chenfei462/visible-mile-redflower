@@ -86,6 +86,9 @@ var _title_bar_style: StyleBoxFlat
 var _footprint_grid: GridContainer
 var _footprint_cells: Array[FootprintPreviewCell] = []
 var _highlighted: bool = false
+var _linked_craft := false
+var _craft_dimmed := false
+var _dimmed := false
 var _stack_count: int = 1
 var _large_text_enabled := false
 var _primary_action_visible := false
@@ -146,6 +149,9 @@ func configure(card_def: Dictionary, zone_name: String, index: int, extra_text: 
 	zone = zone_name
 	item_index = index
 	_highlighted = highlighted
+	_linked_craft = false
+	_craft_dimmed = false
+	_dimmed = false
 	_primary_action_visible = false
 	_primary_action_text = ""
 	_stack_count = int(card_def.get("stack_count", 1))
@@ -165,7 +171,15 @@ func _notification(what: int) -> void:
 
 
 func set_dimmed(dimmed: bool) -> void:
-	modulate = Color(1, 1, 1, 0.35 if dimmed else 1.0)
+	_dimmed = dimmed
+	_update_visual_modulate()
+
+
+func set_linked_craft_state(linked: bool, dimmed: bool) -> void:
+	_linked_craft = linked
+	_craft_dimmed = dimmed
+	_update_visual_modulate()
+	_apply_style(_card_type_from_def(_card_def))
 
 
 func set_stack_count(count: int) -> void:
@@ -462,7 +476,7 @@ func _render_face() -> void:
 			_display_card_type(str(_card_def.get("type", ""))),
 			_display_rarity(str(_card_def.get("rarity", "")))
 		]
-		_body_label.text = _front_face_text()
+		_body_label.text = _front_face_visible_text()
 		_flip_button.text = "详"
 	_update_primary_action_button()
 	_update_tooltip()
@@ -488,6 +502,9 @@ func _front_face_text() -> String:
 		lines.append("%d金/%d人" % [int(_card_def.get("fund_cost", 0)), int(_card_def.get("manpower_cost", 0))])
 	elif card_type == "demand":
 		lines.append("需求 | %s" % _short_tag_line(_card_def.get("tags", []), 2))
+		var guidance := str(_card_def.get("resolution_guidance", ""))
+		if not guidance.is_empty():
+			lines.append(guidance)
 		lines.append("容量 %d | 兜底 1/2 朵" % int(_card_def.get("service_capacity", 2)))
 	elif card_type == "problem":
 		var payload: Dictionary = _card_def.get("problem_payload", {})
@@ -503,6 +520,29 @@ func _front_face_text() -> String:
 	if _highlighted:
 		lines.append("可用")
 	return "\n".join(lines)
+
+
+func _front_face_visible_text() -> String:
+	var lines := PackedStringArray()
+	var base_text := _front_face_text()
+	if not base_text.is_empty():
+		lines.append(base_text)
+	for extra_line: String in _front_face_extra_lines():
+		lines.append(extra_line)
+	return "\n".join(lines)
+
+
+func _front_face_extra_lines(max_lines: int = 2) -> PackedStringArray:
+	var lines := PackedStringArray()
+	if _extra_text.is_empty():
+		return lines
+	var split_lines := _extra_text.split("\n", false)
+	for index: int in range(mini(split_lines.size(), max_lines)):
+		var line := str(split_lines[index]).strip_edges()
+		if line.is_empty():
+			continue
+		lines.append(line)
+	return lines
 
 
 func _back_face_text() -> String:
@@ -594,16 +634,19 @@ func _apply_style(card_type: String) -> void:
 	var background := _background_color_for_card_type(card_type)
 	var border := _border_color_for_background(background, card_type)
 	var style := StyleBoxFlat.new()
+	if _linked_craft:
+		background = background.lightened(0.10)
+		border = Color(0.96, 0.72, 0.22)
 	if _highlighted:
 		background = background.lightened(0.06)
 		border = Color(0.93, 0.58, 0.16)
 	_current_type_background_color = background
 	style.bg_color = background
 	style.border_color = border
-	style.set_border_width_all(4 if _highlighted else 2)
+	style.set_border_width_all(4 if _highlighted else (3 if _linked_craft else 2))
 	style.set_corner_radius_all(10)
 	style.shadow_color = Color(0, 0, 0, 0.10)
-	style.shadow_size = (PICKUP_SHADOW_SIZE if _picked_up else (6 if _highlighted else DEFAULT_SHADOW_SIZE))
+	style.shadow_size = (PICKUP_SHADOW_SIZE if _picked_up else (6 if _highlighted else (5 if _linked_craft else DEFAULT_SHADOW_SIZE)))
 	style.shadow_offset = PICKUP_SHADOW_OFFSET if _picked_up else DEFAULT_SHADOW_OFFSET
 	_current_panel_style = style
 	add_theme_stylebox_override("panel", style)
@@ -840,6 +883,10 @@ func _font_size_for(role: String) -> int:
 	return int(ceil(float(base_size) * text_scale))
 
 
+func _update_visual_modulate() -> void:
+	modulate = Color(1, 1, 1, 0.35 if (_dimmed or _craft_dimmed) else 1.0)
+
+
 func _update_footprint_preview() -> void:
 	if _footprint_grid == null:
 		return
@@ -1000,7 +1047,7 @@ func _apply_pickup_shadow(picked: bool) -> void:
 		_current_panel_style.shadow_offset = PICKUP_SHADOW_OFFSET
 		_current_panel_style.shadow_color = PICKUP_SHADOW_COLOR
 	else:
-		_current_panel_style.shadow_size = 6 if _highlighted else DEFAULT_SHADOW_SIZE
+		_current_panel_style.shadow_size = 6 if _highlighted else (5 if _linked_craft else DEFAULT_SHADOW_SIZE)
 		_current_panel_style.shadow_offset = DEFAULT_SHADOW_OFFSET
 		_current_panel_style.shadow_color = Color(0, 0, 0, 0.10)
 

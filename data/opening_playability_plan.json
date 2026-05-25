@@ -5,8 +5,8 @@
       "bulletin_card_ids": [
         "ramp_blueprint",
         "lumber_pack",
-        "welcome_table_plan",
-        "folding_table_kit",
+        "volunteer_poster",
+        "phone_tree",
         "paint_bucket"
       ],
       "recommended_goal_ids": [
@@ -16,7 +16,7 @@
       ],
       "recommended_recipe_ids": [
         "build_ramp",
-        "build_welcome_table"
+        "open_volunteer_station"
       ],
       "recommended_wish_ids": [
         "wish_safe_ramp",
@@ -26,9 +26,9 @@
       "fallback_card_ids": [
         "market_stall_plan",
         "fresh_goods_box",
-        "phone_tree",
         "bench_plan",
-        "volunteer_poster"
+        "welcome_table_plan",
+        "folding_table_kit"
       ]
     },
     {

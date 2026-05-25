@@ -4,6 +4,7 @@ const DEFAULT_HEALTH := 80
 const LOW_HEALTH_THRESHOLD := 40
 const MAX_PERSONAL_MESSAGES := 5
 const MAX_MEMORY_LOG := 12
+const OPENING_NEED_RAMP_BASE := 2
 const LOCATION_BY_TAG := {
 	"service": "service",
 	"market": "market",
@@ -187,8 +188,15 @@ static func calculate_daily_manpower(resident_states: Array) -> int:
 static func spawn_daily_need_entities(state: Dictionary) -> Array[Dictionary]:
 	var resident_states: Array = state.get("resident_states", [])
 	ensure_runtime_fields(resident_states)
+	var day_count := int(state.get("day_count", 1))
+	var visible_need_count := _resident_need_count_for_day(day_count, resident_states.size())
+	var start_index := _resident_need_rotation_start_for_day(day_count, resident_states.size())
+	if visible_need_count >= resident_states.size():
+		start_index = 0
 	var entities: Array[Dictionary] = []
-	for resident_variant in resident_states:
+	for resident_index: int in range(mini(visible_need_count, resident_states.size())):
+		var rotated_index := (start_index + resident_index) % resident_states.size()
+		var resident_variant = resident_states[rotated_index]
 		if typeof(resident_variant) != TYPE_DICTIONARY:
 			continue
 		var resident: Dictionary = resident_variant
@@ -221,6 +229,7 @@ static func settle_daily_need_entities(state: Dictionary, cards_by_id: Dictionar
 	var fallback_count := 0
 	var unmet_count := 0
 	var streak_penalty := 0
+	var moral_loss := 0
 	var flowers_spent := 0
 	for entity_variant in resident_need_entities:
 		if typeof(entity_variant) != TYPE_DICTIONARY:
@@ -255,8 +264,10 @@ static func settle_daily_need_entities(state: Dictionary, cards_by_id: Dictionar
 		var streak := int(state.get("moral_failure_streak", 0))
 		streak_penalty = streak
 		var moral_max := int(state.get("moral_max", 20))
-		state["moral"] = clampi(int(state.get("moral", 10)) - unmet_count - streak_penalty, 0, moral_max)
+		moral_loss = _moral_loss_for_unmet_needs(state, unmet_count, streak_penalty)
+		state["moral"] = clampi(int(state.get("moral", 10)) - moral_loss, 0, moral_max)
 		state["moral_failure_streak"] = streak + 1
+	state["moral_loss"] = moral_loss
 	state["resident_need_entities"] = []
 	state["resident_need_queue"] = []
 	state["daily_need_queue"] = []
@@ -265,7 +276,8 @@ static func settle_daily_need_entities(state: Dictionary, cards_by_id: Dictionar
 		"fallback_count": fallback_count,
 		"unmet_count": unmet_count,
 		"flowers_spent": flowers_spent,
-		"streak_penalty": streak_penalty
+		"streak_penalty": streak_penalty,
+		"moral_loss": moral_loss
 	}
 
 
@@ -291,7 +303,7 @@ func resolve_need_with_service_building(state: Dictionary, need_id: String, faci
 			return {"success": false, "message": "need_already_resolved"}
 		if not _facility_matches_need(facility_card, Array(entity.get("need_tags", []))):
 			return {"success": false, "message": "facility_does_not_match_need"}
-		if _resolved_count_for_facility(resident_need_entities, facility_index) >= 2:
+		if _resolved_count_for_facility(resident_need_entities, facility_index) >= _service_capacity_for_card(facility_card):
 			return {"success": false, "message": "facility_capacity_full"}
 		entity["status"] = "resolved"
 		entity["resolved_by"] = facility_card_id
@@ -499,6 +511,22 @@ static func _need_id_for_resident(resident: Dictionary, day_count: int) -> Strin
 	return "need_%s_%d" % [str(resident.get("resident_id", "resident")), day_count]
 
 
+static func _resident_need_count_for_day(day_count: int, resident_count: int) -> int:
+	if resident_count <= 0:
+		return 0
+	var ramp_count := maxi(OPENING_NEED_RAMP_BASE + maxi(day_count, 1) - 1, 1)
+	return mini(resident_count, ramp_count)
+
+
+static func _resident_need_rotation_start_for_day(day_count: int, resident_count: int) -> int:
+	if resident_count <= 0:
+		return 0
+	var start := 0
+	for day: int in range(1, maxi(day_count, 1)):
+		start = (start + _resident_need_count_for_day(day, resident_count)) % resident_count
+	return start
+
+
 static func _is_housing_facility(card_def: Dictionary) -> bool:
 	var tags: Array = card_def.get("tags", [])
 	return str(card_def.get("type", "")) == "facility" and (tags.has("housing") or str(card_def.get("preferred_zone", "")) == "住宅")
@@ -521,12 +549,12 @@ static func _find_service_facility_for_need(entity: Dictionary, built_facilities
 		var built_variant = built_facilities[index]
 		if typeof(built_variant) != TYPE_DICTIONARY:
 			continue
-		if int(facility_usage.get(index, 0)) >= 2:
-			continue
 		var facility_card_id := str(built_variant.get("card_id", built_variant.get("occupied_card_id", "")))
 		if facility_card_id.is_empty():
 			continue
 		var card_def: Dictionary = cards_by_id.get(facility_card_id, {})
+		if int(facility_usage.get(index, 0)) >= _service_capacity_for_card(card_def):
+			continue
 		if _facility_matches_need(card_def, need_tags):
 			return index
 	return -1
@@ -588,3 +616,17 @@ static func _facility_matches_need(card_def: Dictionary, need_tags: Array) -> bo
 		if facility_tags.has(tag) or synergy_group == tag:
 			return true
 	return facility_tags.has("service") or synergy_group == "service"
+
+
+static func _service_capacity_for_card(card_def: Dictionary) -> int:
+	return maxi(int(card_def.get("service_capacity", 2)), 1)
+
+
+static func _moral_loss_for_unmet_needs(state: Dictionary, unmet_count: int, streak_penalty: int) -> int:
+	var pressure := maxi(unmet_count + streak_penalty, 0)
+	if pressure <= 0:
+		return 0
+	var day_count := int(state.get("day_count", 1))
+	if day_count <= 5:
+		return maxi(1, int(ceil(float(pressure) / 2.0)))
+	return pressure

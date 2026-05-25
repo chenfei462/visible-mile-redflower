@@ -30,6 +30,7 @@ var strings: Dictionary = {}
 var tutorial: Dictionary = {}
 var art_manifest: Dictionary = {}
 var opening_playability_plan: Dictionary = {}
+var card_packs: Dictionary = {}
 var validation_errors: PackedStringArray = []
 const DEFAULT_ART_PLACEHOLDER_PATH := "res://icon.svg"
 
@@ -55,6 +56,7 @@ func load_all(base_path: String = "res://data") -> bool:
 	tutorial.clear()
 	art_manifest.clear()
 	opening_playability_plan.clear()
+	card_packs.clear()
 	validation_errors.clear()
 
 	card_list = _filter_cards_for_current_rules(_load_array("%s/cards.json" % base_path))
@@ -68,6 +70,7 @@ func load_all(base_path: String = "res://data") -> bool:
 	tutorial = _load_dictionary("%s/tutorial.json" % base_path)
 	art_manifest = _load_dictionary("%s/art_manifest.json" % base_path)
 	opening_playability_plan = _sanitize_opening_playability_plan(_load_dictionary("%s/opening_playability_plan.json" % base_path))
+	card_packs = _load_card_pack_definitions("%s/card_packs.json" % base_path)
 
 	for card: Dictionary in card_list:
 		if _validate_required_keys(card, REQUIRED_CARD_KEYS, "card"):
@@ -204,6 +207,24 @@ func _normalize_live_recipe_schema(recipe: Dictionary) -> Dictionary:
 		reward.erase("trust")
 		normalized["first_discovery_reward"] = reward
 	return normalized
+
+
+func _load_card_pack_definitions(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {}
+	var raw := _load_dictionary(path)
+	var packs_variant: Variant = raw.get("packs", {})
+	if typeof(packs_variant) != TYPE_DICTIONARY:
+		validation_errors.append("%s should have a packs dictionary" % path)
+		return {}
+	var typed: Dictionary = {}
+	for pack_id_variant in packs_variant.keys():
+		var pack_def_variant: Variant = packs_variant[pack_id_variant]
+		if typeof(pack_def_variant) != TYPE_DICTIONARY:
+			validation_errors.append("%s pack %s should be an object" % [path, str(pack_id_variant)])
+			continue
+		typed[str(pack_id_variant)] = pack_def_variant
+	return typed
 
 
 func _sanitize_opening_playability_plan(raw_plan: Dictionary) -> Dictionary:
