@@ -2305,6 +2305,8 @@ func _finish_tabletop_timed_craft() -> Dictionary:
 	var pending := _tabletop_pending_craft.duplicate(true)
 	_tabletop_pending_craft.clear()
 	_tabletop_crafting_progress_sec = 0.0
+	if str(pending.get("kind", "")) == "resident_need":
+		return _finalize_tabletop_resident_need(pending)
 	var ids: Array[String] = []
 	for instance_id_variant in Array(pending.get("instance_ids", [])):
 		ids.append(str(instance_id_variant))
@@ -2456,6 +2458,53 @@ func _try_resolve_tabletop_resident_need_stack(instance_ids: Array[String]) -> D
 	if facility_instance_id.is_empty() or facility_card_id.is_empty():
 		AudioManager.play_sfx(audio_sfx_id_for_action("craft_fail"))
 		return _record_tabletop_craft_feedback(false, instance_ids, {}, "", "resident_need_requires_facility")
+	if not _tabletop_pending_craft.is_empty():
+		return _record_tabletop_craft_feedback(false, instance_ids, {}, "", "tabletop_craft_in_progress")
+	return _start_tabletop_timed_resident_need(demand_instance_id, facility_instance_id, need_id, facility_card_id, instance_ids)
+
+
+func _start_tabletop_timed_resident_need(demand_instance_id: String, facility_instance_id: String, need_id: String, facility_card_id: String, instance_ids: Array) -> Dictionary:
+	if _tabletop_crafting_tween != null and _tabletop_crafting_tween.is_valid():
+		_tabletop_crafting_tween.kill()
+	_tabletop_crafting_progress_sec = 0.0
+	var time_cost := 1.5
+	var anchor_instance_id := demand_instance_id
+	var copied_ids := Array(instance_ids)
+	var recipe_stub := {"recipe_id": "resident_need:%s" % need_id, "time_cost_sec": time_cost}
+	_tabletop_pending_craft = {
+		"kind": "resident_need",
+		"instance_ids": copied_ids.duplicate(),
+		"recipe": recipe_stub,
+		"anchor_instance_id": anchor_instance_id,
+		"time_cost_sec": time_cost,
+		"demand_instance_id": demand_instance_id,
+		"facility_instance_id": facility_instance_id,
+		"need_id": need_id,
+		"facility_card_id": facility_card_id
+	}
+	AudioManager.play_sfx(audio_sfx_id_for_action("craft_start"))
+	_append_report_line("处理居民需求中：%s" % _card_name(facility_card_id))
+	_record_tabletop_craft_feedback(false, copied_ids, recipe_stub, "", "tabletop_craft_in_progress")
+	if not is_inside_tree():
+		return last_tabletop_craft_feedback.duplicate(true)
+	if bool(SettingsManager.get_value("reduce_motion")) or time_cost <= 0.0:
+		_tabletop_crafting_progress_sec = time_cost
+		return _finish_tabletop_timed_craft()
+	_tabletop_crafting_tween = create_tween()
+	_tabletop_crafting_tween.tween_property(self, "_tabletop_crafting_progress_sec", time_cost, time_cost)
+	_tabletop_crafting_tween.tween_callback(Callable(self, "_finish_tabletop_timed_craft"))
+	return last_tabletop_craft_feedback.duplicate(true)
+
+
+func _finalize_tabletop_resident_need(pending: Dictionary) -> Dictionary:
+	var demand_instance_id := str(pending.get("demand_instance_id", ""))
+	var facility_instance_id := str(pending.get("facility_instance_id", ""))
+	var need_id := str(pending.get("need_id", ""))
+	var facility_card_id := str(pending.get("facility_card_id", ""))
+	var instance_ids: Array = Array(pending.get("instance_ids", []))
+	if demand_instance_id.is_empty() or facility_card_id.is_empty() or need_id.is_empty():
+		AudioManager.play_sfx(audio_sfx_id_for_action("craft_fail"))
+		return _record_tabletop_craft_feedback(false, instance_ids, {}, "", "resident_need_unresolved")
 	var resident_system = RESIDENT_SYSTEM.new()
 	var state := GameState.get_state()
 	var result: Dictionary = resident_system.call("resolve_need_with_service_building", state, need_id, facility_card_id, DataRepository.cards_by_id)

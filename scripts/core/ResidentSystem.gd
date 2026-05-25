@@ -312,11 +312,15 @@ func resolve_need_with_service_building(state: Dictionary, need_id: String, faci
 		state["resident_need_entities"] = resident_need_entities
 		state["resident_need_queue"] = _pending_need_entities(resident_need_entities)
 		state["daily_need_queue"] = _pending_need_entities(resident_need_entities)
+		state["flowers"] = int(state.get("flowers", 0)) + 1
+		state["funds"] = int(state.get("funds", 0)) + 1
 		return {
 			"success": true,
 			"need_id": need_id,
 			"resolved_by": facility_card_id,
-			"status": "resolved"
+			"status": "resolved",
+			"flowers_gained": 1,
+			"funds_gained": 1
 		}
 	return {"success": false, "message": "need_not_found"}
 
