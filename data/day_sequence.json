@@ -6,7 +6,7 @@
     "night"
   ],
   "max_days": 10,
-  "bulletin_cards_per_day": 5,
+  "daily_pack_cards_per_day": 5,
   "player_card_choices_per_day": 3,
   "key_event_days": [
     3,
@@ -17,5 +17,32 @@
     9,
     10
   ],
-  "tutorial_scene_enabled": true
+  "tutorial_scene_enabled": true,
+  "phase_progression": {
+    "tutorial": {
+      "days": [1, 2, 3],
+      "description": "Basic crafting and board placement introduction",
+      "unlocked_packs": ["starter_pack", "material_pack", "permit_pack", "resident_pack"]
+    },
+    "growth": {
+      "days": [4, 5],
+      "description": "More recipes available, new residents appear, synergy introduced",
+      "unlocked_packs": ["starter_pack", "material_pack", "permit_pack", "resident_pack"]
+    },
+    "challenge": {
+      "days": [6, 7],
+      "description": "Service pack unlocks, pressure events increase, more needs spawn",
+      "unlocked_packs": ["starter_pack", "material_pack", "permit_pack", "resident_pack", "service_pack"]
+    },
+    "mastery": {
+      "days": [8, 9],
+      "description": "Complex recipes, all residents active, board expansion",
+      "unlocked_packs": ["starter_pack", "material_pack", "permit_pack", "resident_pack", "service_pack"]
+    },
+    "finale": {
+      "days": [10],
+      "description": "All systems active, culmination event, community showcase",
+      "unlocked_packs": ["starter_pack", "material_pack", "permit_pack", "resident_pack", "service_pack"]
+    }
+  }
 }

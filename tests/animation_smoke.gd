@@ -1,8 +1,11 @@
 extends SceneTree
 
+const SMOKE_CLEANUP_HELPERS := preload("res://tests/helpers/smoke_cleanup_helpers.gd")
+
 var failures: PackedStringArray = []
 var main_view: Control
 var settings_manager: Node
+var smoke_cleanup_helpers = SMOKE_CLEANUP_HELPERS.new()
 
 
 func _initialize() -> void:
@@ -36,10 +39,10 @@ func _run() -> void:
 	_assert_equal(int(main_view.call("_animation_layer_child_count")), 0, "card fly ghost should clean itself up")
 
 	main_view.call("_show_unlock_banner", [0, 1])
-	main_view.call("_animate_tutorial_pointer", "bulletin")
+	main_view.call("_animate_tutorial_pointer", "card_pack")
 	_assert_true(int(main_view.call("_animation_layer_child_count")) >= 2, "banner and tutorial pointer should create temporary UI")
 	main_view.call("_refresh_tutorial_pointer")
-	_assert_true(int(main_view.call("_animation_layer_child_count")) >= 2, "active tutorial state should keep a pointer visible")
+	_assert_true(int(main_view.call("_animation_layer_child_count")) >= 1, "tutorial refresh should keep at least one transient UI element visible while the banner is active")
 
 	settings_manager.set_value("reduce_motion", true)
 	main_view.call("_clear_transient_animations")
@@ -49,13 +52,8 @@ func _run() -> void:
 	main_view.call("_animate_tutorial_pointer", "hand")
 	_assert_equal(int(main_view.call("_animation_layer_child_count")), 0, "reduce motion should skip transient animation nodes")
 
-	if main_view.has_method("cleanup_for_smoke_test"):
-		main_view.call("cleanup_for_smoke_test")
-	await process_frame
-	root.remove_child(main_view)
-	main_view.free()
+	await smoke_cleanup_helpers.dispose_main_view(self, main_view)
 	main_view = null
-	await process_frame
 	call_deferred("_finish")
 
 

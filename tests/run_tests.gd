@@ -1,8 +1,12 @@
 extends SceneTree
 
-const CORE_TESTS := preload("res://tests/test_core.gd")
+const CORE_TESTS_PATH := "res://tests/test_core.gd"
 
 func _initialize() -> void:
+	call_deferred("_run")
+
+
+func _run() -> void:
 	var required_nodes := [
 		"DataRepository",
 		"ResourceManager",
@@ -21,7 +25,12 @@ func _initialize() -> void:
 			push_error("Missing autoload node: %s" % node_name)
 			quit(1)
 			return
-	var suite: RefCounted = CORE_TESTS.new()
+	var suite_script: Script = load(CORE_TESTS_PATH)
+	if suite_script == null:
+		push_error("Missing core test suite script: %s" % CORE_TESTS_PATH)
+		quit(1)
+		return
+	var suite: RefCounted = suite_script.new()
 	var context := {
 		"data_repository": root.get_node("DataRepository"),
 		"resource_manager": root.get_node("ResourceManager"),
@@ -35,7 +44,16 @@ func _initialize() -> void:
 		"save_manager": root.get_node("SaveManager"),
 		"steam_bridge": root.get_node("SteamBridge")
 	}
-	var failures: PackedStringArray = suite.run(context)
+	var failures: PackedStringArray = await suite.run(context)
+	suite = null
+	suite_script = null
+	context.clear()
+	call_deferred("_finish", failures)
+
+
+func _finish(failures: PackedStringArray) -> void:
+	await process_frame
+	await process_frame
 	if failures.is_empty():
 		print("ALL TESTS PASSED")
 		quit(0)

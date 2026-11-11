@@ -38,7 +38,7 @@ static func sell_value_for_card(card_def: Dictionary) -> Dictionary:
 
 
 static func card_limit_for_state(state: Dictionary) -> int:
-	var trust_bonus := int(int(state.get("trust", 0)) / 10)
+	var trust_bonus := floori(float(int(state.get("trust", 0))) / 10.0)
 	return DEFAULT_CARD_LIMIT + clampi(trust_bonus, 0, 10)
 
 

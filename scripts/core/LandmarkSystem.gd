@@ -136,7 +136,7 @@ static func _within_range(index_a: int, index_b: int, range_size: int, board_siz
 	if side <= 0:
 		return false
 	var ax := index_a % side
-	var ay := index_a / side
+	var ay := floori(float(index_a) / float(side))
 	var bx := index_b % side
-	var by := index_b / side
+	var by := floori(float(index_b) / float(side))
 	return absi(ax - bx) <= range_size and absi(ay - by) <= range_size

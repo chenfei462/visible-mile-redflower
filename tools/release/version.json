@@ -2,5 +2,5 @@
     "version":  "0.3.0",
     "build_channel":  "demo",
     "display_name":  "看得见的一公里 Demo",
-    "notes":  "Competition Demo build with saves, AI fallback, accessibility options, annual report endings, and demo balance smoke coverage."
+    "notes":  "Tabletop-stacking demo build with pack-stall-only card supply, timed stack craft, board placement, resident-need resolution, infinite-day flow, save/load, AI fallback, accessibility options, and smoke coverage."
 }

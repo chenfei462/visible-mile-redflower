@@ -7,7 +7,8 @@
     ],
     "result_card_id": "community_ramp",
     "result_type": "facility",
-    "unlock_day": 1
+    "unlock_day": 1,
+    "time_cost_sec": 2.5
   },
   {
     "recipe_id": "build_handrail",
@@ -17,7 +18,8 @@
     ],
     "result_card_id": "guide_handrail",
     "result_type": "facility",
-    "unlock_day": 1
+    "unlock_day": 1,
+    "time_cost_sec": 2.5
   },
   {
     "recipe_id": "open_volunteer_station",
@@ -27,7 +29,8 @@
     ],
     "result_card_id": "volunteer_station",
     "result_type": "facility",
-    "unlock_day": 1
+    "unlock_day": 1,
+    "time_cost_sec": 2.5
   },
   {
     "recipe_id": "build_welcome_table",
@@ -37,7 +40,8 @@
     ],
     "result_card_id": "welcome_table",
     "result_type": "facility",
-    "unlock_day": 1
+    "unlock_day": 1,
+    "time_cost_sec": 2.5
   },
   {
     "recipe_id": "open_market_stall",
@@ -47,7 +51,8 @@
     ],
     "result_card_id": "market_stall",
     "result_type": "facility",
-    "unlock_day": 1
+    "unlock_day": 1,
+    "time_cost_sec": 2.5
   },
   {
     "recipe_id": "build_bench",
@@ -57,7 +62,8 @@
     ],
     "result_card_id": "rest_bench",
     "result_type": "facility",
-    "unlock_day": 1
+    "unlock_day": 1,
+    "time_cost_sec": 2.5
   },
   {
     "recipe_id": "build_clear_notice_board",
@@ -67,7 +73,8 @@
     ],
     "result_card_id": "clear_notice_board",
     "result_type": "facility",
-    "unlock_day": 1
+    "unlock_day": 1,
+    "time_cost_sec": 2.5
   },
   {
     "recipe_id": "restore_flower_bed",
@@ -77,7 +84,8 @@
     ],
     "result_card_id": "flower_bed",
     "result_type": "facility",
-    "unlock_day": 6
+    "unlock_day": 6,
+    "time_cost_sec": 4.0
   },
   {
     "recipe_id": "build_wayfinding_kiosk",
@@ -87,7 +95,8 @@
     ],
     "result_card_id": "wayfinding_kiosk",
     "result_type": "facility",
-    "unlock_day": 1
+    "unlock_day": 1,
+    "time_cost_sec": 2.5
   },
   {
     "recipe_id": "build_shade_canopy",
@@ -97,7 +106,8 @@
     ],
     "result_card_id": "shade_canopy",
     "result_type": "facility",
-    "unlock_day": 1
+    "unlock_day": 1,
+    "time_cost_sec": 2.5
   },
   {
     "recipe_id": "build_refill_station",
@@ -107,7 +117,8 @@
     ],
     "result_card_id": "refill_station",
     "result_type": "facility",
-    "unlock_day": 6
+    "unlock_day": 6,
+    "time_cost_sec": 4.0
   },
   {
     "recipe_id": "build_herb_corner",
@@ -117,7 +128,8 @@
     ],
     "result_card_id": "herb_corner",
     "result_type": "facility",
-    "unlock_day": 6
+    "unlock_day": 6,
+    "time_cost_sec": 4.0
   },
   {
     "recipe_id": "build_repair_booth",
@@ -127,7 +139,8 @@
     ],
     "result_card_id": "repair_booth",
     "result_type": "facility",
-    "unlock_day": 6
+    "unlock_day": 6,
+    "time_cost_sec": 4.0
   },
   {
     "recipe_id": "build_story_wall",
@@ -137,7 +150,8 @@
     ],
     "result_card_id": "story_wall",
     "result_type": "facility",
-    "unlock_day": 6
+    "unlock_day": 6,
+    "time_cost_sec": 4.0
   },
   {
     "recipe_id": "build_community_kitchen",
@@ -147,7 +161,8 @@
     ],
     "result_card_id": "community_kitchen",
     "result_type": "facility",
-    "unlock_day": 11
+    "unlock_day": 6,
+    "time_cost_sec": 6.0
   },
   {
     "recipe_id": "build_shared_laundry",
@@ -157,7 +172,8 @@
     ],
     "result_card_id": "shared_laundry",
     "result_type": "facility",
-    "unlock_day": 11
+    "unlock_day": 6,
+    "time_cost_sec": 6.0
   },
   {
     "recipe_id": "build_child_corner",
@@ -167,7 +183,8 @@
     ],
     "result_card_id": "child_corner",
     "result_type": "facility",
-    "unlock_day": 11
+    "unlock_day": 6,
+    "time_cost_sec": 6.0
   },
   {
     "recipe_id": "build_senior_gym",
@@ -177,7 +194,8 @@
     ],
     "result_card_id": "senior_gym",
     "result_type": "facility",
-    "unlock_day": 11
+    "unlock_day": 6,
+    "time_cost_sec": 6.0
   },
   {
     "recipe_id": "build_bike_parking",
@@ -187,7 +205,8 @@
     ],
     "result_card_id": "bike_parking",
     "result_type": "facility",
-    "unlock_day": 6
+    "unlock_day": 6,
+    "time_cost_sec": 4.0
   },
   {
     "recipe_id": "build_clinic_desk",
@@ -197,7 +216,8 @@
     ],
     "result_card_id": "clinic_desk",
     "result_type": "facility",
-    "unlock_day": 11
+    "unlock_day": 6,
+    "time_cost_sec": 6.0
   },
   {
     "recipe_id": "build_care_station",
@@ -207,7 +227,8 @@
     ],
     "result_card_id": "care_station",
     "result_type": "facility",
-    "unlock_day": 6
+    "unlock_day": 6,
+    "time_cost_sec": 4.0
   },
   {
     "recipe_id": "gather_lumber_from_scrap",
@@ -216,12 +237,15 @@
       "scrap_wood_pile"
     ],
     "result_card_id": "lumber_pack",
+    "result_card_ids": [
+      "lumber_pack",
+      "community_funds"
+    ],
     "result_type": "material",
     "unlock_day": 1,
-    "time_cost_sec": 2.5,
+    "time_cost_sec": 10.0,
     "preserve_ingredient_types": [
-      "resident",
-      "resource_node"
+      "resident"
     ]
   },
   {
@@ -233,10 +257,9 @@
     "result_card_id": "convenience_supplies",
     "result_type": "material",
     "unlock_day": 1,
-    "time_cost_sec": 2.5,
+    "time_cost_sec": 10.0,
     "preserve_ingredient_types": [
-      "resident",
-      "resource_node"
+      "resident"
     ]
   },
   {
@@ -248,10 +271,9 @@
     "result_card_id": "info_notes",
     "result_type": "material",
     "unlock_day": 1,
-    "time_cost_sec": 2.5,
+    "time_cost_sec": 10.0,
     "preserve_ingredient_types": [
-      "resident",
-      "resource_node"
+      "resident"
     ]
   },
   {
@@ -268,10 +290,65 @@
     ],
     "result_type": "material",
     "unlock_day": 1,
-    "time_cost_sec": 2.5,
+    "time_cost_sec": 10.0,
     "preserve_ingredient_types": [
       "resident",
       "facility"
     ]
+  },
+  {
+    "recipe_id": "craft_community_notice",
+    "ingredient_card_ids": [
+      "info_notes",
+      "volunteer_poster"
+    ],
+    "result_card_id": "community_notice_board",
+    "result_type": "facility",
+    "unlock_day": 1,
+    "time_cost_sec": 3.0
+  },
+  {
+    "recipe_id": "craft_supply_station",
+    "ingredient_card_ids": [
+      "convenience_supplies",
+      "donation_supply_box"
+    ],
+    "result_card_id": "supply_station",
+    "result_type": "facility",
+    "unlock_day": 1,
+    "time_cost_sec": 3.5
+  },
+  {
+    "recipe_id": "craft_repair_kit",
+    "ingredient_card_ids": [
+      "lumber_pack",
+      "convenience_supplies"
+    ],
+    "result_card_id": "repair_kit",
+    "result_type": "material",
+    "unlock_day": 1,
+    "time_cost_sec": 3.0
+  },
+  {
+    "recipe_id": "build_repair_booth_from_kit",
+    "ingredient_card_ids": [
+      "repair_kit",
+      "repair_booth_plan"
+    ],
+    "result_card_id": "repair_booth",
+    "result_type": "facility",
+    "unlock_day": 6,
+    "time_cost_sec": 4.0
+  },
+  {
+    "recipe_id": "upgrade_volunteer_station",
+    "ingredient_card_ids": [
+      "volunteer_station",
+      "info_notes"
+    ],
+    "result_card_id": "advanced_volunteer_hub",
+    "result_type": "facility",
+    "unlock_day": 6,
+    "time_cost_sec": 5.0
   }
 ]

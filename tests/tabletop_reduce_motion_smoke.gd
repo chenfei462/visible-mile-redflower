@@ -1,6 +1,9 @@
 extends SceneTree
 
+const SMOKE_CLEANUP_HELPERS := preload("res://tests/helpers/smoke_cleanup_helpers.gd")
+
 var failures: PackedStringArray = []
+var smoke_cleanup_helpers = SMOKE_CLEANUP_HELPERS.new()
 
 
 func _initialize() -> void:
@@ -36,7 +39,7 @@ func _run() -> void:
 	root.add_child(main_view)
 	await process_frame
 	_assert_true(main_view.is_inside_tree(), "main view should be inside the tree for reduce-motion smoke")
-	main_view.set_hand_cards_state(["ramp_blueprint", "lumber_pack"], ["bulletin_free", "bulletin_free"], [0, 0])
+	main_view.set_hand_cards_state(["ramp_blueprint", "lumber_pack"], ["daily_pack_free", "daily_pack_free"], [0, 0])
 	var placed_permit: Dictionary = main_view.call("place_hand_card_on_tabletop", 0, Vector2(120, 140))
 	main_view.set("drag_card_id", "lumber_pack")
 	main_view.set("drag_source_zone", "hand")
@@ -55,11 +58,7 @@ func _run() -> void:
 	_assert_true(bool(feedback.get("success", false)), "reduced-motion timed tabletop craft should record success")
 	_assert_equal(str(feedback.get("message", "")), "tabletop_craft_success", "reduced-motion timed tabletop craft should not stay in-progress")
 
-	if main_view.has_method("cleanup_for_smoke_test"):
-		main_view.call("cleanup_for_smoke_test")
-	root.remove_child(main_view)
-	main_view.free()
-	await process_frame
+	await smoke_cleanup_helpers.dispose_main_view(self, main_view)
 	_finish(original_recipes, original_reduce_motion)
 
 

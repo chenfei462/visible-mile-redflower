@@ -76,23 +76,36 @@ func _refresh() -> void:
 	lines.append(str(copy.get("subtitle", "")))
 	lines.append("")
 	lines.append(str(copy.get("body", "")))
-	lines.append("")
-	lines.append("[b]今天会经过这 %d 步：[/b]" % step_titles.size())
-	for line_variant in step_titles:
-		lines.append(str(line_variant))
+	if not step_titles.is_empty():
+		lines.append("")
+		lines.append("[b]今天会经过这 %d 步：[/b]" % step_titles.size())
+		for line_variant in step_titles:
+			lines.append(str(line_variant))
 	body_label.text = "\n".join(lines)
 
 
 func get_welcome_card_content() -> Dictionary:
 	var config: Dictionary = DataRepository.tutorial.get("day_minus_one", {})
-	var step_titles := PackedStringArray()
-	for step in TutorialManager.get_day_minus_one_steps():
-		step_titles.append("• %s" % str(step.get("title", "")))
+	var step_preview := PackedStringArray()
+	var configured_preview: Array = config.get("step_preview", [])
+	for line_variant in configured_preview:
+		if step_preview.size() >= 4:
+			break
+		var line := str(line_variant).strip_edges()
+		if not line.is_empty():
+			step_preview.append(line)
+	if step_preview.is_empty():
+		step_preview = PackedStringArray([
+			"开包拿起手卡",
+			"合成第一处设施",
+			"让设施落到地图",
+			"处理居民需求"
+		])
 	return {
 		"title": str(config.get("title", "新手引导")),
 		"subtitle": str(config.get("subtitle", "")),
-		"body": str(config.get("body", "今天先过一遍开局节奏：开包、操作起手卡、收资金、再开一包、落地设施、处理居民需求。进入主界面后我会一步一步带着你做。")),
-		"step_titles": step_titles,
+		"body": str(config.get("body", "今天先认识一天会怎么转起来：先开包、让桌面动起来、做出第一处设施，再处理第一张居民需求。进入主界面后我会一步一步带着你做。")),
+		"step_titles": step_preview,
 		"primary_action": "开始引导",
 		"secondary_action": "跳过引导"
 	}

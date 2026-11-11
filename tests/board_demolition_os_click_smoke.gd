@@ -2,6 +2,7 @@ extends SceneTree
 
 const BOARD_RULES := preload("res://scripts/core/BoardRules.gd")
 const PROTOTYPE_RULES := preload("res://scripts/core/PrototypeRules.gd")
+const OS_CLICK_HELPERS := preload("res://tests/helpers/os_click_helpers.gd")
 
 const TARGET_PATH := "res://tmp_board_demolition_target.json"
 const RESULT_PATH := "res://tmp_board_demolition_result.json"
@@ -10,6 +11,7 @@ var main_view: Control
 var game_state: Node
 var data_repository: Node
 var resource_manager: Node
+var os_click_helpers: RefCounted = OS_CLICK_HELPERS.new()
 var root_index := -1
 
 
@@ -63,31 +65,41 @@ func _run() -> void:
 		quit(1)
 		return
 
-	var demolish_button := main_view.get("board_demolish_button") as Button
-	if demolish_button == null or not demolish_button.visible:
-		_write_result(false, "visible demolish button not found; action=%s buttons=%s" % [str(main_view.call("get_board_demolish_action_state")), str(_visible_button_texts(main_view))])
+	if main_view.has_method("open_tabletop_drawer"):
+		main_view.call("open_tabletop_drawer", "board")
+		for _index in range(3):
+			await process_frame
+
+	var action_state: Dictionary = main_view.call("get_board_demolish_action_state")
+	var demolish_button: Button = os_click_helpers.call("find_visible_button_with_text", main_view, str(action_state.get("button_text", "")))
+	if demolish_button == null:
+		demolish_button = os_click_helpers.call("find_visible_button_containing", main_view, "拆除")
+	if demolish_button == null:
+		_write_result(false, "visible demolish button not found; action=%s buttons=%s" % [str(action_state), str(os_click_helpers.call("visible_button_texts", main_view))])
 		quit(1)
 		return
-	await _scroll_control_into_view(demolish_button)
+	await os_click_helpers.call("scroll_control_into_view", self, demolish_button, main_view.get("page_scroll_container") as ScrollContainer)
 	var first_button_click := demolish_button.get_global_rect().get_center()
 	_write_target(map_click, first_button_click)
 	if OS.get_environment("RFT_AUTO_PUSH_CLICK") == "1":
-		await _push_viewport_click(first_button_click)
+		await os_click_helpers.call("push_viewport_click", self, first_button_click)
 	for _index in range(3):
 		await process_frame
 
 	var first_state: Dictionary = main_view.call("get_board_demolish_action_state")
 	if bool(first_state.get("pending_confirmation", false)):
-		var confirm_button := main_view.get("board_demolish_button") as Button
-		if confirm_button == null or not confirm_button.visible:
-			_write_result(false, "armed demolish action missing confirm button; state=%s buttons=%s" % [str(first_state), str(_visible_button_texts(main_view))])
+		var confirm_button: Button = os_click_helpers.call("find_visible_button_with_text", main_view, str(first_state.get("button_text", "")))
+		if confirm_button == null:
+			confirm_button = os_click_helpers.call("find_visible_button_containing", main_view, "确认拆除")
+		if confirm_button == null:
+			_write_result(false, "armed demolish action missing confirm button; state=%s buttons=%s" % [str(first_state), str(os_click_helpers.call("visible_button_texts", main_view))])
 			quit(1)
 			return
-		await _scroll_control_into_view(confirm_button)
+		await os_click_helpers.call("scroll_control_into_view", self, confirm_button, main_view.get("page_scroll_container") as ScrollContainer)
 		var second_button_click := confirm_button.get_global_rect().get_center()
 		_write_target(map_click, second_button_click)
 		if OS.get_environment("RFT_AUTO_PUSH_CLICK") == "1":
-			await _push_viewport_click(second_button_click)
+			await os_click_helpers.call("push_viewport_click", self, second_button_click)
 		for _index in range(3):
 			await process_frame
 
@@ -100,7 +112,7 @@ func _run() -> void:
 		str(main_view.get("selected_board_index")),
 		scrap_parts,
 		str(final_action_state),
-		str(_visible_button_texts(main_view))
+		str(os_click_helpers.call("visible_button_texts", main_view))
 	])
 	quit(0 if ok else 1)
 

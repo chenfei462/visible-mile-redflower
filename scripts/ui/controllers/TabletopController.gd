@@ -128,18 +128,44 @@ func instance_ids_sorted() -> Array[String]:
 
 func stack_groups() -> Dictionary:
 	var groups: Dictionary = {}
-	var ids: Array = card_ids.keys()
-	ids.sort()
-	for id_a in ids:
-		var pos_a := _vector2_from_variant(card_positions.get(id_a, Vector2.ZERO))
-		for id_b in ids:
-			if id_b == id_a or groups.has(id_b):
-				continue
-			var pos_b := _vector2_from_variant(card_positions.get(id_b, Vector2.ZERO))
-			if absf(pos_a.x - pos_b.x) <= 20.0 and absf(pos_a.y - pos_b.y) <= 28.0:
-				groups[id_b] = id_a
-				if not groups.has(id_a):
-					groups[id_a] = id_a
+	var ids: Array[String] = []
+	for id_variant in card_ids.keys():
+		ids.append(str(id_variant))
+	ids.sort_custom(func(left: String, right: String) -> bool:
+		var left_z := int(card_z.get(left, 0))
+		var right_z := int(card_z.get(right, 0))
+		if left_z == right_z:
+			return left < right
+		return left_z < right_z
+	)
+	var visited := {}
+	for start_id in ids:
+		if visited.has(start_id):
+			continue
+		var component: Array[String] = []
+		var queue: Array[String] = [start_id]
+		visited[start_id] = true
+		while not queue.is_empty():
+			var current_id := str(queue.pop_front())
+			component.append(current_id)
+			for candidate_id in ids:
+				if visited.has(candidate_id):
+					continue
+				if _positions_stack_adjacent(current_id, candidate_id):
+					visited[candidate_id] = true
+					queue.append(candidate_id)
+		if component.size() < 2:
+			continue
+		component.sort_custom(func(left: String, right: String) -> bool:
+			var left_z := int(card_z.get(left, 0))
+			var right_z := int(card_z.get(right, 0))
+			if left_z == right_z:
+				return left < right
+			return left_z < right_z
+		)
+		var root_id := component[0]
+		for member_id in component:
+			groups[member_id] = root_id
 	return groups
 
 
@@ -178,6 +204,12 @@ func nearest_snap_target(source_instance_id: String, position: Vector2) -> Strin
 			best_distance = distance
 			best_id = instance_id
 	return best_id
+
+
+func _positions_stack_adjacent(left_id: String, right_id: String) -> bool:
+	var left_pos := _vector2_from_variant(card_positions.get(left_id, Vector2.ZERO))
+	var right_pos := _vector2_from_variant(card_positions.get(right_id, Vector2.ZERO))
+	return absf(left_pos.x - right_pos.x) <= 20.0 and absf(left_pos.y - right_pos.y) <= 28.0
 
 
 func preview_stack_snap(source_instance_id: String, position: Vector2) -> Dictionary:

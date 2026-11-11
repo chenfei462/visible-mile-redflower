@@ -107,7 +107,11 @@ func cleanup_for_smoke_test() -> void:
 		_resource_tween.kill()
 	_resource_tween = null
 	_dismissing = false
+	_mode = "warning"
+	fade_offset = Vector2.ZERO
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_process(false)
+	set_process_input(false)
 
 
 func dismiss() -> void:

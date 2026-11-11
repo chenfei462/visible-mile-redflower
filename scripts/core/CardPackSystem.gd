@@ -4,16 +4,16 @@ extends RefCounted
 const PACK_DEFINITIONS := {
 	"starter_pack": {
 		"display_name": "Starter Pack",
-		"description": "Opening resident, resource, material, and collectable funds cards.",
+		"description": "Opening resident and resource node cards.",
 		"fund_cost": 2,
 		"flower_cost": 0,
-		"card_count": 4,
+		"card_count": 2,
 		"unlock_day": 1,
 		"unlock_trust": 0,
 		"types": ["resident", "resource_node", "material", "building_permit"],
 		"required_tags": [],
 		"excluded_tags": ["support", "problem"],
-		"guaranteed_card_ids": ["neighbor_helper", "scrap_wood_pile", "lumber_pack", "community_funds"],
+		"guaranteed_card_ids": ["neighbor_helper", "scrap_wood_pile"],
 		"rarity_weights": {"common": 75, "uncommon": 20, "rare": 5}
 	},
 	"material_pack": {

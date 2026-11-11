@@ -4,14 +4,16 @@ const PLAYABILITY_DIRECTOR := preload("res://scripts/core/PlayabilityDirector.gd
 const PROTOTYPE_RULES := preload("res://scripts/core/PrototypeRules.gd")
 const RESIDENT_SYSTEM := preload("res://scripts/core/ResidentSystem.gd")
 const BOARD_RULES := preload("res://scripts/core/BoardRules.gd")
+const SMOKE_CLEANUP_HELPERS := preload("res://tests/helpers/smoke_cleanup_helpers.gd")
 
 var failures: PackedStringArray = []
-var bulletin_cards: Array[String] = []
+var daily_pack_cards: Array[String] = []
 var hand_cards: Array[String] = []
 var craft_slots: Array[String] = []
 var selected_recipe_ids: PackedStringArray = []
 var data_repository: Node
 var game_state: Node
+var smoke_cleanup_helpers = SMOKE_CLEANUP_HELPERS.new()
 
 
 func _initialize() -> void:
@@ -45,7 +47,7 @@ func _run() -> void:
 	_assert_true(bool(first_pack.get("success", false)), "day 1 opening should start by buying the starter pack onto the tabletop")
 	_assert_equal(int(state.get("card_pack_open_count", 0)), 1, "opening flow should count the first pack purchase")
 	var tabletop_ids: Dictionary = main_view.call("get_tabletop_card_ids")
-	for guaranteed_id in ["neighbor_helper", "scrap_wood_pile", "lumber_pack", "community_funds"]:
+	for guaranteed_id in ["neighbor_helper", "scrap_wood_pile"]:
 		_assert_true(tabletop_ids.values().has(guaranteed_id), "starter pack should place %s on the tabletop" % guaranteed_id)
 	var resident_instance_id := _tabletop_instance_id_for_card(tabletop_ids, "neighbor_helper")
 	var resource_instance_id := _tabletop_instance_id_for_card(tabletop_ids, "scrap_wood_pile")
@@ -56,7 +58,7 @@ func _run() -> void:
 	_assert_true(bool(opening_feedback.get("success", false)), "opening flow should finish the starter resident stack successfully")
 	_assert_equal(str(opening_feedback.get("recipe_id", "")), "gather_lumber_from_scrap", "opening resident stack should produce the first tabletop material chain")
 	tabletop_ids = main_view.call("get_tabletop_card_ids")
-	_assert_true(_count_tabletop_card_id(tabletop_ids, "lumber_pack") >= 2, "opening tabletop stack should leave at least two lumber packs available")
+	_assert_equal(_count_tabletop_card_id(tabletop_ids, "lumber_pack"), 1, "opening tabletop stack should create the first lumber pack instead of revealing one before production")
 	var funds_instance_id := _tabletop_instance_id_for_card(tabletop_ids, "community_funds")
 	_assert_true(not funds_instance_id.is_empty(), "opening tabletop flow should expose a collectable community funds card")
 	if not funds_instance_id.is_empty():
@@ -66,8 +68,8 @@ func _run() -> void:
 	var second_pack: Dictionary = main_view.call("purchase_card_pack_to_tabletop", "starter_pack")
 	_assert_true(bool(second_pack.get("success", false)), "opening flow should support buying the next pack after collecting funds")
 	_assert_equal(int(state.get("card_pack_open_count", 0)), 2, "opening flow should count the next-pack purchase")
-	_start_day_bulletin(state, data_repository, 0)
-	_assert_true(bulletin_cards.has("ramp_blueprint") and bulletin_cards.has("lumber_pack"), "day 1 should still expose a clear ramp recipe after the tabletop opening")
+	_start_daily_pack_row(state, data_repository, 0)
+	_assert_true(daily_pack_cards.has("ramp_blueprint") and daily_pack_cards.has("lumber_pack"), "day 1 should still expose a clear ramp recipe after the tabletop opening")
 	_pick_card("ramp_blueprint")
 	_pick_card("lumber_pack")
 	_craft_card(0)
@@ -81,12 +83,21 @@ func _run() -> void:
 	var funds_before_dusk := int(state.get("funds", 0))
 	var dusk_lines: PackedStringArray = day_cycle.resolve_dusk()
 	_assert_true(not _lines_contain(dusk_lines, "wish"), "dusk should not use legacy wish feedback")
-	_assert_true(_lines_contain(dusk_lines, "需求结算"), "dusk should print the resident need settlement banner")
+	_assert_true(dusk_lines.size() >= 3, "dusk should now emit a settlement line plus separate active-help / auto-cover summary lines")
 	_assert_true(int(state.get("flowers", 0)) >= flowers_before_dusk + 1, "a placed service facility should award at least +1 flower at dusk")
 	_assert_true(int(state.get("funds", 0)) >= funds_before_dusk + 1, "a placed service facility should award at least +1 fund at dusk")
 	_assert_equal(Array(state.get("resident_need_entities", [])).size(), 0, "dusk should clear resident need entities after settlement")
 	_assert_true(int(state.get("moral", 0)) > 0, "day 1 service settlement should leave moral above zero")
-	var goals_after_day_one: Array[Dictionary] = PLAYABILITY_DIRECTOR.build_today_goals(state, hand_cards, craft_slots, Array(selected_recipe_ids), data_repository.wishes_by_id)
+	var goals_after_day_one: Array[Dictionary] = PLAYABILITY_DIRECTOR.build_today_goals(
+		state,
+		hand_cards,
+		craft_slots,
+		Array(selected_recipe_ids),
+		data_repository.wishes_by_id,
+		data_repository.opening_playability_plan,
+		data_repository.recipes,
+		data_repository.cards_by_id
+	)
 	_assert_equal(goals_after_day_one.size(), 3, "today goal panel data should stay stable after day 1 actions")
 	_assert_true(_goal_completed(goals_after_day_one, "moral"), "today goals should track moral instead of legacy problems")
 
@@ -94,8 +105,8 @@ func _run() -> void:
 	day_cycle.resolve_sunrise()
 	_assert_equal(Array(state.get("resident_need_entities", [])).size(), 2, "day 2 sunrise should regenerate resident need entities for every resident")
 	event_manager.resolve_sunrise_events()
-	_start_day_bulletin(state, data_repository, 5)
-	_assert_true(bulletin_cards.has("bench_plan") and bulletin_cards.has("paint_bucket"), "day 2 should expose a second clear recipe")
+	_start_daily_pack_row(state, data_repository, 5)
+	_assert_true(daily_pack_cards.has("bench_plan") and daily_pack_cards.has("paint_bucket"), "day 2 should expose a second clear recipe")
 	_assert_true(state.get("active_problems", []).is_empty(), "day 2 should stay focused on facility placement before pressure ramps")
 	_pick_card("bench_plan")
 	_pick_card("paint_bucket")
@@ -112,11 +123,24 @@ func _run() -> void:
 	day_cycle.resolve_night()
 	day_cycle.resolve_sunrise()
 	event_manager.resolve_sunrise_events()
-	_start_day_bulletin(state, data_repository, 10)
-	_assert_true(bulletin_cards.has("shade_sail_plan") and bulletin_cards.has("fabric_roll"), "day 3 should expose a comfort recipe without legacy pressure events")
+	_start_daily_pack_row(state, data_repository, 10)
+	_assert_true(daily_pack_cards.has("shade_sail_plan") and daily_pack_cards.has("fabric_roll"), "day 3 should expose a comfort recipe without legacy pressure events")
 	_assert_equal(state.get("active_problems", []).size(), 0, "day 3 should not introduce legacy teaching problems")
-	var goals_after_day_three: Array[Dictionary] = PLAYABILITY_DIRECTOR.build_today_goals(state, hand_cards, craft_slots, Array(selected_recipe_ids), data_repository.wishes_by_id)
+	var goals_after_day_three: Array[Dictionary] = PLAYABILITY_DIRECTOR.build_today_goals(
+		state,
+		hand_cards,
+		craft_slots,
+		Array(selected_recipe_ids),
+		data_repository.wishes_by_id,
+		data_repository.opening_playability_plan,
+		data_repository.recipes,
+		data_repository.cards_by_id
+	)
 	_assert_true(not _goal_completed(goals_after_day_three, "problem"), "today goals should not expose legacy problem progress")
+	_assert_true(_goal_title_contains(goals_after_day_three, "moral", "主动服务"), "day 3 goals should promote active resident service as the new core loop")
+	_assert_true(_goal_detail_contains(goals_after_day_three, "moral", "阿强") and _goal_detail_contains(goals_after_day_three, "moral", "小林"), "day 3 goals should point at concrete resident targets")
+	_assert_true(_goal_detail_contains(goals_after_day_three, "moral", "导视服务亭"), "day 3 goals should name the service-building route")
+	_assert_true(_goal_detail_contains(goals_after_day_three, "moral", "导视地图建筑许可") and _goal_detail_contains(goals_after_day_three, "moral", "导视贴纸包"), "day 3 goals should show the concrete permit/material route")
 	_pick_card("shade_sail_plan")
 	_pick_card("fabric_roll")
 	_craft_card(hand_cards.find("shade_sail_plan"))
@@ -137,26 +161,26 @@ func _run() -> void:
 	quit(1)
 
 
-func _start_day_bulletin(state: Dictionary, data_repository: Node, offset: int) -> void:
+func _start_daily_pack_row(state: Dictionary, data_repository: Node, offset: int) -> void:
 	var day_count := int(state.get("day_count", 1))
 	var plan_days: Array = data_repository.opening_playability_plan.get("days", [])
-	bulletin_cards.clear()
+	daily_pack_cards.clear()
 	for day_plan_variant in plan_days:
 		if typeof(day_plan_variant) != TYPE_DICTIONARY:
 			continue
 		var day_plan: Dictionary = day_plan_variant
 		if int(day_plan.get("day", -1)) != day_count:
 			continue
-		for card_id_variant in day_plan.get("bulletin_card_ids", []):
-			bulletin_cards.append(str(card_id_variant))
+		for card_id_variant in day_plan.get("daily_pack_card_ids", []):
+			daily_pack_cards.append(str(card_id_variant))
 		break
 
 
 func _pick_card(card_id: String) -> void:
-	var index := bulletin_cards.find(card_id)
+	var index := daily_pack_cards.find(card_id)
 	_assert_true(index >= 0, "opening playability plan should expose %s on the current day" % card_id)
 	if index >= 0:
-		bulletin_cards.remove_at(index)
+		daily_pack_cards.remove_at(index)
 	hand_cards.append(card_id)
 
 
@@ -171,6 +195,20 @@ func _goal_completed(goals: Array[Dictionary], goal_id: String) -> bool:
 	for goal: Dictionary in goals:
 		if str(goal.get("id", "")) == goal_id:
 			return bool(goal.get("completed", false))
+	return false
+
+
+func _goal_title_contains(goals: Array[Dictionary], goal_id: String, needle: String) -> bool:
+	for goal: Dictionary in goals:
+		if str(goal.get("id", "")) == goal_id:
+			return str(goal.get("title", "")).contains(needle)
+	return false
+
+
+func _goal_detail_contains(goals: Array[Dictionary], goal_id: String, needle: String) -> bool:
+	for goal: Dictionary in goals:
+		if str(goal.get("id", "")) == goal_id:
+			return str(goal.get("detail", "")).contains(needle)
 	return false
 
 
@@ -218,11 +256,7 @@ func _count_tabletop_card_id(card_ids: Dictionary, card_id: String) -> int:
 func _dispose_main_view(main_view: Control) -> void:
 	if main_view == null or not is_instance_valid(main_view):
 		return
-	if main_view.has_method("cleanup_for_smoke_test"):
-		main_view.call("cleanup_for_smoke_test")
-		await process_frame
-	main_view.free()
-	await process_frame
+	await smoke_cleanup_helpers.dispose_main_view(self, main_view)
 
 
 func _assert_true(condition: bool, message: String) -> void:

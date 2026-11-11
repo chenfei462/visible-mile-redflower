@@ -20,8 +20,16 @@ var _last_drag_summary := {
 }
 
 
+func should_enable_automation_server(is_debug_build: bool = OS.is_debug_build(), disable_env: String = OS.get_environment("RFT_DISABLE_AUTOMATION_SERVERS"), force_env: String = OS.get_environment("RFT_ENABLE_AUTOMATION_SERVERS")) -> bool:
+	if disable_env == "1":
+		return false
+	if force_env == "1":
+		return true
+	return is_debug_build
+
+
 func _ready() -> void:
-	if OS.get_environment("RFT_DISABLE_AUTOMATION_SERVERS") == "1":
+	if not should_enable_automation_server():
 		set_process(false)
 		return
 	var config := ConfigFile.new()

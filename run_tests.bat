@@ -30,21 +30,21 @@ if not defined GODOT_EXE_RESOLVED (
   exit /b 1
 )
 set "RFT_DISABLE_AUTOMATION_SERVERS=1"
-"%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/run_tests.gd --quit
+set "POWERSHELL_EXE=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
+set "LEAK_GUARD=%~dp0tests\godot_leak_guard.ps1"
+"%POWERSHELL_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%LEAK_GUARD%" "%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/run_tests.gd
 if errorlevel 1 exit /b %errorlevel%
-"%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/license_manager_smoke.gd --quit
+"%POWERSHELL_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%LEAK_GUARD%" "%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/license_manager_smoke.gd
 if errorlevel 1 exit /b %errorlevel%
 set "RFT_AUTO_PUSH_CLICK=1"
-"%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/drag_to_board_smoke.gd
+"%POWERSHELL_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%LEAK_GUARD%" "%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/drag_to_board_smoke.gd
 if errorlevel 1 exit /b %errorlevel%
-"%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/tabletop_reduce_motion_smoke.gd
+"%POWERSHELL_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%LEAK_GUARD%" "%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/tabletop_reduce_motion_smoke.gd
 if errorlevel 1 exit /b %errorlevel%
-"%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/board_land_unlock_os_click_smoke.gd
+"%POWERSHELL_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%LEAK_GUARD%" "%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/board_land_unlock_os_click_smoke.gd
 if errorlevel 1 exit /b %errorlevel%
-REM bulletin_paid_purchase_os_click_smoke skipped: bulletin UI removed in Phase B of pack-stall migration. To restore: re-enable below and rewrite for card pack shop.
-REM "%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/bulletin_paid_purchase_os_click_smoke.gd
-REM if errorlevel 1 exit /b %errorlevel%
-"%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/first_10_minutes_smoke.gd
+REM Legacy paid daily-row OS smoke retired; card-pack shop behavior is covered by core tests and the first-10-minutes smoke.
+"%POWERSHELL_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%LEAK_GUARD%" "%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/first_10_minutes_smoke.gd
 if errorlevel 1 exit /b %errorlevel%
-"%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/full_game_smoke.gd
+"%POWERSHELL_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%LEAK_GUARD%" "%GODOT_EXE_RESOLVED%" --headless --path "%~dp0." --script res://tests/full_game_smoke.gd
 endlocal

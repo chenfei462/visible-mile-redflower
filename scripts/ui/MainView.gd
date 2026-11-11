@@ -70,7 +70,8 @@ const FIRST_SCREEN_TASKS_RECT := Rect2(Vector2(18, 184), Vector2(224, 520))
 const FIRST_SCREEN_PLAYMAT_RECT := Rect2(Vector2(260, 184), Vector2(978, 520))
 const FIRST_SCREEN_TOOLBAR_RECT := Rect2(Vector2(456, 652), Vector2(368, 54))
 const FIRST_SCREEN_SELL_RECT := Rect2(Vector2(270, 194), Vector2(84, 30))
-const TABLETOP_DRAWER_IDS := ["quick_options", "residents", "status", "end_day", "board", "settings", "codex"]
+const FIRST_SCREEN_ACTION_RECT := Rect2(Vector2(18, 600), Vector2(224, 104))
+const TABLETOP_DRAWER_IDS := ["quick_options", "residents", "status", "board", "settings", "codex"]
 const SETTINGS_MODAL_Z_INDEX := 1000
 const OPENING_OBJECTIVE_IDS := [
 	"buy_pack",
@@ -163,9 +164,12 @@ var _page_scroll_dragging := false
 var _page_scroll_drag_anchor := Vector2.ZERO
 var _page_scroll_start_vertical := 0
 var _tutorial_pointer_reposition_queued := false
+var _is_tearing_down := false
 
 @export var bulletin_cards: Array[String] = []
 @export var bulletin_card_prices: Array[int] = []
+@export var daily_pack_cards: Array[String] = []
+@export var daily_pack_card_prices: Array[int] = []
 @export var hand_cards: Array[String] = []
 @export var hand_card_sources: Array[String] = []
 @export var hand_card_prices: Array[int] = []
@@ -185,6 +189,9 @@ var active_announcement: Dictionary = {}
 var _run_finished := false
 var _last_timer_remaining_seconds := -1
 var _last_timer_paused := false
+var _last_interaction_time := 0.0
+var _idle_nudge_shown := false
+var _timer_urgency_level := 0  # 0=normal, 1=warning(30s), 2=critical(10s)
 
 var drag_preview: Control
 var drag_source_view: Control
@@ -218,6 +225,7 @@ var report_history := PackedStringArray()
 var _bulletin_price_rng := RandomNumberGenerator.new()
 var _last_resource_snapshot: Dictionary = {}
 var _card_pack_buttons: Dictionary = {}
+var _card_pack_title_label: Label
 var _card_pack_status_label: Label
 var _card_pack_rng: RandomNumberGenerator
 var _stack_panel: PanelContainer
@@ -267,17 +275,23 @@ func _ready() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE:
-		_disconnect_external_signals()
-		_reset_transient_runtime_state(false)
+		_teardown_for_exit(false)
 
 
 func _exit_tree() -> void:
-	_disconnect_external_signals()
+	_teardown_for_exit(false)
 
 
 func cleanup_for_smoke_test() -> void:
+	_teardown_for_exit()
+
+
+func _teardown_for_exit(clear_runtime_nodes: bool = true) -> void:
+	if _is_tearing_down:
+		return
+	_is_tearing_down = true
 	_disconnect_external_signals()
-	_reset_transient_runtime_state(true)
+	_reset_transient_runtime_state(clear_runtime_nodes)
 
 
 func _reset_transient_runtime_state(clear_runtime_nodes: bool) -> void:
@@ -300,18 +314,29 @@ func _reset_transient_runtime_state(clear_runtime_nodes: bool) -> void:
 	_tabletop_crafting_tween = null
 	_tabletop_crafting_progress_sec = 0.0
 	_tabletop_pending_craft.clear()
-	floating_notifiers.clear()
+	_tutorial_pointer_reposition_queued = false
+	_clear_floating_notifiers()
 	last_craft_failure_feedback.clear()
 	last_tabletop_craft_feedback.clear()
 	if clear_runtime_nodes:
 		_clear_transient_animations()
+		_clear_smoke_teardown_ui_roots()
 		if day_minus_one_view != null and is_instance_valid(day_minus_one_view):
-			day_minus_one_view.queue_free()
+			_free_runtime_node(day_minus_one_view)
 		if tutorial_pointer != null and is_instance_valid(tutorial_pointer):
-			tutorial_pointer.queue_free()
+			_free_runtime_node(tutorial_pointer)
 		if unlock_banner != null and is_instance_valid(unlock_banner):
-			unlock_banner.queue_free()
+			_free_runtime_node(unlock_banner)
 		_cancel_drag()
+		_clear_children(self)
+		main_content_root = null
+		drag_layer = null
+		animation_layer = null
+		settings_modal_layer = null
+		settings_panel = null
+		tutorial_overlay = null
+		card_pack_shop = null
+		_card_pack_buttons.clear()
 	else:
 		drag_preview = null
 		drag_source_view = null
@@ -408,6 +433,8 @@ func _input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	advance_runtime_clock(delta)
 	_push_tabletop_craft_progress_to_anchor()
+	_update_timer_urgency()
+	_check_idle_nudge(delta)
 
 
 func _assign_string_array(target: Array[String], value: Variant) -> void:
@@ -428,10 +455,17 @@ func _assign_int_array(target: Array[int], value: Variant) -> void:
 
 func set_bulletin_cards_state(cards: Array, prices: Array = []) -> void:
 	_assign_string_array(bulletin_cards, cards)
+	_assign_string_array(daily_pack_cards, cards)
 	if prices.is_empty():
 		bulletin_card_prices.clear()
+		daily_pack_card_prices.clear()
 	else:
 		_assign_int_array(bulletin_card_prices, prices)
+		_assign_int_array(daily_pack_card_prices, prices)
+
+
+func set_daily_pack_cards_state(cards: Array, prices: Array = []) -> void:
+	set_bulletin_cards_state(cards, prices)
 
 
 func set_hand_cards_state(cards: Array, sources: Array = [], prices: Array = []) -> void:
@@ -456,6 +490,48 @@ func set_craft_slots_state(cards: Array, sources: Array = [], prices: Array = []
 		craft_slot_prices.clear()
 	else:
 		_assign_int_array(craft_slot_prices, prices)
+
+
+func return_hand_card_to_daily_pack(hand_index: int) -> Dictionary:
+	var result: Dictionary = PROTOTYPE_RULES.return_hand_card_to_daily_pack(bulletin_cards, hand_cards, GameState.get_state(), hand_index, DataRepository.recipes, hand_card_sources, hand_card_prices, bulletin_card_prices)
+	_assign_string_array(daily_pack_cards, bulletin_cards)
+	_assign_int_array(daily_pack_card_prices, bulletin_card_prices)
+	return result
+
+
+func get_daily_pack_card_action_state(index: int) -> Dictionary:
+	if index < 0 or index >= bulletin_cards.size():
+		return {}
+	var card_id := str(bulletin_cards[index])
+	if card_id.is_empty():
+		return {"visible": false, "enabled": false, "label": "", "card_id": "", "price": 0, "is_free_pick": false}
+	var state := GameState.get_state()
+	var free_pick_limit: int = maxi(1, int(state.get("daily_pick_limit", 1)))
+	var used := int(state.get("selected_cards_today", 0))
+	var is_free_pick: bool = used < free_pick_limit
+	var price := int(0 if index >= bulletin_card_prices.size() else bulletin_card_prices[index])
+	var label: String = "Free x1" if is_free_pick else ("Buy %d" % price)
+	return {"visible": true, "enabled": is_free_pick or price > 0, "label": label, "card_id": card_id, "price": price, "is_free_pick": is_free_pick}
+
+
+func get_tabletop_card_progress_state(instance_id: String) -> Dictionary:
+	var view = _tabletop_card_view_by_instance.get(instance_id)
+	if view != null and is_instance_valid(view) and view.has_method("get_craft_progress_state"):
+		return view.call("get_craft_progress_state")
+	if not _tabletop_pending_craft.is_empty() and instance_id == str(_tabletop_pending_craft.get("anchor_instance_id", "")):
+		var progress_state: Dictionary = get_tabletop_stack_progress_state()
+		return {
+			"progress": float(progress_state.get("progress", 0.0)),
+			"progress_sec": float(progress_state.get("progress_sec", 0.0)),
+			"time_cost_sec": float(progress_state.get("time_cost_sec", 0.0)),
+			"mode": str(progress_state.get("kind", "craft")),
+			"label": str(_tabletop_pending_craft.get("resident_name", "")) if str(progress_state.get("kind", "craft")) == "resident_need" else ""
+		}
+	return {"progress": 0.0, "progress_sec": 0.0, "time_cost_sec": 0.0, "mode": "", "label": ""}
+
+
+func get_gameplay_clarity_build_label() -> String:
+	return "Gameplay Clarity A/B/C"
 
 
 func is_tabletop_layout_enabled() -> bool:
@@ -628,7 +704,7 @@ func get_tabletop_first_screen_layout_contract() -> Dictionary:
 		"playmat_rect": _first_screen_region_rect("PlaymatPanel"),
 		"toolbar_rect": _first_screen_region_rect("ToolbarStrip"),
 		"sell_zone_rect": _first_screen_region_rect("SellDropZone"),
-		"default_hidden_panels": ["quick_options", "residents", "status", "end_day", "board"]
+		"default_hidden_panels": ["quick_options", "residents", "status", "board"]
 	}
 
 
@@ -695,10 +771,12 @@ func get_tabletop_stack_progress_state() -> Dictionary:
 		progress = clampf(progress_sec / time_cost, 0.0, 1.0)
 	return {
 		"pending": true,
+		"kind": str(_tabletop_pending_craft.get("kind", "craft")),
 		"recipe_id": str(recipe.get("recipe_id", "")),
 		"result_card_id": str(recipe.get("result_card_id", "")),
 		"input_instance_ids": Array(_tabletop_pending_craft.get("instance_ids", [])).duplicate(),
 		"anchor_instance_id": str(_tabletop_pending_craft.get("anchor_instance_id", "")),
+		"visual_anchor_instance_id": str(_tabletop_pending_craft.get("anchor_instance_id", "")),
 		"time_cost_sec": time_cost,
 		"progress_sec": progress_sec,
 		"progress": progress,
@@ -727,7 +805,13 @@ func _push_tabletop_craft_progress_to_anchor() -> void:
 	var progress := 0.0
 	if time_cost > 0.0:
 		progress = clampf(_tabletop_crafting_progress_sec / time_cost, 0.0, 1.0)
-	anchor_view.call("set_craft_progress", progress, _tabletop_crafting_progress_sec, time_cost)
+	var mode := str(_tabletop_pending_craft.get("kind", "craft"))
+	var label := ""
+	if mode == "resident_need":
+		label = str(_tabletop_pending_craft.get("resident_name", "居民需求"))
+		if label.is_empty():
+			label = "居民需求"
+	anchor_view.call("set_craft_progress", progress, _tabletop_crafting_progress_sec, time_cost, mode, label)
 	_last_craft_anchor_instance_id = anchor_id
 
 
@@ -779,13 +863,14 @@ func _place_card_pack_draws_on_tabletop(drawn_card_ids: Array) -> Array[String]:
 		if not _is_tabletop_eligible_card_def(card_def):
 			continue
 		var instance_id := _next_tabletop_instance_id(state, card_id)
-		var spawn_position := _find_pack_open_tabletop_position(index, occupied_rects)
+		var card_size := _tabletop_card_visual_size_for_card(card_id)
+		var spawn_position := _find_pack_open_tabletop_position(index, occupied_rects, card_size)
 		tabletop_card_ids[instance_id] = card_id
 		tabletop_card_positions[instance_id] = spawn_position
 		tabletop_card_z[instance_id] = _tabletop_next_z
 		_tabletop_next_z += 1
 		placed_instance_ids.append(instance_id)
-		occupied_rects.append(Rect2(spawn_position, _tabletop_card_size()))
+		occupied_rects.append(Rect2(spawn_position, card_size))
 	_sync_tabletop_controller_from_facade()
 	_refresh_tabletop_layer()
 	return placed_instance_ids
@@ -818,10 +903,11 @@ func _find_free_tabletop_position(fallback_index: int) -> Vector2:
 	return _clamp_tabletop_position(Vector2(margin + float(jitter), margin + float(jitter)))
 
 
-func _find_pack_open_tabletop_position(fallback_index: int, occupied_rects: Array[Rect2]) -> Vector2:
+func _find_pack_open_tabletop_position(fallback_index: int, occupied_rects: Array[Rect2], card_size: Vector2 = Vector2.ZERO) -> Vector2:
 	var play_area := _tabletop_play_area_size()
 	var margin := _tabletop_card_margin()
-	var card_size := _tabletop_card_size()
+	if card_size == Vector2.ZERO:
+		card_size = _tabletop_card_size()
 	var spacing := _tabletop_card_spacing()
 	var lower_guard := _pack_open_lower_guard_y()
 	var upper_zone := Rect2(
@@ -840,16 +926,17 @@ func _find_pack_open_tabletop_position(fallback_index: int, occupied_rects: Arra
 		)
 	)
 	for zone in [upper_zone, middle_zone]:
-		var candidate := _find_tabletop_grid_position_in_zone(zone, occupied_rects)
+		var candidate := _find_tabletop_grid_position_in_zone(zone, occupied_rects, card_size)
 		if candidate != _invalid_tabletop_position():
 			return candidate
 	return _find_free_tabletop_position(fallback_index + tabletop_card_positions.size())
 
 
-func _find_tabletop_grid_position_in_zone(zone: Rect2, occupied_rects: Array[Rect2]) -> Vector2:
+func _find_tabletop_grid_position_in_zone(zone: Rect2, occupied_rects: Array[Rect2], card_size: Vector2 = Vector2.ZERO) -> Vector2:
 	if zone.size == Vector2.ZERO:
 		return _invalid_tabletop_position()
-	var card_size := _tabletop_card_size()
+	if card_size == Vector2.ZERO:
+		card_size = _tabletop_card_size()
 	if zone.size.x < card_size.x or zone.size.y < card_size.y:
 		return _invalid_tabletop_position()
 	var spacing := _tabletop_card_spacing()
@@ -878,8 +965,10 @@ func _find_tabletop_grid_position_in_zone(zone: Rect2, occupied_rects: Array[Rec
 
 func _tabletop_pack_open_occupied_rects() -> Array[Rect2]:
 	var rects: Array[Rect2] = []
-	for pos_variant in tabletop_card_positions.values():
-		rects.append(Rect2(_vector2_from_variant(pos_variant), _tabletop_card_size()))
+	for instance_id_variant in tabletop_card_positions.keys():
+		var instance_id := str(instance_id_variant)
+		var card_id := str(tabletop_card_ids.get(instance_id, ""))
+		rects.append(Rect2(_vector2_from_variant(tabletop_card_positions.get(instance_id, Vector2.ZERO)), _tabletop_card_visual_size_for_card(card_id)))
 	for reserved_rect in _tabletop_pack_open_reserved_rects():
 		rects.append(reserved_rect)
 	return rects
@@ -977,6 +1066,10 @@ func place_resident_need_on_tabletop(need_id: String, position: Vector2) -> Dict
 		"z": int(tabletop_card_z.get(instance_id, 0)),
 		"message": "resident_need_placed"
 	}
+
+
+func get_demand_card_views() -> Array:
+	return problem_card_views
 
 
 func finish_tabletop_timed_craft_now() -> Dictionary:
@@ -1243,12 +1336,20 @@ func _resolve_automatic_day_rollover() -> Dictionary:
 		_append_report_line("黄昏自动存档完成。")
 	AudioManager.play_bgm(audio_bgm_id_for_phase("night"))
 	var night_summary: Dictionary = DayCycle.resolve_night()
-	if not night_summary.is_empty():
+	var ended_by := str(night_summary.get("ended_by", ""))
+	if not ended_by.is_empty():
 		_run_finished = true
-		_append_report_line("民心归零，社区进入结算。")
+		if ended_by == "completed":
+			_append_report_line("🎉 第%d天结束，社区建设圆满完成！信任: %d，民心: %d" % [
+				int(night_summary.get("final_day", 10)),
+				int(night_summary.get("trust", -1)),
+				int(night_summary.get("moral", -1))
+			])
+		else:
+			_append_report_line("民心归零，社区进入结算。")
 		GameState.reset_day_clock()
 		return {
-			"ended_by": str(night_summary.get("ended_by", "")),
+			"ended_by": ended_by,
 			"dusk_lines": current_day_summary,
 			"night_summary": night_summary
 		}
@@ -1274,6 +1375,72 @@ func _refresh_runtime_timer_ui_if_needed() -> void:
 		return
 	_refresh_status_header_ui(GameState.get_state())
 	_cache_runtime_timer_state()
+
+
+func _update_timer_urgency() -> void:
+	if phase_label == null or _run_finished:
+		return
+	var remaining := get_day_timer_remaining_seconds()
+	var new_level := 0
+	if remaining <= 10:
+		new_level = 2
+	elif remaining <= 30:
+		new_level = 1
+	if new_level == _timer_urgency_level:
+		return
+	_timer_urgency_level = new_level
+	match new_level:
+		0:
+			phase_label.add_theme_color_override("font_color", UI_TEXT_COLOR)
+			phase_label.pivot_offset = phase_label.size * 0.5
+			phase_label.scale = Vector2.ONE
+		1:
+			phase_label.add_theme_color_override("font_color", Color(1.0, 0.6, 0.1))
+		2:
+			phase_label.add_theme_color_override("font_color", Color(1.0, 0.2, 0.2))
+			var tween := create_tween().set_loops(0)
+			tween.tween_property(phase_label, "scale", Vector2(1.08, 1.08), 0.25)
+			tween.tween_property(phase_label, "scale", Vector2.ONE, 0.25)
+
+
+func _check_idle_nudge(delta: float) -> void:
+	if _run_finished or str(GameState.get_state().get("phase", "")) != "day":
+		_idle_nudge_shown = false
+		return
+	_last_interaction_time += delta
+	if _last_interaction_time >= 20.0 and not _idle_nudge_shown:
+		_idle_nudge_shown = true
+		var state: Dictionary = GameState.get_state()
+		var needs: Array = state.get("active_need_entities", [])
+		var unmet_count := 0
+		for need in needs:
+			if typeof(need) == TYPE_DICTIONARY and not need.get("fulfilled", false):
+				unmet_count += 1
+		if unmet_count > 0:
+			_show_floating_hint("还有 %d 个居民需求未处理，试试拖到服务设施上" % unmet_count)
+		else:
+			_show_floating_hint("试试拖动两张卡牌合成新设施")
+
+
+func _show_floating_hint(text: String) -> void:
+	if _is_tearing_down or FLOATING_NOTIFIER_SCENE == null:
+		return
+	var message := text.strip_edges()
+	if message.is_empty():
+		return
+	var notifier: Control = FLOATING_NOTIFIER_SCENE.instantiate()
+	var parent: Node = animation_layer if animation_layer != null else self
+	parent.add_child(notifier)
+	floating_notifiers.append(notifier)
+	if notifier.has_method("show_hint"):
+		notifier.call("show_hint", message, 3.0)
+	elif notifier.has_method("show_error"):
+		notifier.call("show_error", message, 3.0)
+
+
+func reset_idle_timer() -> void:
+	_last_interaction_time = 0.0
+	_idle_nudge_shown = false
 
 
 func show_floating_error(text: String, duration: float = 1.6) -> void:
@@ -1392,6 +1559,8 @@ func _on_page_scroll_changed(_value: float) -> void:
 
 
 func _queue_tutorial_pointer_reposition() -> void:
+	if _is_tearing_down:
+		return
 	if tutorial_pointer == null or not is_instance_valid(tutorial_pointer):
 		return
 	if _tutorial_pointer_reposition_queued:
@@ -1402,6 +1571,8 @@ func _queue_tutorial_pointer_reposition() -> void:
 
 func _refresh_tutorial_pointer_after_scroll() -> void:
 	_tutorial_pointer_reposition_queued = false
+	if _is_tearing_down:
+		return
 	_refresh_tutorial_pointer()
 
 
@@ -1463,8 +1634,6 @@ func refresh_drawer_only(drawer_id: String) -> void:
 			_update_recipe_codex_ui()
 		"board":
 			_update_board_detail_ui(state.get("board_cells", []))
-		"end_day":
-			_refresh_runtime_timer_ui_if_needed()
 		"settings":
 			_load_ai_settings_into_controls()
 
@@ -1551,12 +1720,8 @@ func get_light_surface_text_color_spec() -> Dictionary:
 
 
 func get_active_tutorial_coachmark() -> Dictionary:
-	if TutorialManager.should_show_day_minus_one() or day_minus_one_view != null:
-		return {
-			"target": "tutorial",
-			"title": "先看一遍今天的开局节奏",
-			"body": "这里会按顺序演示开包、操作起手卡、收资金、再开一包、落地设施，以及怎样处理居民需求。"
-		}
+	if TutorialManager.should_show_day_minus_one() or day_minus_one_view != null or str(TutorialManager.get_guidance_mode()) in ["welcome", "replay", "complete"]:
+		return {}
 	var objectives := get_tasks_panel_objectives()
 	var current := _current_opening_objective(objectives)
 	if not current.is_empty():
@@ -1720,7 +1885,7 @@ func quick_craft_hand_card_index(index: int) -> Dictionary:
 
 
 func return_hand_card_to_bulletin(index: int) -> Dictionary:
-	var result: Dictionary = PROTOTYPE_RULES.return_hand_card_to_bulletin(
+	var result: Dictionary = PROTOTYPE_RULES.return_hand_card_to_daily_pack(
 		bulletin_cards,
 		hand_cards,
 		GameState.get_state(),
@@ -1732,9 +1897,9 @@ func return_hand_card_to_bulletin(index: int) -> Dictionary:
 	)
 	if bool(result.get("success", false)):
 		AudioManager.play_sfx(audio_sfx_id_for_action("pick"))
-		_append_report_line("已放回公告栏: %s" % _card_name(str(result.get("card_id", ""))))
+		_append_report_line("已放回卡包栏: %s" % _card_name(str(result.get("card_id", ""))))
 	else:
-		_show_floating_error(str(result.get("message", "无法放回公告栏")), 1.8)
+		_show_floating_error(str(result.get("message", "无法放回卡包栏")), 1.8)
 	return result
 
 
@@ -1752,7 +1917,7 @@ func expire_unfinished_handbook_cards_for_new_day() -> Dictionary:
 		var names := PackedStringArray()
 		for card_id_variant in result.get("expired_card_ids", []):
 			names.append(_card_name(str(card_id_variant)))
-		_append_report_line("未合成卡已随昨日公告归档: %s" % "、".join(names))
+		_append_report_line("未合成卡已随昨日卡包归档: %s" % "、".join(names))
 	return result
 
 
@@ -1762,14 +1927,18 @@ func format_selection_status(selected_count: int, max_choices: int) -> String:
 
 func bulletin_free_pick_limit(state: Dictionary = {}) -> int:
 	var current_state := state if not state.is_empty() else GameState.get_state()
-	if bulletin_paid_mode_enabled(current_state):
-		return 1
-	return int(DataRepository.day_sequence.get("player_card_choices_per_day", 3))
+	var day_count := int(current_state.get("day_count", 1))
+	# Gradual ramp: Days 1-3 = 3 picks, Days 4-5 = 2 picks, Days 6+ = 1 pick
+	if day_count <= 3:
+		return int(DataRepository.day_sequence.get("player_card_choices_per_day", 3))
+	elif day_count <= 5:
+		return 2
+	return 1
 
 
 func bulletin_paid_mode_enabled(state: Dictionary = {}) -> bool:
 	var current_state := state if not state.is_empty() else GameState.get_state()
-	return int(current_state.get("day_count", 1)) >= 5
+	return int(current_state.get("day_count", 1)) >= 6
 
 
 func get_bulletin_card_action_state(index: int) -> Dictionary:
@@ -1887,8 +2056,12 @@ func request_selected_board_land_unlock() -> Dictionary:
 
 
 func _claim_bulletin_card_from_ui(index: int) -> Dictionary:
+	return _claim_daily_pack_card_from_ui(index)
+
+
+func _claim_daily_pack_card_from_ui(index: int) -> Dictionary:
 	var state: Dictionary = GameState.get_state()
-	var result: Dictionary = PROTOTYPE_RULES.claim_bulletin_card(
+	var result: Dictionary = PROTOTYPE_RULES.claim_daily_pack_card(
 		bulletin_cards,
 		hand_cards,
 		state,
@@ -1915,7 +2088,7 @@ func _bulletin_purchase_cost_for_index(index: int, state: Dictionary) -> Diction
 	if index < 0 or index >= bulletin_cards.size():
 		return {"line": "default", "resource": "flowers", "amount": 0}
 	var card_id := str(bulletin_cards[index])
-	var cost: Dictionary = PROTOTYPE_RULES.bulletin_purchase_cost_for_card(card_id, state, DataRepository.cards_by_id, DataRepository.recipes)
+	var cost: Dictionary = PROTOTYPE_RULES.daily_pack_purchase_cost_for_card(card_id, state, DataRepository.cards_by_id, DataRepository.recipes)
 	if int(cost.get("amount", 0)) <= 0:
 		cost["amount"] = _bulletin_price_for_index(index)
 	return cost
@@ -1942,6 +2115,8 @@ func _normalize_card_metadata() -> void:
 		craft_slot_prices.resize(craft_slots.size())
 	if bulletin_card_prices.size() > bulletin_cards.size():
 		bulletin_card_prices.resize(bulletin_cards.size())
+	_assign_string_array(daily_pack_cards, bulletin_cards)
+	_assign_int_array(daily_pack_card_prices, bulletin_card_prices)
 	_tabletop_next_z = maxi(_tabletop_next_z, _max_tabletop_z() + 1)
 
 
@@ -2069,6 +2244,19 @@ func _tabletop_card_size() -> Vector2:
 	return TABLETOP_CARD_METRICS.TABLETOP_CARD_SIZE
 
 
+func _tabletop_card_visual_size_for_card(card_id: String) -> Vector2:
+	var card_def := _tabletop_card_def_for_id(card_id)
+	if card_def.is_empty():
+		return _tabletop_card_size()
+	var card_view: Control = CARD_VIEW_SCENE.instantiate()
+	card_view.configure(card_def, "tabletop", 0, _card_playability_text(card_id, "tabletop", ""), false)
+	var visual_size := card_view.custom_minimum_size
+	card_view.free()
+	if visual_size.x <= 0.0 or visual_size.y <= 0.0:
+		return _tabletop_card_size()
+	return visual_size
+
+
 func _tabletop_card_margin() -> float:
 	return float(TABLETOP_CARD_METRICS.TABLETOP_CARD_MARGIN)
 
@@ -2140,7 +2328,8 @@ func _is_community_funds_card_id(card_id: String) -> bool:
 
 func _tabletop_card_visual_rect(instance_id: String) -> Rect2:
 	var position := _vector2_from_variant(tabletop_card_positions.get(instance_id, Vector2.ZERO))
-	return Rect2(position, _tabletop_card_size())
+	var card_id := str(tabletop_card_ids.get(instance_id, ""))
+	return Rect2(position, _tabletop_card_visual_size_for_card(card_id))
 
 
 func _tabletop_instance_at_local_position(local_position: Vector2, exclude_instance_id: String = "") -> String:
@@ -2335,6 +2524,7 @@ func _finalize_tabletop_craft(instance_ids: Array[String], recipe: Dictionary, a
 	var result_card_id := str(result_card_ids[0]) if not result_card_ids.is_empty() else ""
 	var result_position := _vector2_from_variant(tabletop_card_positions.get(anchor_instance_id, Vector2.ZERO))
 	var preserved_ids := _preserved_tabletop_ingredient_ids(unique_ids, recipe)
+	var output_position := _tabletop_craft_output_position(result_position, preserved_ids, result_card_ids.size())
 	for instance_id in unique_ids:
 		if preserved_ids.has(instance_id):
 			continue
@@ -2354,7 +2544,7 @@ func _finalize_tabletop_craft(instance_ids: Array[String], recipe: Dictionary, a
 		if result_instance_id.is_empty():
 			result_instance_id = produced_instance_id
 		tabletop_card_ids[produced_instance_id] = produced_card_id
-		tabletop_card_positions[produced_instance_id] = _clamp_tabletop_position(result_position + Vector2(16.0 * float(result_index), 18.0 * float(result_index)))
+		tabletop_card_positions[produced_instance_id] = _clamp_tabletop_position(output_position + Vector2(16.0 * float(result_index), 18.0 * float(result_index)))
 		tabletop_card_z[produced_instance_id] = _tabletop_next_z
 		_tabletop_next_z += 1
 		result_instance_ids.append(produced_instance_id)
@@ -2417,6 +2607,39 @@ func _preserved_tabletop_ingredient_ids(instance_ids: Array[String], recipe: Dic
 		if preserve_types.has(str(card_def.get("type", ""))):
 			preserved.append(instance_id)
 	return preserved
+
+
+func _tabletop_craft_output_position(anchor_position: Vector2, preserved_ids: Array[String], result_count: int) -> Vector2:
+	if preserved_ids.is_empty():
+		return anchor_position
+	var card_size := _tabletop_card_size()
+	var base_offset := Vector2(card_size.x + 32.0, 0.0)
+	var row_offset := Vector2(0.0, card_size.y + 18.0)
+	var attempts := [
+		anchor_position + base_offset,
+		anchor_position - base_offset,
+		anchor_position + row_offset,
+		anchor_position - row_offset,
+		anchor_position + Vector2(base_offset.x, row_offset.y),
+		anchor_position + Vector2(-base_offset.x, row_offset.y)
+	]
+	for candidate_variant in attempts:
+		var candidate := _clamp_tabletop_position(candidate_variant)
+		if not _tabletop_output_overlaps_preserved_stack(candidate, preserved_ids, result_count):
+			return candidate
+	return _clamp_tabletop_position(anchor_position + base_offset)
+
+
+func _tabletop_output_overlaps_preserved_stack(candidate_position: Vector2, preserved_ids: Array[String], result_count: int) -> bool:
+	var card_size := _tabletop_card_size()
+	var produced_count := maxi(result_count, 1)
+	var output_rect := Rect2(candidate_position, card_size)
+	for index: int in range(1, produced_count):
+		output_rect = output_rect.merge(Rect2(_clamp_tabletop_position(candidate_position + Vector2(16.0 * float(index), 18.0 * float(index))), card_size))
+	for preserved_id in preserved_ids:
+		if output_rect.intersects(_tabletop_card_visual_rect(preserved_id)):
+			return true
+	return false
 
 
 func _register_tabletop_autocraft_facility(card_id: String, instance_id: String, recipe: Dictionary) -> void:
@@ -2681,12 +2904,12 @@ func _tabletop_instance_intersecting_rect(candidate_rect: Rect2, exclude_instanc
 
 func _tabletop_instance_ids_sorted() -> Array[String]:
 	_sync_tabletop_controller_from_facade()
-	var controller_ids: Array[String] = []
-	for instance_id_variant in Array(tabletop_controller.call("instance_ids_sorted")):
-		controller_ids.append(str(instance_id_variant))
-	_sync_tabletop_facade_from_controller()
-	return controller_ids
 	var ids: Array[String] = []
+	for instance_id_variant in Array(tabletop_controller.call("instance_ids_sorted")):
+		ids.append(str(instance_id_variant))
+	_sync_tabletop_facade_from_controller()
+	if not ids.is_empty():
+		return ids
 	for key_variant in tabletop_card_ids.keys():
 		ids.append(str(key_variant))
 	ids.sort_custom(func(left: String, right: String) -> bool:
@@ -2742,7 +2965,7 @@ func _refresh_tabletop_layer() -> void:
 		card_view.position = _vector2_from_variant(tabletop_card_positions.get(instance_id, Vector2(24 + index * 18, 26 + index * 10)))
 		card_view.z_index = 0
 		card_view.mouse_filter = Control.MOUSE_FILTER_STOP
-		card_view.drag_requested.connect(_handle_card_view_drag_request.bind(card_view))
+		card_view.drag_requested.connect(_handle_card_view_drag_request)
 		card_view.mouse_entered.connect(_on_tabletop_card_mouse_entered.bind(card_id))
 		if card_view.has_signal("primary_action_requested"):
 			card_view.primary_action_requested.connect(_on_card_primary_action)
@@ -2754,17 +2977,22 @@ func _refresh_tabletop_layer() -> void:
 				card_view.call("set_peek_only", true)
 	if not tabletop_layer.mouse_exited.is_connected(_on_tabletop_layer_mouse_exited):
 		tabletop_layer.mouse_exited.connect(_on_tabletop_layer_mouse_exited)
+	_push_tabletop_craft_progress_to_anchor()
 
 
-func _roll_daily_bulletin_prices(state: Dictionary) -> void:
+func _roll_daily_pack_prices(state: Dictionary) -> void:
 	bulletin_card_prices.clear()
 	for card_id: String in bulletin_cards:
 		if card_id.is_empty() or not bulletin_paid_mode_enabled(state):
 			bulletin_card_prices.append(0)
 			continue
-		var purchase_cost: Dictionary = PROTOTYPE_RULES.bulletin_purchase_cost_for_card(card_id, state, DataRepository.cards_by_id, DataRepository.recipes)
+		var purchase_cost: Dictionary = PROTOTYPE_RULES.daily_pack_purchase_cost_for_card(card_id, state, DataRepository.cards_by_id, DataRepository.recipes)
 		var typed_price := int(purchase_cost.get("amount", 0))
 		bulletin_card_prices.append(typed_price if typed_price > 0 else _bulletin_price_rng.randi_range(1, 10))
+
+
+func _roll_daily_bulletin_prices(state: Dictionary) -> void:
+	_roll_daily_pack_prices(state)
 
 
 func _board_land_state_for_index(index: int, cells: Array) -> String:
@@ -2799,7 +3027,7 @@ func format_phase_action_hint(phase: String, state: Dictionary = {}) -> String:
 			var count_text := "当前桌面需求 %d 个。" % pending_count if pending_count > 0 else "今日需求会在黄昏统一结算。"
 			return "%s 服务建筑容量为 2；无建筑时前两次可用小红花兜底。结算会更新民心。" % count_text
 		"dusk":
-			return "黄昏报告已生成。继续会进入夜间，并开启明日的需求、公告栏和桌面流转。"
+			return "黄昏报告已生成。继续会进入夜间，并开启明日的需求、每日卡包和桌面流转。"
 		"night":
 			return "夜间承接结算结果；继续后会进入下一天。"
 		_:
@@ -2881,6 +3109,7 @@ func format_problem_progress_summary(problem_state: Dictionary) -> String:
 
 func format_demand_resolution_guidance(need_entity: Dictionary, state: Dictionary = {}) -> String:
 	var source_state := state if not state.is_empty() else GameState.get_state()
+	var resident_id := str(need_entity.get("resident_id", ""))
 	var need_tags := Array(need_entity.get("need_tags", []))
 	var built_names := _matching_built_facility_names_for_need(need_tags, source_state)
 	if not built_names.is_empty():
@@ -2934,8 +3163,14 @@ func _need_entity_for_demand_card_id(card_id: String) -> Dictionary:
 func _build_demand_card_def(need_entity: Dictionary) -> Dictionary:
 	var resident_name := str(need_entity.get("resident_name", "居民"))
 	var need_tags := Array(need_entity.get("need_tags", []))
+	var resident_id := str(need_entity.get("resident_id", ""))
 	var service_capacity := int(need_entity.get("service_capacity", 2))
 	var guidance := format_demand_resolution_guidance(need_entity)
+	var portrait_key := ""
+	var resident_card_art_key := ""
+	if not resident_id.is_empty():
+		portrait_key = "portrait_%s" % resident_id
+		resident_card_art_key = "card_%s" % resident_id
 	return {
 		"card_id": "demand_%s" % str(need_entity.get("need_id", resident_name)),
 		"type": "demand",
@@ -2946,6 +3181,9 @@ func _build_demand_card_def(need_entity: Dictionary) -> Dictionary:
 		"service_capacity": service_capacity,
 		"resolution_guidance": guidance,
 		"resident_links": [resident_name],
+		"art_key": resident_card_art_key,
+		"portrait_key": portrait_key,
+		"icon_key": portrait_key,
 		"description": format_problem_progress_summary(need_entity)
 	}
 
@@ -3252,7 +3490,7 @@ func format_dusk_settlement_summary(lines: PackedStringArray, state: Dictionary 
 	])
 	report.append("需求结算：%s" % ("暂无需求结算记录。" if demand_lines.is_empty() else "；".join(Array(demand_lines))))
 	report.append("资源变化：%s" % ("暂无资源变化。" if resource_lines.is_empty() else "；".join(Array(resource_lines))))
-	report.append("下一步：系统会自动开启明日的需求、公告栏和桌面流转。")
+	report.append("下一步：系统会自动开启明日的需求、每日卡包和桌面流转。")
 	return "\n".join(report)
 
 
@@ -3283,6 +3521,8 @@ func _first_screen_region_rect(node_name: String) -> Rect2:
 			return FIRST_SCREEN_TOOLBAR_RECT
 		"SellDropZone":
 			return FIRST_SCREEN_SELL_RECT
+		"TodayActionPanel":
+			return FIRST_SCREEN_ACTION_RECT
 		_:
 			return Rect2()
 
@@ -3362,6 +3602,7 @@ func _build_fixed_stacklands_first_screen_ui() -> void:
 	_build_first_screen_playmat()
 	_build_first_screen_toolbar()
 	_build_first_screen_sell_zone()
+	_build_first_screen_today_actions()
 	_build_first_screen_drawers()
 
 	_build_debug_panel()
@@ -3379,6 +3620,14 @@ func _build_fixed_stacklands_first_screen_ui() -> void:
 	add_child(animation_layer)
 
 	_build_reference_layout_overlay()
+	var gameplay_clarity_build_marker := Label.new()
+	gameplay_clarity_build_marker.name = "GameplayClarityBuildMarker"
+	gameplay_clarity_build_marker.text = get_gameplay_clarity_build_label()
+	gameplay_clarity_build_marker.visible = true
+	gameplay_clarity_build_marker.position = Vector2(18, 688)
+	gameplay_clarity_build_marker.add_theme_font_size_override("font_size", 10)
+	gameplay_clarity_build_marker.add_theme_color_override("font_color", Color(0.36, 0.24, 0.12))
+	add_child(gameplay_clarity_build_marker)
 	_install_stacklands_region_markers()
 
 
@@ -3446,7 +3695,7 @@ func _build_first_screen_hud() -> void:
 	_build_card_pack_shop(top_pack_shop)
 
 	var bulletin_strip := Control.new()
-	bulletin_strip.name = "BulletinStrip"
+	bulletin_strip.name = "DailyPackStrip"
 	bulletin_strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bulletin_strip)
 	_set_first_screen_region_rect(bulletin_strip, Rect2(Vector2(260, 80), Vector2(978, 1)))
@@ -3552,6 +3801,7 @@ func _render_facility_recipe_section(list: Control) -> void:
 
 func _add_tasks_panel_label(list: Control, name: String, text: String, font_size: int, color: Color, wrap: bool = false) -> void:
 	var label := Label.new()
+	_card_pack_title_label = label
 	label.name = name
 	label.text = text
 	if wrap:
@@ -3698,6 +3948,53 @@ func _build_first_screen_sell_zone() -> void:
 	row.add_child(tabletop_card_count_label)
 
 
+func _build_first_screen_today_actions() -> void:
+	var action_panel := PanelContainer.new()
+	action_panel.name = "TodayActionPanel"
+	action_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.95, 0.93, 0.83), Color(0.56, 0.39, 0.20), 14, 2))
+	add_child(action_panel)
+	_set_first_screen_region_rect(action_panel, FIRST_SCREEN_ACTION_RECT)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 10)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_right", 10)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	action_panel.add_child(margin)
+
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 6)
+	margin.add_child(content)
+
+	var title := Label.new()
+	title.text = "今日动作"
+	title.add_theme_font_size_override("font_size", 13)
+	title.add_theme_color_override("font_color", UI_TEXT_COLOR)
+	content.add_child(title)
+
+	var action_row := HBoxContainer.new()
+	action_row.add_theme_constant_override("separation", 6)
+	content.add_child(action_row)
+
+	next_button = Button.new()
+	next_button.text = runtime_control_button_text()
+	next_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	next_button.custom_minimum_size = Vector2(0, 32)
+	next_button.pressed.connect(_toggle_settings_panel)
+	action_row.add_child(next_button)
+
+	var save_button := Button.new()
+	save_button.text = "保存"
+	save_button.pressed.connect(_manual_save)
+	action_row.add_child(save_button)
+
+	phase_action_hint_label = Label.new()
+	phase_action_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	phase_action_hint_label.add_theme_font_size_override("font_size", 11)
+	phase_action_hint_label.add_theme_color_override("font_color", UI_MUTED_TEXT_COLOR)
+	content.add_child(phase_action_hint_label)
+
+
 func _build_first_screen_drawers() -> void:
 	drawer_layer = PanelContainer.new()
 	drawer_layer.name = "TabletopDrawerLayer"
@@ -3728,7 +4025,6 @@ func _build_first_screen_drawers() -> void:
 	_build_drawer_residents()
 	_build_drawer_status()
 	_build_drawer_codex_handbook()
-	_build_drawer_end_day()
 	_build_drawer_board_record()
 	_set_tabletop_drawer_content_visibility("")
 
@@ -3788,11 +4084,15 @@ func _build_drawer_quick_options() -> void:
 	bulletin_panel = bulletin_parts["panel"]
 	bulletin_panel.add_theme_stylebox_override("panel", _cork_panel_style())
 	bulletin_panel.visible = false
+	content.add_child(bulletin_panel)
+	var bulletin_content: VBoxContainer = bulletin_parts["content"]
 	bulletin_status_label = Label.new()
 	bulletin_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	bulletin_content.add_child(bulletin_status_label)
 	bulletin_container = HFlowContainer.new()
 	bulletin_container.add_theme_constant_override("h_separation", 8)
 	bulletin_container.add_theme_constant_override("v_separation", 8)
+	bulletin_content.add_child(bulletin_container)
 
 
 func _build_drawer_residents() -> void:
@@ -3884,40 +4184,6 @@ func _build_drawer_codex_handbook() -> void:
 	recipe_codex_label.custom_minimum_size = Vector2(0, RECIPE_CODEX_MIN_HEIGHT)
 	recipe_codex_label.meta_clicked.connect(_on_recipe_codex_meta_clicked)
 	craft_content.add_child(recipe_codex_label)
-
-
-func _build_drawer_end_day() -> void:
-	var parts := _create_panel("End Day", Vector2(0, 160))
-	var action_panel: PanelContainer = parts["panel"]
-	action_panel.name = "end_day"
-	drawer_content_stack.add_child(action_panel)
-	var content: VBoxContainer = parts["content"]
-	var action_row := HBoxContainer.new()
-	action_row.add_theme_constant_override("separation", 6)
-	content.add_child(action_row)
-	var save_button := Button.new()
-	save_button.text = "Save"
-	save_button.pressed.connect(_manual_save)
-	action_row.add_child(save_button)
-	var load_button := Button.new()
-	load_button.text = "Load"
-	load_button.pressed.connect(_manual_load)
-	action_row.add_child(load_button)
-	next_button = Button.new()
-	next_button.text = "End Day"
-	next_button.custom_minimum_size = Vector2(0, 44)
-	next_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	next_button.pressed.connect(_on_advance_day)
-	content.add_child(next_button)
-	phase_action_hint_label = Label.new()
-	phase_action_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	content.add_child(phase_action_hint_label)
-	flower_unlock_button = Button.new()
-	flower_unlock_button.visible = false
-	flower_unlock_button.text = "Unlock"
-	flower_unlock_button.pressed.connect(_unlock_featured_flower_item)
-	content.add_child(flower_unlock_button)
-	_build_stack_area(content)
 
 
 func _build_drawer_board_record() -> void:
@@ -4521,7 +4787,7 @@ func _build_ui() -> void:
 	report_label.add_theme_color_override("default_color", UI_TEXT_COLOR)
 	report_panel_parts["content"].add_child(report_label)
 
-	var action_panel_parts := _create_panel("结束今日", Vector2(220, 98))
+	var action_panel_parts := _create_panel("今日动作", Vector2(220, 98))
 	var action_panel: PanelContainer = action_panel_parts["panel"]
 	action_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.95, 0.93, 0.83), Color(0.56, 0.39, 0.20), 14, 2))
 	bottom_bar.add_child(action_panel)
@@ -4540,7 +4806,7 @@ func _build_ui() -> void:
 	action_row.add_child(settings_button)
 
 	next_button = Button.new()
-	next_button.text = "结束今日"
+	next_button.text = runtime_control_button_text()
 	next_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	next_button.custom_minimum_size = Vector2(0, 48)
 	next_button.add_theme_font_size_override("font_size", 18)
@@ -4557,7 +4823,7 @@ func _build_ui() -> void:
 	next_button.add_theme_stylebox_override("hover", cta_hover)
 	next_button.add_theme_stylebox_override("pressed", cta_pressed)
 	next_button.add_theme_stylebox_override("focus", cta_hover)
-	next_button.pressed.connect(_on_advance_day)
+	next_button.pressed.connect(_toggle_settings_panel)
 	action_content.add_child(next_button)
 
 	phase_action_hint_label = Label.new()
@@ -4669,10 +4935,11 @@ func _build_tasks_panel_lines() -> PackedStringArray:
 
 
 func get_tutorial_guidance_state() -> Dictionary:
+	var guidance_mode := str(TutorialManager.get_guidance_mode())
 	var progress: Dictionary = GameState.get_tutorial_progress()
 	var objectives := get_tasks_panel_objectives()
 	var progress_lines: PackedStringArray = _tutorial_progress_lines(objectives)
-	if not bool(progress.get("welcome_seen", false)):
+	if guidance_mode in ["welcome", "replay", "complete"]:
 		return {"visible": false, "progress_lines": progress_lines}
 	if _opening_objectives_complete(objectives):
 		return {"visible": false, "progress_lines": progress_lines}
@@ -4843,11 +5110,11 @@ func _tutorial_step_copy(target: String) -> Dictionary:
 			}
 		"next_day":
 			return {
-				"title": "推进到下一天等需求出现",
-				"action": "点右侧或底部的下一天按钮，先把今天推进完。",
+				"title": "等倒计时结算后处理需求",
+				"action": "留意顶部倒计时；时间到会自动结算并刷新居民需求。",
 				"done_when": "桌面出现新的居民需求卡后，就算完成这一步。",
 				"reason": "未处理的需求会在结算时带来压力。",
-				"where": "下一天按钮和新出现的需求卡"
+				"where": "顶部倒计时和新出现的需求卡"
 			}
 		_:
 			return {}
@@ -5377,10 +5644,14 @@ func _is_truthy_env_flag(value: String) -> bool:
 
 
 func _maybe_capture_viewport_snapshot() -> void:
+	if _is_tearing_down:
+		return
 	var output_path := OS.get_environment("RFT_CAPTURE_VIEWPORT_PNG")
 	if output_path.is_empty():
 		return
 	await RenderingServer.frame_post_draw
+	if _is_tearing_down or not is_inside_tree():
+		return
 	var viewport_image := get_viewport().get_texture().get_image()
 	if viewport_image == null or viewport_image.is_empty():
 		return
@@ -5836,7 +6107,10 @@ func _manual_load() -> void:
 func _build_ui_save_state() -> Dictionary:
 	_sync_tabletop_controller_from_facade()
 	_sync_stack_controller_from_facade()
+	_normalize_card_metadata()
 	return {
+		"daily_pack_cards": bulletin_cards.duplicate(),
+		"daily_pack_card_prices": bulletin_card_prices.duplicate(),
 		"bulletin_cards": bulletin_cards.duplicate(),
 		"bulletin_card_prices": bulletin_card_prices.duplicate(),
 		"hand_cards": hand_cards.duplicate(),
@@ -5852,14 +6126,19 @@ func _build_ui_save_state() -> Dictionary:
 		"tabletop_next_z": _tabletop_next_z,
 		"tabletop_controller_state": tabletop_controller.call("get_state").duplicate(true),
 		"stack_action_controller_state": stack_action_controller.call("get_state").duplicate(true),
+		"current_daily_pack_offset": current_bulletin_offset,
 		"current_bulletin_offset": current_bulletin_offset,
 		"active_announcement": active_announcement.duplicate(true)
 	}
 
 
 func _apply_ui_save_state(ui_state: Dictionary) -> void:
-	bulletin_cards.assign(ui_state.get("bulletin_cards", []))
-	bulletin_card_prices.assign(ui_state.get("bulletin_card_prices", []))
+	var pack_cards: Array = ui_state.get("daily_pack_cards", ui_state.get("bulletin_cards", []))
+	var pack_prices: Array = ui_state.get("daily_pack_card_prices", ui_state.get("bulletin_card_prices", []))
+	_assign_string_array(bulletin_cards, pack_cards)
+	_assign_string_array(daily_pack_cards, pack_cards)
+	_assign_int_array(bulletin_card_prices, pack_prices)
+	_assign_int_array(daily_pack_card_prices, pack_prices)
 	hand_cards.assign(ui_state.get("hand_cards", []))
 	hand_card_sources.assign(ui_state.get("hand_card_sources", []))
 	hand_card_prices.assign(ui_state.get("hand_card_prices", []))
@@ -5887,7 +6166,7 @@ func _apply_ui_save_state(ui_state: Dictionary) -> void:
 		_tabletop_pending_craft.clear()
 		last_tabletop_craft_feedback.clear()
 		_sync_stack_controller_from_facade()
-	current_bulletin_offset = int(ui_state.get("current_bulletin_offset", current_bulletin_offset))
+	current_bulletin_offset = int(ui_state.get("current_daily_pack_offset", ui_state.get("current_bulletin_offset", current_bulletin_offset)))
 	active_announcement = ui_state.get("active_announcement", {}).duplicate(true)
 	_normalize_card_metadata()
 	_refresh_tabletop_layer()
@@ -5903,9 +6182,12 @@ func _open_day_minus_one_scene(start_cycle_on_finish: bool = false) -> void:
 
 
 func _on_day_minus_one_finished(start_cycle_on_finish: bool = false) -> void:
-	if day_minus_one_view != null:
-		day_minus_one_view.queue_free()
+	var finished_view := day_minus_one_view
 	day_minus_one_view = null
+	if finished_view != null and is_instance_valid(finished_view):
+		_defer_free_runtime_node(finished_view)
+	if _is_tearing_down:
+		return
 	if start_cycle_on_finish:
 		_start_new_day_cycle(true)
 		_append_report_line("新手引导开始，已进入正式第 1 天。")
@@ -5928,15 +6210,15 @@ func _start_new_day_cycle(is_initial_day: bool = false) -> void:
 	var state: Dictionary = GameState.get_state()
 	var unlocked_before: PackedInt32Array = _current_unlocked_cell_indices()
 	var unlocked_cards: Array[Dictionary] = DataRepository.get_cards_available_for_state(state)
-	var cards_per_day: int = int(DataRepository.day_sequence.get("bulletin_cards_per_day", 5))
-	bulletin_cards = PLAYABILITY_DIRECTOR.get_bulletin_cards_for_day(
+	var cards_per_day: int = int(DataRepository.day_sequence.get("daily_pack_cards_per_day", 5))
+	bulletin_cards = PLAYABILITY_DIRECTOR.get_daily_pack_cards_for_day(
 		state,
 		unlocked_cards,
 		current_bulletin_offset,
 		cards_per_day,
 		DataRepository.opening_playability_plan
 	)
-	_roll_daily_bulletin_prices(state)
+	_roll_daily_pack_prices(state)
 	_normalize_card_metadata()
 	current_bulletin_offset += cards_per_day
 
@@ -5948,7 +6230,8 @@ func _start_new_day_cycle(is_initial_day: bool = false) -> void:
 	_run_finished = false
 	state["day_rollover_pending"] = false
 	AudioManager.play_bgm(audio_bgm_id_for_phase("day"))
-	next_button.disabled = false
+	if next_button != null:
+		next_button.disabled = false
 
 	if not is_initial_day:
 		_append_report_line("第 %d 天开始。" % int(state.get("day_count", 1)))
@@ -5970,6 +6253,7 @@ func _on_card_drag_requested(card_id: String, zone: String, item_index: int, poi
 
 
 func _begin_drag(card_id: String, zone: String, item_index: int, pointer_offset: Vector2, card_view: Control = null) -> void:
+	reset_idle_timer()
 	_clear_transient_animations()
 	_cancel_drag()
 	_drag_finish_refresh_mode = "full"
@@ -6040,9 +6324,9 @@ func _refresh_active_board_drag_preview(card_def: Dictionary) -> void:
 		iso_grid_painter.call("start_drag_preview", card_def, get_pending_build_rotation())
 		if is_inside_tree() and iso_grid_painter.has_method("set_hover_screen_position"):
 			iso_grid_painter.call("set_hover_screen_position", _iso_board_local_position(get_global_mouse_position()))
-	if drag_preview != null:
+	if drag_preview != null and is_instance_valid(drag_preview):
 		var old_position := drag_preview.global_position
-		drag_preview.queue_free()
+		_free_runtime_node(drag_preview)
 		drag_preview = _make_board_drag_preview(card_def)
 		drag_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		drag_preview.modulate = Color(1, 1, 1, 0.92)
@@ -6144,6 +6428,7 @@ func _current_drag_card_def() -> Dictionary:
 
 
 func _finish_drag(drop_global_position: Vector2) -> void:
+	reset_idle_timer()
 	_drag_finish_refresh_mode = "full"
 	_drag_finish_board_index = -1
 	_drag_finish_refresh_recipe_codex = false
@@ -6754,7 +7039,7 @@ func _unlock_featured_flower_item() -> void:
 	var card_def: Dictionary = DataRepository.cards_by_id.get("clinic_desk_plan", {})
 	var result: Dictionary = PROTOTYPE_RULES.unlock_card_with_flowers(GameState.get_state(), card_def)
 	if bool(result.get("success", false)):
-		_append_report_line("小红花解锁：健康咨询台方案已加入后续公告栏。")
+		_append_report_line("小红花解锁：健康咨询台方案已加入后续卡包栏。")
 	else:
 		_append_report_line("小红花解锁失败：%s" % str(result.get("message", "")))
 	_update_all_ui()
@@ -6885,11 +7170,13 @@ func _animate_craft_failure_card(card_id: String, start_rect: Rect2, return_rect
 	tween.parallel().tween_property(ghost, "modulate", Color(1, 1, 1, 0), 0.22)
 	tween.finished.connect(func() -> void:
 		if is_instance_valid(ghost):
-			ghost.queue_free()
+			_defer_free_runtime_node(ghost)
 	)
 
 
 func _show_floating_error(text: String, duration: float = 1.6) -> void:
+	if _is_tearing_down or FLOATING_NOTIFIER_SCENE == null:
+		return
 	var message := text.strip_edges()
 	if message.is_empty():
 		message = "无法执行当前操作"
@@ -7350,18 +7637,16 @@ func _emit_resource_delta_floaters(state: Dictionary) -> void:
 
 
 func _spawn_resource_delta_notifier(icon_text: String, message_text: String, accent_color: Color, anchor_global_position: Vector2, delay: float = 0.0) -> void:
-	if FLOATING_NOTIFIER_SCENE == null:
+	if FLOATING_NOTIFIER_SCENE == null or _is_tearing_down or not is_inside_tree():
 		return
+	if delay > 0.0:
+		await get_tree().create_timer(delay).timeout
+		if _is_tearing_down or not is_inside_tree():
+			return
 	var notifier: Control = FLOATING_NOTIFIER_SCENE.instantiate()
 	var parent: Node = animation_layer if animation_layer != null else self
 	parent.add_child(notifier)
 	floating_notifiers.append(notifier)
-	if not is_inside_tree():
-		return
-	if delay > 0.0:
-		await get_tree().create_timer(delay).timeout
-		if not is_instance_valid(notifier):
-			return
 	if notifier.has_method("show_resource_delta"):
 		notifier.call("show_resource_delta", icon_text, message_text, accent_color, anchor_global_position)
 
@@ -7371,8 +7656,8 @@ func _cancel_drag() -> void:
 		drag_source_view.set_dimmed(false)
 	drag_source_view = null
 	clear_resident_need_drag_highlight()
-	if drag_preview != null:
-		drag_preview.queue_free()
+	if drag_preview != null and is_instance_valid(drag_preview):
+		_free_runtime_node(drag_preview)
 	drag_preview = null
 	if iso_grid_painter != null and iso_grid_painter.has_method("end_drag_preview"):
 		iso_grid_painter.call("end_drag_preview")
@@ -7383,42 +7668,6 @@ func _cancel_drag() -> void:
 	drag_pointer_offset = Vector2.ZERO
 	drag_tabletop_instance_id = ""
 	_update_board_highlights(-1)
-
-
-func _on_advance_day() -> void:
-	_cancel_drag()
-	if _run_finished:
-		return
-	_toggle_settings_panel()
-	return
-	var phase := str(GameState.get_state().get("phase", "day"))
-	if phase == "day":
-		AudioManager.play_bgm(audio_bgm_id_for_phase("dusk"))
-		PROTOTYPE_RULES.clear_bulletin(bulletin_cards)
-		bulletin_card_prices.clear()
-		_normalize_card_metadata()
-		var unlocked_before: PackedInt32Array = _current_unlocked_cell_indices()
-		current_day_summary = DayCycle.resolve_dusk()
-		if _dusk_summary_has_penalty(current_day_summary):
-			AudioManager.play_sfx(audio_sfx_id_for_action("dusk_penalty"))
-		_append_report_line(format_dusk_settlement_summary(current_day_summary, GameState.get_state()))
-		for line: String in current_day_summary:
-			_append_report_line("黄昏结算: %s" % line)
-		_show_new_unlocks(unlocked_before)
-		var autosave_result: Dictionary = SaveManager.autosave(_build_ui_save_state())
-		if bool(autosave_result.get("success", false)):
-			_append_report_line("黄昏自动存档完成。")
-		next_button.disabled = false
-		_update_all_ui()
-		return
-	AudioManager.play_bgm(audio_bgm_id_for_phase("night"))
-	var night_summary: Dictionary = DayCycle.resolve_night()
-	if night_summary.is_empty():
-		await _start_new_day_cycle()
-	else:
-		_append_report_line("民心归零，社区进入结算。")
-		next_button.disabled = true
-	_update_all_ui()
 
 
 func _on_card_primary_action(card_id: String, zone: String, index: int) -> void:
@@ -7936,9 +8185,9 @@ func _make_card_view(card_id: String, zone: String, index: int, extra_text: Stri
 				_card_name(str(quick_craft.get("partner_card_id", ""))),
 				_card_name(str(quick_craft.get("result_card_id", "")))
 			]
-	card_view.drag_requested.connect(_handle_card_view_drag_request.bind(card_view))
+	card_view.drag_requested.connect(_handle_card_view_drag_request)
 	if card_view.has_signal("problem_drop_requested"):
-		card_view.problem_drop_requested.connect(_handle_card_view_problem_drag_request.bind(card_view))
+		card_view.problem_drop_requested.connect(_handle_card_view_problem_drag_request)
 	card_view.primary_action_requested.connect(_on_card_primary_action)
 	return card_view
 
@@ -8239,8 +8488,8 @@ func _format_recipe_codex_line(entry: Dictionary) -> String:
 	if is_hidden and not is_discovered:
 		var hint := str(entry.get("discovery_hint", ""))
 		if hint.is_empty():
-			return "[color=#7a6952]??? -> ???[/color]"
-		return "[color=#7a6952]???  线索：%s[/color]" % hint
+			return "[color=#7a6952]未知配方 -> 未知结果[/color]"
+		return "[color=#7a6952]未知配方  线索：%s[/color]" % hint
 	var recipe := _recipe_by_id(recipe_id)
 	var ingredients := _recipe_ingredients_text(recipe)
 	var result_name := str(entry.get("result_name", entry.get("result_card_id", "")))
@@ -8702,7 +8951,7 @@ func _ai_failure_reason_label(reason: String) -> String:
 
 
 func _motion_enabled() -> bool:
-	return is_inside_tree() and animation_layer != null and not bool(SettingsManager.get_value("reduce_motion"))
+	return is_inside_tree() and animation_layer != null and not _is_tearing_down and not bool(SettingsManager.get_value("reduce_motion"))
 
 
 func _animation_layer_child_count() -> int:
@@ -8715,11 +8964,33 @@ func _clear_transient_animations() -> void:
 	if animation_layer == null:
 		return
 	for child: Node in animation_layer.get_children():
-		animation_layer.remove_child(child)
-		child.queue_free()
+		_free_runtime_node(child)
 	tutorial_pointer = null
 	tutorial_pointer_target = ""
 	unlock_banner = null
+
+
+func _clear_floating_notifiers() -> void:
+	for notifier: Control in floating_notifiers:
+		if notifier != null and is_instance_valid(notifier):
+			_free_runtime_node(notifier)
+	floating_notifiers.clear()
+
+
+func _clear_smoke_teardown_ui_roots() -> void:
+	var teardown_nodes: Array[Node] = []
+	if _card_pack_title_label != null and is_instance_valid(_card_pack_title_label):
+		teardown_nodes.append(_card_pack_title_label)
+	if _card_pack_status_label != null and is_instance_valid(_card_pack_status_label):
+		teardown_nodes.append(_card_pack_status_label)
+	for node_name in ["TopPackShop", "TasksPanel"]:
+		var node := get_node_or_null(NodePath(node_name))
+		if node != null and is_instance_valid(node):
+			teardown_nodes.append(node)
+	for teardown_node: Node in teardown_nodes:
+		_free_runtime_node(teardown_node)
+	_card_pack_title_label = null
+	_card_pack_status_label = null
 
 
 func _control_rect(control: Control) -> Rect2:
@@ -8876,7 +9147,7 @@ func _tabletop_funds_rect() -> Rect2:
 
 
 func _refresh_tutorial_pointer() -> void:
-	if not is_inside_tree():
+	if _is_tearing_down or not is_inside_tree():
 		return
 	var coachmark := get_active_tutorial_coachmark()
 	_animate_tutorial_pointer(str(coachmark.get("target", "")), coachmark)
@@ -8901,7 +9172,7 @@ func _animate_card_fly(card_id: String, start_rect: Rect2, end_rect: Rect2, labe
 	tween.parallel().tween_property(ghost, "modulate", Color(1, 1, 1, 0.0), 0.22)
 	tween.finished.connect(func() -> void:
 		if is_instance_valid(ghost):
-			ghost.queue_free()
+			_defer_free_runtime_node(ghost)
 	)
 
 
@@ -8924,7 +9195,7 @@ func _animate_card_pop(card_id: String, target_rect: Rect2) -> void:
 	tween.tween_property(ghost, "modulate", Color(1, 1, 1, 0.0), 0.08)
 	tween.finished.connect(func() -> void:
 		if is_instance_valid(ghost):
-			ghost.queue_free()
+			_defer_free_runtime_node(ghost)
 	)
 
 
@@ -8948,10 +9219,10 @@ func _animate_craft_success(result_card_id: String, source_rect: Rect2, first_sl
 
 
 func _show_unlock_banner(cell_indices: Array) -> void:
-	if not _motion_enabled() or cell_indices.is_empty():
+	if _is_tearing_down or not _motion_enabled() or cell_indices.is_empty():
 		return
 	if unlock_banner != null and is_instance_valid(unlock_banner):
-		unlock_banner.queue_free()
+		_free_runtime_node(unlock_banner)
 	var banner := PanelContainer.new()
 	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	banner.add_theme_stylebox_override("panel", _panel_style(Color(0.98, 0.92, 0.70, 0.96), Color(0.78, 0.56, 0.18), 8, 2))
@@ -8975,7 +9246,7 @@ func _show_unlock_banner(cell_indices: Array) -> void:
 	tween.tween_property(banner, "modulate", Color(1, 1, 1, 0.0), 0.16)
 	tween.finished.connect(func() -> void:
 		if is_instance_valid(banner):
-			banner.queue_free()
+			_defer_free_runtime_node(banner)
 	)
 	for cell_index in cell_indices:
 		var index := int(cell_index)
@@ -8985,12 +9256,10 @@ func _show_unlock_banner(cell_indices: Array) -> void:
 
 func _animate_tutorial_pointer(target_name: String, coachmark: Dictionary = {}) -> void:
 	if tutorial_pointer != null and is_instance_valid(tutorial_pointer):
-		if tutorial_pointer.get_parent() != null:
-			tutorial_pointer.get_parent().remove_child(tutorial_pointer)
-		tutorial_pointer.queue_free()
+		_free_runtime_node(tutorial_pointer)
 	tutorial_pointer = null
 	tutorial_pointer_target = ""
-	if target_name.is_empty() or not _motion_enabled():
+	if _is_tearing_down or target_name.is_empty() or not _motion_enabled():
 		return
 	var target_rect := _tutorial_target_rect(target_name)
 	if target_rect.size == Vector2.ZERO:
@@ -9074,6 +9343,24 @@ func _tutorial_bubble_position(target_rect: Rect2, bubble_size: Vector2) -> Vect
 		bubble_position.x = viewport_rect.size.x - bubble_size.x - 12
 	bubble_position.x = maxf(12.0, bubble_position.x)
 	bubble_position.y = maxf(12.0, bubble_position.y)
+	if not _tabletop_pending_craft.is_empty():
+		var stack_rect := Rect2()
+		var has_stack_rect := false
+		var tabletop_origin := Vector2.ZERO
+		if tabletop_layer != null:
+			tabletop_origin = tabletop_layer.get_global_rect().position
+		for timed_id_variant in Array(_tabletop_pending_craft.get("instance_ids", [])):
+			var local_rect: Rect2 = _tabletop_card_visual_rect(str(timed_id_variant))
+			if local_rect.size == Vector2.ZERO:
+				continue
+			var global_rect := Rect2(tabletop_origin + local_rect.position, local_rect.size)
+			stack_rect = global_rect if not has_stack_rect else stack_rect.merge(global_rect)
+			has_stack_rect = true
+		if has_stack_rect:
+			var hot_zone := stack_rect.grow(18.0)
+			var bubble_rect := Rect2(bubble_position, bubble_size)
+			if bubble_rect.intersects(hot_zone):
+				bubble_position = Vector2(viewport_rect.size.x - bubble_size.x - 12.0, 12.0)
 	return bubble_position
 
 
@@ -9374,5 +9661,20 @@ func _append_report_line(line: String) -> void:
 
 func _clear_children(node: Node) -> void:
 	for child: Node in node.get_children():
-		node.remove_child(child)
-		child.queue_free()
+		_free_runtime_node(child)
+
+
+func _free_runtime_node(node: Node) -> void:
+	if node == null or not is_instance_valid(node):
+		return
+	if node.has_method("cleanup_for_smoke_test"):
+		node.call("cleanup_for_smoke_test")
+	_defer_free_runtime_node(node)
+
+
+func _defer_free_runtime_node(node: Node) -> void:
+	if node == null or not is_instance_valid(node):
+		return
+	if node.get_parent() != null:
+		node.get_parent().remove_child(node)
+	node.call_deferred("free")

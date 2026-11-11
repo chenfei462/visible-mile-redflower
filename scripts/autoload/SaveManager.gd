@@ -241,10 +241,20 @@ func _normalize_ui_state(ui_state_variant: Variant) -> Dictionary:
 	if typeof(ui_state_variant) != TYPE_DICTIONARY:
 		return {}
 	var ui_state: Dictionary = (ui_state_variant as Dictionary).duplicate(true)
-	for key: String in ["bulletin_cards", "hand_cards", "craft_slots", "selected_recipe_ids", "hand_card_sources", "craft_slot_sources"]:
+	if not ui_state.has("daily_pack_cards"):
+		ui_state["daily_pack_cards"] = ui_state.get("bulletin_cards", [])
+	if not ui_state.has("daily_pack_card_prices"):
+		ui_state["daily_pack_card_prices"] = ui_state.get("bulletin_card_prices", [])
+	if not ui_state.has("current_daily_pack_offset"):
+		ui_state["current_daily_pack_offset"] = ui_state.get("current_bulletin_offset", 0)
+	ui_state.erase("bulletin_cards")
+	ui_state.erase("bulletin_card_prices")
+	ui_state.erase("current_bulletin_offset")
+	for key: String in ["daily_pack_cards", "hand_cards", "craft_slots", "selected_recipe_ids", "hand_card_sources", "craft_slot_sources"]:
 		ui_state[key] = _string_array(ui_state.get(key, []))
-	for key: String in ["bulletin_card_prices", "hand_card_prices", "craft_slot_prices"]:
+	for key: String in ["daily_pack_card_prices", "hand_card_prices", "craft_slot_prices"]:
 		ui_state[key] = _int_array(ui_state.get(key, []))
+	ui_state["current_daily_pack_offset"] = int(ui_state.get("current_daily_pack_offset", 0))
 	ui_state["tabletop_card_ids"] = _string_dictionary(ui_state.get("tabletop_card_ids", {}))
 	ui_state["tabletop_card_positions"] = _vector2_json_dictionary(ui_state.get("tabletop_card_positions", {}))
 	ui_state["tabletop_card_z"] = _int_dictionary(ui_state.get("tabletop_card_z", {}))

@@ -3,13 +3,14 @@ extends SceneTree
 const PROTOTYPE_RULES := preload("res://scripts/core/PrototypeRules.gd")
 const BOARD_RULES := preload("res://scripts/core/BoardRules.gd")
 const RESIDENT_SYSTEM := preload("res://scripts/core/ResidentSystem.gd")
+const SMOKE_CLEANUP_HELPERS := preload("res://tests/helpers/smoke_cleanup_helpers.gd")
 
 var failures: PackedStringArray = []
-var bulletin_cards: Array[String] = []
+var daily_pack_cards: Array[String] = []
 var hand_cards: Array[String] = []
 var craft_slots: Array[String] = []
 var selected_recipe_ids: PackedStringArray = []
-var current_bulletin_offset := 0
+var current_daily_pack_offset := 0
 var data_repository: Node
 var game_state: Node
 var event_manager: Node
@@ -21,6 +22,7 @@ var ai_director: Node
 var day_cycle: Node
 var save_manager: Node
 var resource_manager: Node
+var smoke_cleanup_helpers = SMOKE_CLEANUP_HELPERS.new()
 
 
 func _initialize() -> void:
@@ -91,7 +93,7 @@ func _run_day_one_core_loop() -> void:
 	_assert_true(bool(first_pack.get("success", false)), "day 1 full smoke should buy the starter pack onto the tabletop")
 	_assert_equal(int(state.get("card_pack_open_count", 0)), 1, "day 1 full smoke should count the first pack purchase")
 	var tabletop_ids: Dictionary = main_view.call("get_tabletop_card_ids")
-	for guaranteed_id in ["neighbor_helper", "scrap_wood_pile", "lumber_pack", "community_funds"]:
+	for guaranteed_id in ["neighbor_helper", "scrap_wood_pile"]:
 		_assert_true(tabletop_ids.values().has(guaranteed_id), "day 1 full smoke should reveal %s from the starter pack" % guaranteed_id)
 	var resident_instance_id := _tabletop_instance_id_for_card(tabletop_ids, "neighbor_helper")
 	var resource_instance_id := _tabletop_instance_id_for_card(tabletop_ids, "scrap_wood_pile")
@@ -111,9 +113,9 @@ func _run_day_one_core_loop() -> void:
 	var second_pack: Dictionary = main_view.call("purchase_card_pack_to_tabletop", "starter_pack")
 	_assert_true(bool(second_pack.get("success", false)), "day 1 full smoke should buy a second pack after collecting funds")
 	_assert_equal(int(state.get("card_pack_open_count", 0)), 2, "day 1 full smoke should count the second pack purchase")
-	bulletin_cards = ["ramp_blueprint", "lumber_pack", "volunteer_poster", "", ""]
+	daily_pack_cards = ["ramp_blueprint", "lumber_pack", "volunteer_poster", "", ""]
 	hand_cards.append_array(["ramp_blueprint", "lumber_pack", "volunteer_poster"])
-	bulletin_cards = ["", "", "", "", ""]
+	daily_pack_cards = ["", "", "", "", ""]
 
 	_assert_true(PROTOTYPE_RULES.move_hand_card_to_craft(hand_cards, craft_slots, hand_cards.find("ramp_blueprint"), data_repository.recipes, int(state.get("trust", 0))).get("success", false), "day 1 should move building permit to craft")
 	var craft_result: Dictionary = PROTOTYPE_RULES.move_hand_card_to_craft(hand_cards, craft_slots, hand_cards.find("lumber_pack"), data_repository.recipes, int(state.get("trust", 0)))
@@ -143,7 +145,7 @@ func _run_remaining_days() -> void:
 			failures.append("full smoke exceeded expected day loop guard")
 			return
 		var state: Dictionary = game_state.get_state()
-		bulletin_cards.clear()
+		daily_pack_cards.clear()
 		day_cycle.resolve_sunrise()
 		var expected_need_count: int = mini(resident_count, int(state.get("day_count", 1)) + 1)
 		_assert_equal(Array(state.get("resident_need_entities", [])).size(), expected_need_count, "sunrise should spawn the opening demand ramp before reaching one need per resident")
@@ -200,8 +202,12 @@ func _verify_demand_rules_isolated() -> void:
 	RESIDENT_SYSTEM.spawn_daily_need_entities(capped_state)
 	var capped_result: Dictionary = RESIDENT_SYSTEM.settle_daily_need_entities(capped_state, cards_by_id)
 	_assert_equal(int(capped_result.get("fulfilled_count", -1)), 2, "smoke: matching facility should satisfy exactly two needs")
+	_assert_equal(int(capped_result.get("auto_fulfilled_count", -1)), 2, "smoke: day 3 auto coverage should still satisfy the matched residents")
+	_assert_equal(str(capped_result.get("auto_service_reward_mode", "")), "moral_only", "smoke: day 3 auto coverage should downgrade to the weaker reward tier")
 	_assert_equal(int(capped_result.get("fallback_count", -1)), 0, "smoke: capacity overflow must not allow flower fallback")
 	_assert_equal(int(capped_result.get("unmet_count", -1)), 1, "smoke: third need overflowing capacity must stay unmet")
+	_assert_equal(int(capped_state.get("flowers", -1)), 10, "smoke: day 3 auto coverage should not pay the active-service flower reward")
+	_assert_equal(int(capped_state.get("funds", -1)), 0, "smoke: day 3 auto coverage should not pay the active-service fund reward")
 
 	var no_building_state := {
 		"day_count": 3,
@@ -218,6 +224,31 @@ func _verify_demand_rules_isolated() -> void:
 	_assert_equal(int(no_building_result.get("fallback_count", -1)), 2, "smoke: no-building day allows at most two flower fallbacks")
 	_assert_equal(int(no_building_result.get("flowers_spent", -1)), 3, "smoke: flower fallback should cost 1 + 2 flowers per day")
 	_assert_equal(int(no_building_result.get("unmet_count", -1)), 1, "smoke: third need without facility stays unmet, fallback is not reused")
+
+	var manual_state := {
+		"day_count": 3,
+		"moral": 10,
+		"moral_max": 20,
+		"flowers": 0,
+		"funds": 0,
+		"resident_states": [
+			{"resident_id": "runner_a", "name": "阿强", "need_tags": ["care"]},
+			{"resident_id": "runner_b", "name": "小林", "need_tags": ["care"]}
+		],
+		"built_facilities": [{"card_id": "care_station"}],
+		"resident_need_entities": []
+	}
+	var manual_entities: Array = RESIDENT_SYSTEM.spawn_daily_need_entities(manual_state)
+	var resident_system = RESIDENT_SYSTEM.new()
+	for entity_variant in manual_entities:
+		var entity: Dictionary = entity_variant
+		var resolve_result: Dictionary = resident_system.call("resolve_need_with_service_building", manual_state, str(entity.get("need_id", "")), "care_station", cards_by_id)
+		_assert_true(bool(resolve_result.get("success", false)), "smoke: manual service path should resolve each matching resident need")
+	var manual_result: Dictionary = RESIDENT_SYSTEM.settle_daily_need_entities(manual_state, cards_by_id)
+	_assert_equal(int(manual_result.get("manual_fulfilled_count", -1)), 2, "smoke: manual service should remain visible in the dusk breakdown")
+	_assert_equal(int(manual_result.get("auto_fulfilled_count", -1)), 0, "smoke: manual service should leave no remaining need for auto coverage")
+	_assert_equal(int(manual_state.get("flowers", -1)), 4, "smoke: manual service should pay the stronger flower reward on day 3")
+	_assert_equal(int(manual_state.get("funds", -1)), 4, "smoke: manual service should pay the stronger fund reward on day 3")
 
 
 func _verify_end_state() -> void:
@@ -251,20 +282,20 @@ func _make_resident_states() -> Array[Dictionary]:
 
 func _ui_state() -> Dictionary:
 	return {
-		"bulletin_cards": bulletin_cards.duplicate(),
+		"daily_pack_cards": daily_pack_cards.duplicate(),
 		"hand_cards": hand_cards.duplicate(),
 		"craft_slots": craft_slots.duplicate(),
 		"selected_recipe_ids": Array(selected_recipe_ids),
-		"current_bulletin_offset": current_bulletin_offset
+		"current_daily_pack_offset": current_daily_pack_offset
 	}
 
 
 func _apply_ui_state(ui_state: Dictionary) -> void:
-	bulletin_cards.assign(ui_state.get("bulletin_cards", []))
+	daily_pack_cards.assign(ui_state.get("daily_pack_cards", ui_state.get("bulletin_cards", [])))
 	hand_cards.assign(ui_state.get("hand_cards", []))
 	craft_slots.assign(ui_state.get("craft_slots", []))
 	selected_recipe_ids = PackedStringArray(ui_state.get("selected_recipe_ids", []))
-	current_bulletin_offset = int(ui_state.get("current_bulletin_offset", current_bulletin_offset))
+	current_daily_pack_offset = int(ui_state.get("current_daily_pack_offset", ui_state.get("current_bulletin_offset", current_daily_pack_offset)))
 
 
 func _prepare_shape_cells_for_card(state: Dictionary, card_id: String, board_index: int, rotation: int = 0) -> void:
@@ -296,11 +327,7 @@ func _tabletop_instance_id_for_card(card_ids: Dictionary, card_id: String) -> St
 func _dispose_main_view(main_view: Control) -> void:
 	if main_view == null or not is_instance_valid(main_view):
 		return
-	if main_view.has_method("cleanup_for_smoke_test"):
-		main_view.call("cleanup_for_smoke_test")
-		await process_frame
-	main_view.free()
-	await process_frame
+	await smoke_cleanup_helpers.dispose_main_view(self, main_view)
 
 
 func _assert_true(condition: bool, message: String) -> void:

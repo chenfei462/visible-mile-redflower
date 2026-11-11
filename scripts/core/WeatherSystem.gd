@@ -17,9 +17,9 @@ static func display_label(weather_id: String) -> String:
 
 
 static func roll_weather_for_day(state: Dictionary, day_count: int) -> String:
-	var seed := int(state.get("weather_seed", day_count * 73 + 17))
+	var seed_value := int(state.get("weather_seed", day_count * 73 + 17))
 	var rng := RandomNumberGenerator.new()
-	rng.seed = seed + day_count
+	rng.seed = seed_value + day_count
 	var override := _scripted_weather_for_day(day_count)
 	if not override.is_empty():
 		return override

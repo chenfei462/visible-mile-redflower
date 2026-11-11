@@ -97,71 +97,11 @@ func _resolve_sunrise_events_async() -> PackedStringArray:
 func assign_manpower_to_problem(problem_index: int, amount: int = 1) -> Dictionary:
 	_clear_legacy_event_state()
 	return {"success": false, "message": "legacy_events_disabled"}
-	var state: Dictionary = GameState.get_state()
-	var active_problems: Array = state.get("active_problems", [])
-	if problem_index < 0 or problem_index >= active_problems.size():
-		return {"success": false, "message": "invalid_problem_index"}
-	if int(state.get("current_problem_tokens", 0)) < amount:
-		return {"success": false, "message": "not_enough_problem_tokens"}
-
-	var problem_state: Dictionary = active_problems[problem_index]
-	if str(problem_state.get("status", "active")) != "active":
-		return {"success": false, "message": "problem_not_active"}
-
-	state["current_problem_tokens"] = int(state.get("current_problem_tokens", 0)) - amount
-	state["manpower"] = maxi(int(state.get("manpower", 0)) - amount, 0)
-	problem_state["assigned_manpower"] = int(problem_state.get("assigned_manpower", 0)) + amount
-	active_problems[problem_index] = problem_state
-
-	if int(problem_state.get("assigned_manpower", 0)) >= int(problem_state.get("required_manpower", 0)):
-		return _resolve_problem(problem_index)
-	return {
-		"success": true,
-		"resolved": false,
-		"message": "problem_progressed",
-		"assigned_manpower": int(problem_state.get("assigned_manpower", 0)),
-		"required_manpower": int(problem_state.get("required_manpower", 0))
-	}
 
 
 func apply_support_to_problem(problem_index: int, support_card_id: String, cards_by_id: Dictionary) -> Dictionary:
 	_clear_legacy_event_state()
 	return {"success": false, "message": "legacy_events_disabled"}
-	var state: Dictionary = GameState.get_state()
-	var active_problems: Array = state.get("active_problems", [])
-	if problem_index < 0 or problem_index >= active_problems.size():
-		return {"success": false, "message": "invalid_problem_index"}
-	if support_card_id.is_empty() or not cards_by_id.has(support_card_id):
-		return {"success": false, "message": "invalid_support_card"}
-	var support_card: Dictionary = cards_by_id.get(support_card_id, {})
-	var support_counter_tags: Array = _support_counter_tags(support_card)
-	var problem_state: Dictionary = active_problems[problem_index]
-	var problem_counter_tags: Array = _problem_counter_tags_for_state(problem_state)
-	var matched := false
-	for tag_variant in support_counter_tags:
-		if problem_counter_tags.has(str(tag_variant)):
-			matched = true
-			break
-	if not matched:
-		return {"success": false, "message": "support_tag_mismatch"}
-	var inventory := BOARD_RULES.ensure_inventory(state)
-	var consumed := BOARD_RULES.consume_inventory_item(inventory, "consumables", support_card_id, 1)
-	if not bool(consumed.get("success", false)):
-		return {"success": false, "message": "support_not_available"}
-	problem_state["assigned_manpower"] = int(problem_state.get("assigned_manpower", 0)) + maxi(int(support_card.get("problem_manpower_reduction", 1)), 1)
-	var used_support_ids: Array = problem_state.get("used_support_ids", [])
-	used_support_ids.append(support_card_id)
-	problem_state["used_support_ids"] = used_support_ids
-	active_problems[problem_index] = problem_state
-	if int(problem_state.get("assigned_manpower", 0)) >= int(problem_state.get("required_manpower", 0)):
-		return _resolve_problem(problem_index)
-	return {
-		"success": true,
-		"resolved": false,
-		"message": "support_applied",
-		"assigned_manpower": int(problem_state.get("assigned_manpower", 0)),
-		"required_manpower": int(problem_state.get("required_manpower", 0))
-	}
 
 
 func _materialize_event_sync(state: Dictionary, event_def: Dictionary) -> Dictionary:

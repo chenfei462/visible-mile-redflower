@@ -1,96 +1,328 @@
 {
-  "days": [
-    {
-      "day": 1,
-      "bulletin_card_ids": [
-        "ramp_blueprint",
-        "lumber_pack",
-        "volunteer_poster",
-        "phone_tree",
-        "paint_bucket"
-      ],
-      "recommended_goal_ids": [
-        "craft",
-        "build",
-        "wish_safe_ramp"
-      ],
-      "recommended_recipe_ids": [
-        "build_ramp",
-        "open_volunteer_station"
-      ],
-      "recommended_wish_ids": [
-        "wish_safe_ramp",
-        "wish_easy_shopping"
-      ],
-      "pressure_event_ids": [],
-      "fallback_card_ids": [
-        "market_stall_plan",
-        "fresh_goods_box",
-        "bench_plan",
-        "welcome_table_plan",
-        "folding_table_kit"
-      ]
-    },
-    {
-      "day": 2,
-      "bulletin_card_ids": [
-        "bench_plan",
-        "paint_bucket",
-        "notice_design",
-        "printer_ink",
-        "lumber_pack"
-      ],
-      "recommended_goal_ids": [
-        "craft",
-        "build",
-        "problem"
-      ],
-      "recommended_recipe_ids": [
-        "build_bench",
-        "build_clear_notice_board"
-      ],
-      "recommended_wish_ids": [
-        "wish_rest_space",
-        "wish_better_notice"
-      ],
-      "pressure_event_ids": [
-      ],
-      "fallback_card_ids": [
-        "ramp_blueprint",
-        "volunteer_poster",
-        "phone_tree"
-      ]
-    },
-    {
-      "day": 3,
-      "bulletin_card_ids": [
-        "shade_sail_plan",
-        "fabric_roll",
-        "safety_map_blueprint",
-        "sticker_pack",
-        "volunteer_poster"
-      ],
-      "recommended_goal_ids": [
-        "craft",
-        "build",
-        "problem"
-      ],
-      "recommended_recipe_ids": [
-        "build_shade_canopy",
-        "build_wayfinding_kiosk"
-      ],
-      "recommended_wish_ids": [
-        "wish_safe_ramp_2",
-        "wish_better_notice_2"
-      ],
-      "pressure_event_ids": [
-        "event_day3_first_notice_check"
-      ],
-      "fallback_card_ids": [
-        "phone_tree",
-        "notice_design",
-        "printer_ink"
-      ]
-    }
-  ]
+    "days":  [
+                 {
+                     "day":  1,
+                     "daily_pack_card_ids":  [
+                                                 "ramp_blueprint",
+                                                 "lumber_pack",
+                                                 "volunteer_poster",
+                                                 "phone_tree",
+                                                 "paint_bucket"
+                                             ],
+                     "recommended_goal_ids":  [
+                                                  "craft",
+                                                  "build",
+                                                  "wish_safe_ramp"
+                                              ],
+                     "recommended_recipe_ids":  [
+                                                    "build_ramp",
+                                                    "open_volunteer_station"
+                                                ],
+                     "fallback_card_ids":  [
+                                               "market_stall_plan",
+                                               "fresh_goods_box",
+                                               "bench_plan",
+                                               "welcome_table_plan",
+                                               "folding_table_kit"
+                                           ]
+                 },
+                 {
+                     "day":  2,
+                     "daily_pack_card_ids":  [
+                                                 "bench_plan",
+                                                 "paint_bucket",
+                                                 "notice_design",
+                                                 "printer_ink",
+                                                 "lumber_pack"
+                                             ],
+                     "recommended_goal_ids":  [
+                                                  "craft",
+                                                  "build",
+                                                  "moral"
+                                              ],
+                     "recommended_recipe_ids":  [
+                                                    "build_bench",
+                                                    "build_clear_notice_board"
+                                                ],
+                     "recommended_resident_names":  [
+                                                        "王奶奶",
+                                                        "陈叔"
+                                                    ],
+                     "fallback_card_ids":  [
+                                               "ramp_blueprint",
+                                               "volunteer_poster",
+                                               "phone_tree"
+                                           ]
+                 },
+                 {
+                     "day":  3,
+                     "daily_pack_card_ids":  [
+                                                 "shade_sail_plan",
+                                                 "fabric_roll",
+                                                 "safety_map_blueprint",
+                                                 "sticker_pack",
+                                                 "volunteer_poster"
+                                             ],
+                     "recommended_goal_ids":  [
+                                                  "craft",
+                                                  "build",
+                                                  "moral"
+                                              ],
+                     "recommended_recipe_ids":  [
+                                                    "build_shade_canopy",
+                                                    "build_wayfinding_kiosk"
+                                                ],
+                     "recommended_resident_names":  [
+                                                        "阿强",
+                                                        "小林"
+                                                    ],
+                     "fallback_card_ids":  [
+                                               "phone_tree",
+                                               "notice_design",
+                                               "printer_ink"
+                                           ]
+                 },
+                 {
+                     "day":  4,
+                     "daily_pack_card_ids":  [
+                                                 "market_stall_plan",
+                                                 "fresh_goods_box",
+                                                 "welcome_table_plan",
+                                                 "folding_table_kit",
+                                                 "garden_plan"
+                                             ],
+                     "recommended_goal_ids":  [
+                                                  "craft",
+                                                  "build",
+                                                  "synergy"
+                     ],
+                     "recommended_recipe_ids":  [
+                                                    "open_market_stall",
+                                                    "build_welcome_table"
+                                                ],
+                     "recommended_resident_names":  [
+                                                        "张阿姨",
+                                                        "刘医生"
+                                                    ],
+                     "fallback_card_ids":  [
+                                               "seed_pack",
+                                               "lumber_pack",
+                                               "paint_bucket",
+                                               "phone_tree",
+                                               "fabric_roll"
+                                           ]
+                 },
+                 {
+                     "day":  5,
+                     "daily_pack_card_ids":  [
+                                                 "shade_sail_plan",
+                                                 "fabric_roll",
+                                                 "notice_design",
+                                                 "printer_ink",
+                                                 "bench_plan"
+                                             ],
+                     "recommended_goal_ids":  [
+                                                  "craft",
+                                                  "build",
+                                                  "synergy"
+                     ],
+                     "recommended_recipe_ids":  [
+                                                    "build_shade_canopy",
+                                                    "build_clear_notice_board"
+                                                ],
+                     "recommended_resident_names":  [
+                                                        "李师傅",
+                                                        "孙同学"
+                                                    ],
+                     "fallback_card_ids":  [
+                                                 "garden_plan",
+                                                 "seed_pack",
+                                                 "fresh_goods_box",
+                                                 "sticker_pack",
+                                               "volunteer_poster"
+                                           ]
+                 },
+                 {
+                     "day":  6,
+                     "daily_pack_card_ids":  [
+                                                 "repair_booth_plan",
+                                                 "tool_cart",
+                                                 "care_station_permit",
+                                                 "care_kit_pack",
+                                                 "bike_parking_plan"
+                                             ],
+                     "recommended_goal_ids":  [
+                                                  "craft",
+                                                  "build",
+                                                  "service"
+                                              ],
+                     "recommended_recipe_ids":  [
+                                                    "build_repair_booth",
+                                                    "build_care_station"
+                                                ],
+                     "recommended_resident_names":  [
+                                                        "李师傅",
+                                                        "王奶奶"
+                                                    ],
+                     "fallback_card_ids":  [
+                                               "chain_lock_pack",
+                                               "steel_pipe_bundle",
+                                               "seedling_tray",
+                                               "print_banner",
+                                               "care_kit_pack"
+                                           ]
+                 },
+                 {
+                     "day":  7,
+                     "daily_pack_card_ids":  [
+                                                 "story_wall_plan",
+                                                 "print_banner",
+                                                 "chain_lock_pack",
+                                                 "bike_parking_plan",
+                                                 "care_kit_pack"
+                                             ],
+                     "recommended_goal_ids":  [
+                                                  "craft",
+                                                  "build",
+                                                  "culture"
+                                              ],
+                     "recommended_recipe_ids":  [
+                                                    "build_story_wall",
+                                                    "build_bike_parking"
+                                                ],
+                     "recommended_resident_names":  [
+                                                        "孙同学",
+                                                        "陈叔"
+                                                    ],
+                     "fallback_card_ids":  [
+                                               "tool_cart",
+                                               "repair_booth_plan",
+                                               "fabric_roll",
+                                               "notice_design",
+                                               "printer_ink"
+                                           ]
+                 },
+                 {
+                     "day":  8,
+                     "daily_pack_card_ids":  [
+                                                 "repair_booth_plan",
+                                                 "tool_cart",
+                                                 "care_station_permit",
+                                                 "care_kit_pack",
+                                                 "bike_parking_plan"
+                                             ],
+                     "recommended_goal_ids":  [
+                                                  "craft",
+                                                  "build",
+                                                  "expansion"
+                     ],
+                     "recommended_recipe_ids":  [
+                                                    "build_repair_booth",
+                                                    "build_care_station"
+                                                ],
+                     "recommended_resident_names":  [
+                                                        "陈叔",
+                                                        "张阿姨"
+                                                    ],
+                     "fallback_card_ids":  [
+                                               "story_wall_plan",
+                                               "print_banner",
+                                               "chain_lock_pack",
+                                               "refill_station_plan",
+                                               "steel_pipe_bundle"
+                                           ]
+                 },
+                 {
+                     "day":  9,
+                     "daily_pack_card_ids":  [
+                                                 "herb_corner_plan",
+                                                 "seedling_tray",
+                                                 "refill_station_plan",
+                                                 "steel_pipe_bundle",
+                                                 "story_wall_plan"
+                                             ],
+                     "recommended_goal_ids":  [
+                                                  "craft",
+                                                  "build",
+                                                  "mastery"
+                     ],
+                     "recommended_recipe_ids":  [
+                                                    "build_herb_corner",
+                                                    "build_refill_station"
+                                                ],
+                     "recommended_resident_names":  [
+                                                        "孙同学",
+                                                        "王奶奶"
+                                                    ],
+                     "fallback_card_ids":  [
+                                               "print_banner",
+                                               "bike_parking_plan",
+                                               "chain_lock_pack",
+                                               "repair_booth_plan",
+                                               "tool_cart"
+                                           ]
+                 },
+                 {
+                     "day":  10,
+                     "daily_pack_card_ids":  [
+                                                 "bike_parking_plan",
+                                                 "chain_lock_pack",
+                                                 "repair_booth_plan",
+                                                 "tool_cart",
+                                                 "care_station_permit"
+                                             ],
+                     "recommended_goal_ids":  [
+                                                  "craft",
+                                                  "build",
+                                                  "finale"
+                     ],
+                     "recommended_recipe_ids":  [
+                                                    "build_bike_parking",
+                                                    "build_repair_booth"
+                                                ],
+                     "recommended_resident_names":  [
+                                                        "刘医生",
+                                                        "李师傅",
+                                                        "张阿姨"
+                                                    ],
+                     "fallback_card_ids":  [
+                                               "care_kit_pack",
+                                               "story_wall_plan",
+                                               "print_banner",
+                                               "herb_corner_plan",
+                                               "seedling_tray"
+                                           ]
+                 },
+                 {
+                     "day":  11,
+                     "daily_pack_card_ids":  [
+                                                 "clinic_desk_plan",
+                                                 "medicine_kit",
+                                                 "community_kitchen_plan",
+                                                 "cookware_crate",
+                                                 "shared_laundry_plan"
+                                             ],
+                     "recommended_goal_ids":  [
+                                                  "craft",
+                                                  "build",
+                                                  "advanced_service"
+                                             ],
+                     "recommended_recipe_ids":  [
+                                                    "build_clinic_desk",
+                                                    "build_community_kitchen"
+                                                ],
+                     "recommended_resident_names":  [
+                                                        "刘医生",
+                                                        "李师傅",
+                                                        "张阿姨"
+                                                    ],
+                     "fallback_card_ids":  [
+                                               "detergent_box",
+                                               "child_corner_plan",
+                                               "foam_mat_set",
+                                               "senior_gym_plan",
+                                               "elastic_band_pack"
+                                           ]
+                 }
+             ]
 }

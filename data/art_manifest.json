@@ -1,1270 +1,1414 @@
 {
-  "entries": {
-    "card_ramp_blueprint": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "坡道建筑许可"
-    },
-    "icon_ramp_blueprint": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "坡道建筑许可"
-    },
-    "card_lumber_pack": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "木料包"
-    },
-    "icon_lumber_pack": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "木料包"
-    },
-    "card_info_notes": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "信息记录"
-    },
-    "icon_info_notes": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "信息记录"
-    },
-    "card_tool_parts": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "通用五金件"
-    },
-    "icon_tool_parts": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "通用五金件"
-    },
-    "card_care_pack": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "照护物资包"
-    },
-    "icon_care_pack": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "照护物资包"
-    },
-    "card_community_ramp": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "社区坡道"
-    },
-    "icon_community_ramp": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "社区坡道"
-    },
-    "card_guide_handrail": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "导向扶手"
-    },
-    "icon_guide_handrail": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "导向扶手"
-    },
-    "card_volunteer_poster": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "志愿者招募海报"
-    },
-    "icon_volunteer_poster": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "志愿者招募海报"
-    },
-    "card_phone_tree": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "电话树名单"
-    },
-    "icon_phone_tree": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "电话树名单"
-    },
-    "card_welcome_table_plan": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "欢迎桌方案"
-    },
-    "icon_welcome_table_plan": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "欢迎桌方案"
-    },
-    "card_folding_table_kit": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "折叠桌套件"
-    },
-    "icon_folding_table_kit": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "折叠桌套件"
-    },
-    "card_welcome_table": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "邻里欢迎桌"
-    },
-    "icon_welcome_table": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "邻里欢迎桌"
-    },
-    "card_volunteer_station": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "志愿者驿站"
-    },
-    "icon_volunteer_station": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "志愿者驿站"
-    },
-    "card_market_stall_plan": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "便民摊位方案"
-    },
-    "icon_market_stall_plan": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "便民摊位方案"
-    },
-    "card_fresh_goods_box": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "民生货箱"
-    },
-    "icon_fresh_goods_box": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "民生货箱"
-    },
-    "card_market_stall": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "便民摊位"
-    },
-    "icon_market_stall": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "便民摊位"
-    },
-    "card_bench_plan": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "休息座椅方案"
-    },
-    "icon_bench_plan": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "休息座椅方案"
-    },
-    "card_paint_bucket": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "油漆工具箱"
-    },
-    "icon_paint_bucket": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "油漆工具箱"
-    },
-    "card_rest_bench": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "休息长椅"
-    },
-    "icon_rest_bench": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "休息长椅"
-    },
-    "card_notice_design": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "公告排版方案"
-    },
-    "icon_notice_design": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "公告排版方案"
-    },
-    "card_printer_ink": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "油墨补充盒"
-    },
-    "icon_printer_ink": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "油墨补充盒"
-    },
-    "card_clear_notice_board": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "清晰公告栏"
-    },
-    "icon_clear_notice_board": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "清晰公告栏"
-    },
-    "card_garden_plan": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "花坛整理计划"
-    },
-    "icon_garden_plan": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "花坛整理计划"
-    },
-    "card_seed_pack": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "花种补给包"
-    },
-    "icon_seed_pack": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "花种补给包"
-    },
-    "card_flower_bed": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "社区花坛"
-    },
-    "icon_flower_bed": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "社区花坛"
-    },
-    "card_care_station": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "互助照护站"
-    },
-    "icon_care_station": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "互助照护站"
-    },
-    "card_safety_map_blueprint": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "导视地图建筑许可"
-    },
-    "icon_safety_map_blueprint": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "导视地图建筑许可"
-    },
-    "card_sticker_pack": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "导视贴纸包"
-    },
-    "icon_sticker_pack": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "导视贴纸包"
-    },
-    "card_wayfinding_kiosk": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "导视服务亭"
-    },
-    "icon_wayfinding_kiosk": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "导视服务亭"
-    },
-    "card_shade_sail_plan": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "遮阳棚方案"
-    },
-    "icon_shade_sail_plan": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "遮阳棚方案"
-    },
-    "card_fabric_roll": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "防晒帆布卷"
-    },
-    "icon_fabric_roll": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "防晒帆布卷"
-    },
-    "card_shade_canopy": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "共享遮阳棚"
-    },
-    "icon_shade_canopy": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "共享遮阳棚"
-    },
-    "card_refill_station_plan": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "补水点方案"
-    },
-    "icon_refill_station_plan": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "补水点方案"
-    },
-    "card_steel_pipe_bundle": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "钢管组件"
-    },
-    "icon_steel_pipe_bundle": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "钢管组件"
-    },
-    "card_refill_station": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "公共补水点"
-    },
-    "icon_refill_station": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "公共补水点"
-    },
-    "card_herb_corner_plan": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "香草角方案"
-    },
-    "icon_herb_corner_plan": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "香草角方案"
-    },
-    "card_seedling_tray": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "香草苗盘"
-    },
-    "icon_seedling_tray": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "香草苗盘"
-    },
-    "card_herb_corner": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "香草休憩角"
-    },
-    "icon_herb_corner": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "香草休憩角"
-    },
-    "card_repair_booth_plan": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "修补摊位方案"
-    },
-    "icon_repair_booth_plan": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "修补摊位方案"
-    },
-    "card_tool_cart": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "工具推车"
-    },
-    "icon_tool_cart": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "工具推车"
-    },
-    "card_repair_booth": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "修补服务摊"
-    },
-    "icon_repair_booth": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "修补服务摊"
-    },
-    "card_story_wall_plan": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "故事墙方案"
-    },
-    "icon_story_wall_plan": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "故事墙方案"
-    },
-    "card_print_banner": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "印刷横幅"
-    },
-    "icon_print_banner": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "印刷横幅"
-    },
-    "card_story_wall": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "社区故事墙"
-    },
-    "icon_story_wall": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "社区故事墙"
-    },
-    "card_community_kitchen_plan": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "共享厨房方案"
-    },
-    "icon_community_kitchen_plan": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "共享厨房方案"
-    },
-    "card_cookware_crate": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "餐厨物资箱"
-    },
-    "icon_cookware_crate": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "餐厨物资箱"
-    },
-    "card_community_kitchen": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "共享厨房"
-    },
-    "icon_community_kitchen": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "共享厨房"
-    },
-    "card_shared_laundry_plan": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "共享洗衣房方案"
-    },
-    "icon_shared_laundry_plan": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "共享洗衣房方案"
-    },
-    "card_detergent_box": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "洗护补给箱"
-    },
-    "icon_detergent_box": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "洗护补给箱"
-    },
-    "card_shared_laundry": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "共享洗衣房"
-    },
-    "icon_shared_laundry": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "共享洗衣房"
-    },
-    "card_child_corner_plan": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "儿童角方案"
-    },
-    "icon_child_corner_plan": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "儿童角方案"
-    },
-    "card_foam_mat_set": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "软垫组件"
-    },
-    "icon_foam_mat_set": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "软垫组件"
-    },
-    "card_child_corner": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "儿童陪伴角"
-    },
-    "icon_child_corner": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "儿童陪伴角"
-    },
-    "card_senior_gym_plan": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "长者健身角方案"
-    },
-    "icon_senior_gym_plan": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "长者健身角方案"
-    },
-    "card_elastic_band_pack": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "弹力带套装"
-    },
-    "icon_elastic_band_pack": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "弹力带套装"
-    },
-    "card_senior_gym": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "长者健身角"
-    },
-    "icon_senior_gym": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "长者健身角"
-    },
-    "card_bike_parking_plan": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "自行车停放方案"
-    },
-    "icon_bike_parking_plan": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "自行车停放方案"
-    },
-    "card_chain_lock_pack": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "锁链组件"
-    },
-    "icon_chain_lock_pack": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "锁链组件"
-    },
-    "card_bike_parking": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "便民车位区"
-    },
-    "icon_bike_parking": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "便民车位区"
-    },
-    "card_clinic_desk_plan": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "健康咨询台方案"
-    },
-    "icon_clinic_desk_plan": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "健康咨询台方案"
-    },
-    "card_medicine_kit": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "基础药箱"
-    },
-    "icon_medicine_kit": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "基础药箱"
-    },
-    "card_clinic_desk": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "健康咨询台"
-    },
-    "icon_clinic_desk": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "健康咨询台"
-    },
-    "card_support_umbrella_team": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "雨天帮扶队"
-    },
-    "icon_support_umbrella_team": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "雨天帮扶队"
-    },
-    "card_support_queue_signs": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "排队导流牌"
-    },
-    "icon_support_queue_signs": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "排队导流牌"
-    },
-    "card_support_cooling_pack": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "清凉补给包"
-    },
-    "icon_support_cooling_pack": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "清凉补给包"
-    },
-    "card_support_flashlight_kit": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "夜间照明包"
-    },
-    "icon_support_flashlight_kit": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "夜间照明包"
-    },
-    "card_support_errand_route": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "代办路线单"
-    },
-    "icon_support_errand_route": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "代办路线单"
-    },
-    "card_support_night_watch": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "夜巡联络表"
-    },
-    "icon_support_night_watch": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "夜巡联络表"
-    },
-    "card_support_garden_repair": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "花园修补包"
-    },
-    "icon_support_garden_repair": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "花园修补包"
-    },
-    "card_support_delivery_board": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "配送接驳板"
-    },
-    "icon_support_delivery_board": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "配送接驳板"
-    },
-    "card_support_elevator_team": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "楼道互助队"
-    },
-    "icon_support_elevator_team": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "楼道互助队"
-    },
-    "card_support_festival_banner": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "节庆布置包"
-    },
-    "icon_support_festival_banner": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "节庆布置包"
-    },
-    "card_support_health_check": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "健康筛查单"
-    },
-    "icon_support_health_check": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "健康筛查单"
-    },
-    "card_support_listening_table": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "倾听茶桌"
-    },
-    "icon_support_listening_table": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "倾听茶桌"
-    },
-    "card_problem_rainy_walkway": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "雨天通行受阻"
-    },
-    "icon_problem_rainy_walkway": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "雨天通行受阻"
-    },
-    "card_problem_market_queue": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "早市排队拥堵"
-    },
-    "icon_problem_market_queue": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "早市排队拥堵"
-    },
-    "card_problem_heatwave_visit": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "高温探访压力"
-    },
-    "icon_problem_heatwave_visit": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "高温探访压力"
-    },
-    "card_problem_power_outage": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "临时停电影响"
-    },
-    "icon_problem_power_outage": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "临时停电影响"
-    },
-    "card_problem_festival_setup": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "节庆布置超负荷"
-    },
-    "icon_problem_festival_setup": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "节庆布置超负荷"
-    },
-    "card_problem_pharmacy_run": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "代买药路线混乱"
-    },
-    "icon_problem_pharmacy_run": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "代买药路线混乱"
-    },
-    "card_problem_night_patrol": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "夜巡信息不同步"
-    },
-    "icon_problem_night_patrol": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "夜巡信息不同步"
-    },
-    "card_problem_garden_repair": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "绿地边角破损"
-    },
-    "icon_problem_garden_repair": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "绿地边角破损"
-    },
-    "card_problem_delivery_delay": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "配送接驳混乱"
-    },
-    "icon_problem_delivery_delay": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "配送接驳混乱"
-    },
-    "card_problem_elevator_help": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "楼道陪行需求暴增"
-    },
-    "icon_problem_elevator_help": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "楼道陪行需求暴增"
-    },
-    "card_problem_notice_conflict": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "公告理解冲突"
-    },
-    "icon_problem_notice_conflict": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "公告理解冲突"
-    },
-    "card_problem_medical_check": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "义诊登记超量"
-    },
-    "icon_problem_medical_check": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "义诊登记超量"
-    },
-    "portrait_wang_nainai": {
-      "kind": "portrait",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "王奶奶"
-    },
-    "portrait_chen_shu": {
-      "kind": "portrait",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "陈叔"
-    },
-    "portrait_xiao_lin": {
-      "kind": "portrait",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "小林"
-    },
-    "portrait_li_shifu": {
-      "kind": "portrait",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "李师傅"
-    },
-    "portrait_zhang_ayi": {
-      "kind": "portrait",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "张阿姨"
-    },
-    "portrait_liu_yisheng": {
-      "kind": "portrait",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "刘医生"
-    },
-    "portrait_sun_tongxue": {
-      "kind": "portrait",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "孙同学"
-    },
-    "portrait_gao_meihua": {
-      "kind": "portrait",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "高美华"
-    },
-    "portrait_a_qiang": {
-      "kind": "portrait",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "阿强"
-    },
-    "event_day2_rain_path": {
-      "kind": "event",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "雨天通行告急"
-    },
-    "event_day3_notice_conflict": {
-      "kind": "event",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "公告理解冲突"
-    },
-    "event_day3_first_notice_check": {
-      "kind": "event",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "第一次公告确认"
-    },
-    "event_day4_market_queue": {
-      "kind": "event",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "早市排队压力上升"
-    },
-    "event_day6_heatwave_visit": {
-      "kind": "event",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "高温探访任务"
-    },
-    "event_day8_power_outage": {
-      "kind": "event",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "夜间临时停电"
-    },
-    "event_day10_festival_setup": {
-      "kind": "event",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "展示日前夕超负荷"
-    },
-    "event_fallback_market_queue": {
-      "kind": "event",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "市场导流预案"
-    },
-    "event_fallback_heatwave_visit": {
-      "kind": "event",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "高温探访预案"
-    },
-    "event_fallback_festival_setup": {
-      "kind": "event",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "节庆布置预案"
-    },
-    "event_pharmacy_run": {
-      "kind": "event",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "代买药任务堆积"
-    },
-    "event_night_patrol": {
-      "kind": "event",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "夜巡联络断层"
-    },
-    "event_delivery_delay": {
-      "kind": "event",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "配送接驳混乱"
-    },
-    "event_medical_check": {
-      "kind": "event",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "义诊登记超量"
-    },
-    "card_care_station_permit": {
-      "placeholder_path": "res://icon.svg"
-    },
-    "icon_care_station_permit": {
-      "placeholder_path": "res://icon.svg"
-    },
-    "card_care_kit_pack": {
-      "placeholder_path": "res://icon.svg"
-    },
-    "icon_care_kit_pack": {
-      "placeholder_path": "res://icon.svg"
-    },
-    "card_neighbor_helper": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "热心邻居"
-    },
-    "icon_neighbor_helper": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "热心邻居"
-    },
-    "card_scrap_wood_pile": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "废木料堆"
-    },
-    "icon_scrap_wood_pile": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "废木料堆"
-    },
-    "card_volunteer_captain": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "志愿者骨干"
-    },
-    "icon_volunteer_captain": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "志愿者骨干"
-    },
-    "card_donation_supply_box": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "捐赠物资箱"
-    },
-    "icon_donation_supply_box": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "捐赠物资箱"
-    },
-    "card_community_clue_board": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "社区线索板"
-    },
-    "icon_community_clue_board": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "社区线索板"
-    },
-    "card_convenience_supplies": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "便民物资"
-    },
-    "icon_convenience_supplies": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "便民物资"
-    },
-    "card_community_funds": {
-      "kind": "card",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "社区资金"
-    },
-    "icon_community_funds": {
-      "kind": "icon",
-      "path": "",
-      "placeholder_path": "res://icon.svg",
-      "fallback_label": "社区资金"
-    }
-  }
+    "entries":  {
+                    "card_ramp_blueprint":  {
+                                                "kind":  "card",
+                                                "path":  "res://assets/cards/card_ramp_blueprint.png",
+                                                "placeholder_path":  "res://icon.svg",
+                                                "fallback_label":  "坡道建筑许可"
+                                            },
+                    "icon_ramp_blueprint":  {
+                                                "kind":  "icon",
+                                                "path":  "",
+                                                "placeholder_path":  "res://icon.svg",
+                                                "fallback_label":  "坡道建筑许可"
+                                            },
+                    "card_lumber_pack":  {
+                                             "kind":  "card",
+                                             "path":  "res://assets/cards/card_lumber_pack.png",
+                                             "placeholder_path":  "res://icon.svg",
+                                             "fallback_label":  "木料包"
+                                         },
+                    "icon_lumber_pack":  {
+                                             "kind":  "icon",
+                                             "path":  "res://assets/icons/icon_lumber_pack.png",
+                                             "placeholder_path":  "res://icon.svg",
+                                             "fallback_label":  "木料包"
+                                         },
+                    "card_info_notes":  {
+                                            "kind":  "card",
+                                            "path":  "res://assets/cards/card_info_notes.png",
+                                            "placeholder_path":  "res://icon.svg",
+                                            "fallback_label":  "信息记录"
+                                        },
+                    "icon_info_notes":  {
+                                            "kind":  "icon",
+                                            "path":  "",
+                                            "placeholder_path":  "res://icon.svg",
+                                            "fallback_label":  "信息记录"
+                                        },
+                    "card_tool_parts":  {
+                                            "kind":  "card",
+                                            "path":  "res://assets/cards/card_tool_parts.png",
+                                            "placeholder_path":  "res://icon.svg",
+                                            "fallback_label":  "通用五金件"
+                                        },
+                    "icon_tool_parts":  {
+                                            "kind":  "icon",
+                                            "path":  "",
+                                            "placeholder_path":  "res://icon.svg",
+                                            "fallback_label":  "通用五金件"
+                                        },
+                    "card_care_pack":  {
+                                           "kind":  "card",
+                                           "path":  "res://assets/cards/card_care_pack.png",
+                                           "placeholder_path":  "res://icon.svg",
+                                           "fallback_label":  "照护物资包"
+                                       },
+                    "icon_care_pack":  {
+                                           "kind":  "icon",
+                                           "path":  "",
+                                           "placeholder_path":  "res://icon.svg",
+                                           "fallback_label":  "照护物资包"
+                                       },
+                    "card_community_ramp":  {
+                                                "kind":  "card",
+                                                "path":  "res://assets/cards/card_community_ramp.png",
+                                                "placeholder_path":  "res://icon.svg",
+                                                "fallback_label":  "社区坡道"
+                                            },
+                    "icon_community_ramp":  {
+                                                "kind":  "icon",
+                                                "path":  "res://assets/icons/icon_community_ramp.png",
+                                                "placeholder_path":  "res://icon.svg",
+                                                "fallback_label":  "社区坡道"
+                                            },
+                    "card_guide_handrail":  {
+                                                "kind":  "card",
+                                                "path":  "res://assets/cards/card_guide_handrail.png",
+                                                "placeholder_path":  "res://icon.svg",
+                                                "fallback_label":  "导向扶手"
+                                            },
+                    "icon_guide_handrail":  {
+                                                "kind":  "icon",
+                                                "path":  "res://assets/icons/icon_guide_handrail.png",
+                                                "placeholder_path":  "res://icon.svg",
+                                                "fallback_label":  "导向扶手"
+                                            },
+                    "card_volunteer_poster":  {
+                                                  "kind":  "card",
+                                                  "path":  "res://assets/cards/card_volunteer_poster.png",
+                                                  "placeholder_path":  "res://icon.svg",
+                                                  "fallback_label":  "志愿者招募海报"
+                                              },
+                    "icon_volunteer_poster":  {
+                                                  "kind":  "icon",
+                                                  "path":  "",
+                                                  "placeholder_path":  "res://icon.svg",
+                                                  "fallback_label":  "志愿者招募海报"
+                                              },
+                    "card_phone_tree":  {
+                                            "kind":  "card",
+                                            "path":  "res://assets/cards/card_phone_tree.png",
+                                            "placeholder_path":  "res://icon.svg",
+                                            "fallback_label":  "电话树名单"
+                                        },
+                    "icon_phone_tree":  {
+                                            "kind":  "icon",
+                                            "path":  "",
+                                            "placeholder_path":  "res://icon.svg",
+                                            "fallback_label":  "电话树名单"
+                                        },
+                    "card_welcome_table_plan":  {
+                                                    "kind":  "card",
+                                                    "path":  "res://assets/cards/card_welcome_table_plan.png",
+                                                    "placeholder_path":  "res://icon.svg",
+                                                    "fallback_label":  "欢迎桌方案"
+                                                },
+                    "icon_welcome_table_plan":  {
+                                                    "kind":  "icon",
+                                                    "path":  "",
+                                                    "placeholder_path":  "res://icon.svg",
+                                                    "fallback_label":  "欢迎桌方案"
+                                                },
+                    "card_folding_table_kit":  {
+                                                   "kind":  "card",
+                                                   "path":  "res://assets/cards/card_folding_table_kit.png",
+                                                   "placeholder_path":  "res://icon.svg",
+                                                   "fallback_label":  "折叠桌套件"
+                                               },
+                    "icon_folding_table_kit":  {
+                                                   "kind":  "icon",
+                                                   "path":  "",
+                                                   "placeholder_path":  "res://icon.svg",
+                                                   "fallback_label":  "折叠桌套件"
+                                               },
+                    "card_welcome_table":  {
+                                               "kind":  "card",
+                                               "path":  "res://assets/cards/card_welcome_table.png",
+                                               "placeholder_path":  "res://icon.svg",
+                                               "fallback_label":  "邻里欢迎桌"
+                                           },
+                    "icon_welcome_table":  {
+                                               "kind":  "icon",
+                                               "path":  "",
+                                               "placeholder_path":  "res://icon.svg",
+                                               "fallback_label":  "邻里欢迎桌"
+                                           },
+                    "card_volunteer_station":  {
+                                                   "kind":  "card",
+                                                   "path":  "res://assets/cards/card_volunteer_station.png",
+                                                   "placeholder_path":  "res://icon.svg",
+                                                   "fallback_label":  "志愿者驿站"
+                                               },
+                    "icon_volunteer_station":  {
+                                                   "kind":  "icon",
+                                                   "path":  "res://assets/icons/icon_volunteer_station.png",
+                                                   "placeholder_path":  "res://icon.svg",
+                                                   "fallback_label":  "志愿者驿站"
+                                               },
+                    "card_market_stall_plan":  {
+                                                   "kind":  "card",
+                                                   "path":  "res://assets/cards/card_market_stall_plan.png",
+                                                   "placeholder_path":  "res://icon.svg",
+                                                   "fallback_label":  "便民摊位方案"
+                                               },
+                    "icon_market_stall_plan":  {
+                                                   "kind":  "icon",
+                                                   "path":  "",
+                                                   "placeholder_path":  "res://icon.svg",
+                                                   "fallback_label":  "便民摊位方案"
+                                               },
+                    "card_fresh_goods_box":  {
+                                                 "kind":  "card",
+                                                 "path":  "res://assets/cards/card_fresh_goods_box.png",
+                                                 "placeholder_path":  "res://icon.svg",
+                                                 "fallback_label":  "民生货箱"
+                                             },
+                    "icon_fresh_goods_box":  {
+                                                 "kind":  "icon",
+                                                 "path":  "",
+                                                 "placeholder_path":  "res://icon.svg",
+                                                 "fallback_label":  "民生货箱"
+                                             },
+                    "card_market_stall":  {
+                                              "kind":  "card",
+                                              "path":  "res://assets/cards/card_market_stall.png",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "便民摊位"
+                                          },
+                    "icon_market_stall":  {
+                                              "kind":  "icon",
+                                              "path":  "",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "便民摊位"
+                                          },
+                    "card_bench_plan":  {
+                                            "kind":  "card",
+                                            "path":  "res://assets/cards/card_bench_plan.png",
+                                            "placeholder_path":  "res://icon.svg",
+                                            "fallback_label":  "休息座椅方案"
+                                        },
+                    "icon_bench_plan":  {
+                                            "kind":  "icon",
+                                            "path":  "",
+                                            "placeholder_path":  "res://icon.svg",
+                                            "fallback_label":  "休息座椅方案"
+                                        },
+                    "card_paint_bucket":  {
+                                              "kind":  "card",
+                                              "path":  "res://assets/cards/card_paint_bucket.png",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "油漆工具箱"
+                                          },
+                    "icon_paint_bucket":  {
+                                              "kind":  "icon",
+                                              "path":  "res://assets/icons/icon_paint_bucket.png",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "油漆工具箱"
+                                          },
+                    "card_rest_bench":  {
+                                            "kind":  "card",
+                                            "path":  "res://assets/cards/card_rest_bench.png",
+                                            "placeholder_path":  "res://icon.svg",
+                                            "fallback_label":  "休息长椅"
+                                        },
+                    "icon_rest_bench":  {
+                                            "kind":  "icon",
+                                            "path":  "res://assets/icons/icon_rest_bench.png",
+                                            "placeholder_path":  "res://icon.svg",
+                                            "fallback_label":  "休息长椅"
+                                        },
+                    "card_notice_design":  {
+                                               "kind":  "card",
+                                               "path":  "res://assets/cards/card_notice_design.png",
+                                               "placeholder_path":  "res://icon.svg",
+                                               "fallback_label":  "公告排版方案"
+                                           },
+                    "icon_notice_design":  {
+                                               "kind":  "icon",
+                                               "path":  "",
+                                               "placeholder_path":  "res://icon.svg",
+                                               "fallback_label":  "公告排版方案"
+                                           },
+                    "card_printer_ink":  {
+                                             "kind":  "card",
+                                             "path":  "res://assets/cards/card_printer_ink.png",
+                                             "placeholder_path":  "res://icon.svg",
+                                             "fallback_label":  "油墨补充盒"
+                                         },
+                    "icon_printer_ink":  {
+                                             "kind":  "icon",
+                                             "path":  "",
+                                             "placeholder_path":  "res://icon.svg",
+                                             "fallback_label":  "油墨补充盒"
+                                         },
+                    "card_clear_notice_board":  {
+                                                    "kind":  "card",
+                                                    "path":  "res://assets/cards/card_clear_notice_board.png",
+                                                    "placeholder_path":  "res://icon.svg",
+                                                    "fallback_label":  "清晰公告栏"
+                                                },
+                    "icon_clear_notice_board":  {
+                                                    "kind":  "icon",
+                                                    "path":  "res://assets/icons/icon_clear_notice_board.png",
+                                                    "placeholder_path":  "res://icon.svg",
+                                                    "fallback_label":  "清晰公告栏"
+                                                },
+                    "card_garden_plan":  {
+                                             "kind":  "card",
+                                             "path":  "res://assets/cards/card_garden_plan.png",
+                                             "placeholder_path":  "res://icon.svg",
+                                             "fallback_label":  "花坛整理计划"
+                                         },
+                    "icon_garden_plan":  {
+                                             "kind":  "icon",
+                                             "path":  "",
+                                             "placeholder_path":  "res://icon.svg",
+                                             "fallback_label":  "花坛整理计划"
+                                         },
+                    "card_seed_pack":  {
+                                           "kind":  "card",
+                                           "path":  "res://assets/cards/card_seed_pack.png",
+                                           "placeholder_path":  "res://icon.svg",
+                                           "fallback_label":  "花种补给包"
+                                       },
+                    "icon_seed_pack":  {
+                                           "kind":  "icon",
+                                           "path":  "",
+                                           "placeholder_path":  "res://icon.svg",
+                                           "fallback_label":  "花种补给包"
+                                       },
+                    "card_flower_bed":  {
+                                            "kind":  "card",
+                                            "path":  "res://assets/cards/card_flower_bed.png",
+                                            "placeholder_path":  "res://icon.svg",
+                                            "fallback_label":  "社区花坛"
+                                        },
+                    "icon_flower_bed":  {
+                                            "kind":  "icon",
+                                            "path":  "res://assets/icons/icon_flower_bed.png",
+                                            "placeholder_path":  "res://icon.svg",
+                                            "fallback_label":  "社区花坛"
+                                        },
+                    "card_care_station":  {
+                                              "kind":  "card",
+                                              "path":  "res://assets/cards/card_care_station.png",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "互助照护站"
+                                          },
+                    "icon_care_station":  {
+                                              "kind":  "icon",
+                                              "path":  "",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "互助照护站"
+                                          },
+                    "card_safety_map_blueprint":  {
+                                                      "kind":  "card",
+                                                      "path":  "res://assets/cards/card_safety_map_blueprint.png",
+                                                      "placeholder_path":  "res://icon.svg",
+                                                      "fallback_label":  "导视地图建筑许可"
+                                                  },
+                    "icon_safety_map_blueprint":  {
+                                                      "kind":  "icon",
+                                                      "path":  "",
+                                                      "placeholder_path":  "res://icon.svg",
+                                                      "fallback_label":  "导视地图建筑许可"
+                                                  },
+                    "card_sticker_pack":  {
+                                              "kind":  "card",
+                                              "path":  "res://assets/cards/card_sticker_pack.png",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "导视贴纸包"
+                                          },
+                    "icon_sticker_pack":  {
+                                              "kind":  "icon",
+                                              "path":  "",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "导视贴纸包"
+                                          },
+                    "card_wayfinding_kiosk":  {
+                                                  "kind":  "card",
+                                                  "path":  "res://assets/cards/card_wayfinding_kiosk.png",
+                                                  "placeholder_path":  "res://icon.svg",
+                                                  "fallback_label":  "导视服务亭"
+                                              },
+                    "icon_wayfinding_kiosk":  {
+                                                  "kind":  "icon",
+                                                  "path":  "",
+                                                  "placeholder_path":  "res://icon.svg",
+                                                  "fallback_label":  "导视服务亭"
+                                              },
+                    "card_shade_sail_plan":  {
+                                                 "kind":  "card",
+                                                 "path":  "res://assets/cards/card_shade_sail_plan.png",
+                                                 "placeholder_path":  "res://icon.svg",
+                                                 "fallback_label":  "遮阳棚方案"
+                                             },
+                    "icon_shade_sail_plan":  {
+                                                 "kind":  "icon",
+                                                 "path":  "",
+                                                 "placeholder_path":  "res://icon.svg",
+                                                 "fallback_label":  "遮阳棚方案"
+                                             },
+                    "card_fabric_roll":  {
+                                             "kind":  "card",
+                                             "path":  "res://assets/cards/card_fabric_roll.png",
+                                             "placeholder_path":  "res://icon.svg",
+                                             "fallback_label":  "防晒帆布卷"
+                                         },
+                    "icon_fabric_roll":  {
+                                             "kind":  "icon",
+                                             "path":  "",
+                                             "placeholder_path":  "res://icon.svg",
+                                             "fallback_label":  "防晒帆布卷"
+                                         },
+                    "card_shade_canopy":  {
+                                              "kind":  "card",
+                                              "path":  "res://assets/cards/card_shade_canopy.png",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "共享遮阳棚"
+                                          },
+                    "icon_shade_canopy":  {
+                                              "kind":  "icon",
+                                              "path":  "",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "共享遮阳棚"
+                                          },
+                    "card_refill_station_plan":  {
+                                                     "kind":  "card",
+                                                     "path":  "res://assets/cards/card_refill_station_plan.png",
+                                                     "placeholder_path":  "res://icon.svg",
+                                                     "fallback_label":  "补水点方案"
+                                                 },
+                    "icon_refill_station_plan":  {
+                                                     "kind":  "icon",
+                                                     "path":  "",
+                                                     "placeholder_path":  "res://icon.svg",
+                                                     "fallback_label":  "补水点方案"
+                                                 },
+                    "card_steel_pipe_bundle":  {
+                                                   "kind":  "card",
+                                                   "path":  "res://assets/cards/card_steel_pipe_bundle.png",
+                                                   "placeholder_path":  "res://icon.svg",
+                                                   "fallback_label":  "钢管组件"
+                                               },
+                    "icon_steel_pipe_bundle":  {
+                                                   "kind":  "icon",
+                                                   "path":  "",
+                                                   "placeholder_path":  "res://icon.svg",
+                                                   "fallback_label":  "钢管组件"
+                                               },
+                    "card_refill_station":  {
+                                                "kind":  "card",
+                                                "path":  "res://assets/cards/card_refill_station.png",
+                                                "placeholder_path":  "res://icon.svg",
+                                                "fallback_label":  "公共补水点"
+                                            },
+                    "icon_refill_station":  {
+                                                "kind":  "icon",
+                                                "path":  "",
+                                                "placeholder_path":  "res://icon.svg",
+                                                "fallback_label":  "公共补水点"
+                                            },
+                    "card_herb_corner_plan":  {
+                                                  "kind":  "card",
+                                                  "path":  "res://assets/cards/card_herb_corner_plan.png",
+                                                  "placeholder_path":  "res://icon.svg",
+                                                  "fallback_label":  "香草角方案"
+                                              },
+                    "icon_herb_corner_plan":  {
+                                                  "kind":  "icon",
+                                                  "path":  "",
+                                                  "placeholder_path":  "res://icon.svg",
+                                                  "fallback_label":  "香草角方案"
+                                              },
+                    "card_seedling_tray":  {
+                                               "kind":  "card",
+                                               "path":  "res://assets/cards/card_seedling_tray.png",
+                                               "placeholder_path":  "res://icon.svg",
+                                               "fallback_label":  "香草苗盘"
+                                           },
+                    "icon_seedling_tray":  {
+                                               "kind":  "icon",
+                                               "path":  "res://assets/icons/icon_seedling_tray.png",
+                                               "placeholder_path":  "res://icon.svg",
+                                               "fallback_label":  "香草苗盘"
+                                           },
+                    "card_herb_corner":  {
+                                             "kind":  "card",
+                                             "path":  "res://assets/cards/card_herb_corner.png",
+                                             "placeholder_path":  "res://icon.svg",
+                                             "fallback_label":  "香草休憩角"
+                                         },
+                    "icon_herb_corner":  {
+                                             "kind":  "icon",
+                                             "path":  "",
+                                             "placeholder_path":  "res://icon.svg",
+                                             "fallback_label":  "香草休憩角"
+                                         },
+                    "card_repair_booth_plan":  {
+                                                   "kind":  "card",
+                                                   "path":  "res://assets/cards/card_repair_booth_plan.png",
+                                                   "placeholder_path":  "res://icon.svg",
+                                                   "fallback_label":  "修补摊位方案"
+                                               },
+                    "icon_repair_booth_plan":  {
+                                                   "kind":  "icon",
+                                                   "path":  "",
+                                                   "placeholder_path":  "res://icon.svg",
+                                                   "fallback_label":  "修补摊位方案"
+                                               },
+                    "card_tool_cart":  {
+                                           "kind":  "card",
+                                           "path":  "res://assets/cards/card_tool_cart.png",
+                                           "placeholder_path":  "res://icon.svg",
+                                           "fallback_label":  "工具推车"
+                                       },
+                    "icon_tool_cart":  {
+                                           "kind":  "icon",
+                                           "path":  "",
+                                           "placeholder_path":  "res://icon.svg",
+                                           "fallback_label":  "工具推车"
+                                       },
+                    "card_repair_booth":  {
+                                              "kind":  "card",
+                                              "path":  "res://assets/cards/card_repair_booth.png",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "修补服务摊"
+                                          },
+                    "icon_repair_booth":  {
+                                              "kind":  "icon",
+                                              "path":  "",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "修补服务摊"
+                                          },
+                    "card_story_wall_plan":  {
+                                                 "kind":  "card",
+                                                 "path":  "res://assets/cards/card_story_wall_plan.png",
+                                                 "placeholder_path":  "res://icon.svg",
+                                                 "fallback_label":  "故事墙方案"
+                                             },
+                    "icon_story_wall_plan":  {
+                                                 "kind":  "icon",
+                                                 "path":  "",
+                                                 "placeholder_path":  "res://icon.svg",
+                                                 "fallback_label":  "故事墙方案"
+                                             },
+                    "card_print_banner":  {
+                                              "kind":  "card",
+                                              "path":  "res://assets/cards/card_print_banner.png",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "印刷横幅"
+                                          },
+                    "icon_print_banner":  {
+                                              "kind":  "icon",
+                                              "path":  "",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "印刷横幅"
+                                          },
+                    "card_story_wall":  {
+                                            "kind":  "card",
+                                            "path":  "res://assets/cards/card_story_wall.png",
+                                            "placeholder_path":  "res://icon.svg",
+                                            "fallback_label":  "社区故事墙"
+                                        },
+                    "icon_story_wall":  {
+                                            "kind":  "icon",
+                                            "path":  "",
+                                            "placeholder_path":  "res://icon.svg",
+                                            "fallback_label":  "社区故事墙"
+                                        },
+                    "card_community_kitchen_plan":  {
+                                                        "kind":  "card",
+                                                        "path":  "res://assets/cards/card_community_kitchen_plan.png",
+                                                        "placeholder_path":  "res://icon.svg",
+                                                        "fallback_label":  "共享厨房方案"
+                                                    },
+                    "icon_community_kitchen_plan":  {
+                                                        "kind":  "icon",
+                                                        "path":  "",
+                                                        "placeholder_path":  "res://icon.svg",
+                                                        "fallback_label":  "共享厨房方案"
+                                                    },
+                    "card_cookware_crate":  {
+                                                "kind":  "card",
+                                                "path":  "res://assets/cards/card_cookware_crate.png",
+                                                "placeholder_path":  "res://icon.svg",
+                                                "fallback_label":  "餐厨物资箱"
+                                            },
+                    "icon_cookware_crate":  {
+                                                "kind":  "icon",
+                                                "path":  "",
+                                                "placeholder_path":  "res://icon.svg",
+                                                "fallback_label":  "餐厨物资箱"
+                                            },
+                    "card_community_kitchen":  {
+                                                   "kind":  "card",
+                                                   "path":  "res://assets/cards/card_community_kitchen.png",
+                                                   "placeholder_path":  "res://icon.svg",
+                                                   "fallback_label":  "共享厨房"
+                                               },
+                    "icon_community_kitchen":  {
+                                                   "kind":  "icon",
+                                                   "path":  "",
+                                                   "placeholder_path":  "res://icon.svg",
+                                                   "fallback_label":  "共享厨房"
+                                               },
+                    "card_shared_laundry_plan":  {
+                                                     "kind":  "card",
+                                                     "path":  "res://assets/cards/card_shared_laundry_plan.png",
+                                                     "placeholder_path":  "res://icon.svg",
+                                                     "fallback_label":  "共享洗衣房方案"
+                                                 },
+                    "icon_shared_laundry_plan":  {
+                                                     "kind":  "icon",
+                                                     "path":  "",
+                                                     "placeholder_path":  "res://icon.svg",
+                                                     "fallback_label":  "共享洗衣房方案"
+                                                 },
+                    "card_detergent_box":  {
+                                               "kind":  "card",
+                                               "path":  "res://assets/cards/card_detergent_box.png",
+                                               "placeholder_path":  "res://icon.svg",
+                                               "fallback_label":  "洗护补给箱"
+                                           },
+                    "icon_detergent_box":  {
+                                               "kind":  "icon",
+                                               "path":  "",
+                                               "placeholder_path":  "res://icon.svg",
+                                               "fallback_label":  "洗护补给箱"
+                                           },
+                    "card_shared_laundry":  {
+                                                "kind":  "card",
+                                                "path":  "res://assets/cards/card_shared_laundry.png",
+                                                "placeholder_path":  "res://icon.svg",
+                                                "fallback_label":  "共享洗衣房"
+                                            },
+                    "icon_shared_laundry":  {
+                                                "kind":  "icon",
+                                                "path":  "",
+                                                "placeholder_path":  "res://icon.svg",
+                                                "fallback_label":  "共享洗衣房"
+                                            },
+                    "card_child_corner_plan":  {
+                                                   "kind":  "card",
+                                                   "path":  "res://assets/cards/card_child_corner_plan.png",
+                                                   "placeholder_path":  "res://icon.svg",
+                                                   "fallback_label":  "儿童角方案"
+                                               },
+                    "icon_child_corner_plan":  {
+                                                   "kind":  "icon",
+                                                   "path":  "",
+                                                   "placeholder_path":  "res://icon.svg",
+                                                   "fallback_label":  "儿童角方案"
+                                               },
+                    "card_foam_mat_set":  {
+                                              "kind":  "card",
+                                              "path":  "res://assets/cards/card_foam_mat_set.png",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "软垫组件"
+                                          },
+                    "icon_foam_mat_set":  {
+                                              "kind":  "icon",
+                                              "path":  "",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "软垫组件"
+                                          },
+                    "card_child_corner":  {
+                                              "kind":  "card",
+                                              "path":  "res://assets/cards/card_child_corner.png",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "儿童陪伴角"
+                                          },
+                    "icon_child_corner":  {
+                                              "kind":  "icon",
+                                              "path":  "",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "儿童陪伴角"
+                                          },
+                    "card_senior_gym_plan":  {
+                                                 "kind":  "card",
+                                                 "path":  "res://assets/cards/card_senior_gym_plan.png",
+                                                 "placeholder_path":  "res://icon.svg",
+                                                 "fallback_label":  "长者健身角方案"
+                                             },
+                    "icon_senior_gym_plan":  {
+                                                 "kind":  "icon",
+                                                 "path":  "",
+                                                 "placeholder_path":  "res://icon.svg",
+                                                 "fallback_label":  "长者健身角方案"
+                                             },
+                    "card_elastic_band_pack":  {
+                                                   "kind":  "card",
+                                                   "path":  "res://assets/cards/card_elastic_band_pack.png",
+                                                   "placeholder_path":  "res://icon.svg",
+                                                   "fallback_label":  "弹力带套装"
+                                               },
+                    "icon_elastic_band_pack":  {
+                                                   "kind":  "icon",
+                                                   "path":  "",
+                                                   "placeholder_path":  "res://icon.svg",
+                                                   "fallback_label":  "弹力带套装"
+                                               },
+                    "card_senior_gym":  {
+                                            "kind":  "card",
+                                            "path":  "res://assets/cards/card_senior_gym.png",
+                                            "placeholder_path":  "res://icon.svg",
+                                            "fallback_label":  "长者健身角"
+                                        },
+                    "icon_senior_gym":  {
+                                            "kind":  "icon",
+                                            "path":  "",
+                                            "placeholder_path":  "res://icon.svg",
+                                            "fallback_label":  "长者健身角"
+                                        },
+                    "card_bike_parking_plan":  {
+                                                   "kind":  "card",
+                                                   "path":  "",
+                                                   "placeholder_path":  "res://icon.svg",
+                                                   "fallback_label":  "自行车停放方案"
+                                               },
+                    "icon_bike_parking_plan":  {
+                                                   "kind":  "icon",
+                                                   "path":  "",
+                                                   "placeholder_path":  "res://icon.svg",
+                                                   "fallback_label":  "自行车停放方案"
+                                               },
+                    "card_chain_lock_pack":  {
+                                                 "kind":  "card",
+                                                 "path":  "",
+                                                 "placeholder_path":  "res://icon.svg",
+                                                 "fallback_label":  "锁链组件"
+                                             },
+                    "icon_chain_lock_pack":  {
+                                                 "kind":  "icon",
+                                                 "path":  "",
+                                                 "placeholder_path":  "res://icon.svg",
+                                                 "fallback_label":  "锁链组件"
+                                             },
+                    "card_bike_parking":  {
+                                              "kind":  "card",
+                                              "path":  "",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "便民车位区"
+                                          },
+                    "icon_bike_parking":  {
+                                              "kind":  "icon",
+                                              "path":  "",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "便民车位区"
+                                          },
+                    "card_clinic_desk_plan":  {
+                                                  "kind":  "card",
+                                                  "path":  "",
+                                                  "placeholder_path":  "res://icon.svg",
+                                                  "fallback_label":  "健康咨询台方案"
+                                              },
+                    "icon_clinic_desk_plan":  {
+                                                  "kind":  "icon",
+                                                  "path":  "",
+                                                  "placeholder_path":  "res://icon.svg",
+                                                  "fallback_label":  "健康咨询台方案"
+                                              },
+                    "card_medicine_kit":  {
+                                              "kind":  "card",
+                                              "path":  "",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "基础药箱"
+                                          },
+                    "icon_medicine_kit":  {
+                                              "kind":  "icon",
+                                              "path":  "",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "基础药箱"
+                                          },
+                    "card_clinic_desk":  {
+                                             "kind":  "card",
+                                             "path":  "",
+                                             "placeholder_path":  "res://icon.svg",
+                                             "fallback_label":  "健康咨询台"
+                                         },
+                    "icon_clinic_desk":  {
+                                             "kind":  "icon",
+                                             "path":  "",
+                                             "placeholder_path":  "res://icon.svg",
+                                             "fallback_label":  "健康咨询台"
+                                         },
+                    "card_support_umbrella_team":  {
+                                                       "kind":  "card",
+                                                       "path":  "",
+                                                       "placeholder_path":  "res://icon.svg",
+                                                       "fallback_label":  "雨天帮扶队"
+                                                   },
+                    "icon_support_umbrella_team":  {
+                                                       "kind":  "icon",
+                                                       "path":  "",
+                                                       "placeholder_path":  "res://icon.svg",
+                                                       "fallback_label":  "雨天帮扶队"
+                                                   },
+                    "card_support_queue_signs":  {
+                                                     "kind":  "card",
+                                                     "path":  "",
+                                                     "placeholder_path":  "res://icon.svg",
+                                                     "fallback_label":  "排队导流牌"
+                                                 },
+                    "icon_support_queue_signs":  {
+                                                     "kind":  "icon",
+                                                     "path":  "",
+                                                     "placeholder_path":  "res://icon.svg",
+                                                     "fallback_label":  "排队导流牌"
+                                                 },
+                    "card_support_cooling_pack":  {
+                                                      "kind":  "card",
+                                                      "path":  "",
+                                                      "placeholder_path":  "res://icon.svg",
+                                                      "fallback_label":  "清凉补给包"
+                                                  },
+                    "icon_support_cooling_pack":  {
+                                                      "kind":  "icon",
+                                                      "path":  "",
+                                                      "placeholder_path":  "res://icon.svg",
+                                                      "fallback_label":  "清凉补给包"
+                                                  },
+                    "card_support_flashlight_kit":  {
+                                                        "kind":  "card",
+                                                        "path":  "",
+                                                        "placeholder_path":  "res://icon.svg",
+                                                        "fallback_label":  "夜间照明包"
+                                                    },
+                    "icon_support_flashlight_kit":  {
+                                                        "kind":  "icon",
+                                                        "path":  "",
+                                                        "placeholder_path":  "res://icon.svg",
+                                                        "fallback_label":  "夜间照明包"
+                                                    },
+                    "card_support_errand_route":  {
+                                                      "kind":  "card",
+                                                      "path":  "",
+                                                      "placeholder_path":  "res://icon.svg",
+                                                      "fallback_label":  "代办路线单"
+                                                  },
+                    "icon_support_errand_route":  {
+                                                      "kind":  "icon",
+                                                      "path":  "",
+                                                      "placeholder_path":  "res://icon.svg",
+                                                      "fallback_label":  "代办路线单"
+                                                  },
+                    "card_support_night_watch":  {
+                                                     "kind":  "card",
+                                                     "path":  "res://assets/cards/card_support_night_watch.png",
+                                                     "placeholder_path":  "res://icon.svg",
+                                                     "fallback_label":  "夜巡联络表"
+                                                 },
+                    "icon_support_night_watch":  {
+                                                     "kind":  "icon",
+                                                     "path":  "res://assets/icons/icon_support_night_watch.png",
+                                                     "placeholder_path":  "res://icon.svg",
+                                                     "fallback_label":  "夜巡联络表"
+                                                 },
+                    "card_support_garden_repair":  {
+                                                       "kind":  "card",
+                                                       "path":  "",
+                                                       "placeholder_path":  "res://icon.svg",
+                                                       "fallback_label":  "花园修补包"
+                                                   },
+                    "icon_support_garden_repair":  {
+                                                       "kind":  "icon",
+                                                       "path":  "",
+                                                       "placeholder_path":  "res://icon.svg",
+                                                       "fallback_label":  "花园修补包"
+                                                   },
+                    "card_support_delivery_board":  {
+                                                        "kind":  "card",
+                                                        "path":  "",
+                                                        "placeholder_path":  "res://icon.svg",
+                                                        "fallback_label":  "配送接驳板"
+                                                    },
+                    "icon_support_delivery_board":  {
+                                                        "kind":  "icon",
+                                                        "path":  "",
+                                                        "placeholder_path":  "res://icon.svg",
+                                                        "fallback_label":  "配送接驳板"
+                                                    },
+                    "card_support_elevator_team":  {
+                                                       "kind":  "card",
+                                                       "path":  "",
+                                                       "placeholder_path":  "res://icon.svg",
+                                                       "fallback_label":  "楼道互助队"
+                                                   },
+                    "icon_support_elevator_team":  {
+                                                       "kind":  "icon",
+                                                       "path":  "",
+                                                       "placeholder_path":  "res://icon.svg",
+                                                       "fallback_label":  "楼道互助队"
+                                                   },
+                    "card_support_festival_banner":  {
+                                                         "kind":  "card",
+                                                         "path":  "",
+                                                         "placeholder_path":  "res://icon.svg",
+                                                         "fallback_label":  "节庆布置包"
+                                                     },
+                    "icon_support_festival_banner":  {
+                                                         "kind":  "icon",
+                                                         "path":  "",
+                                                         "placeholder_path":  "res://icon.svg",
+                                                         "fallback_label":  "节庆布置包"
+                                                     },
+                    "card_support_health_check":  {
+                                                      "kind":  "card",
+                                                      "path":  "res://assets/cards/card_support_health_check.png",
+                                                      "placeholder_path":  "res://icon.svg",
+                                                      "fallback_label":  "健康筛查单"
+                                                  },
+                    "icon_support_health_check":  {
+                                                      "kind":  "icon",
+                                                      "path":  "res://assets/icons/icon_support_health_check.png",
+                                                      "placeholder_path":  "res://icon.svg",
+                                                      "fallback_label":  "健康筛查单"
+                                                  },
+                    "card_support_listening_table":  {
+                                                         "kind":  "card",
+                                                         "path":  "res://assets/cards/card_support_listening_table.png",
+                                                         "placeholder_path":  "res://icon.svg",
+                                                         "fallback_label":  "倾听茶桌"
+                                                     },
+                    "icon_support_listening_table":  {
+                                                         "kind":  "icon",
+                                                         "path":  "res://assets/icons/icon_support_listening_table.png",
+                                                         "placeholder_path":  "res://icon.svg",
+                                                         "fallback_label":  "倾听茶桌"
+                                                     },
+                    "card_problem_rainy_walkway":  {
+                                                       "kind":  "card",
+                                                       "path":  "res://assets/cards/card_problem_rainy_walkway.png",
+                                                       "placeholder_path":  "res://icon.svg",
+                                                       "fallback_label":  "雨天通行受阻"
+                                                   },
+                    "icon_problem_rainy_walkway":  {
+                                                       "kind":  "icon",
+                                                       "path":  "res://assets/icons/icon_problem_rainy_walkway.png",
+                                                       "placeholder_path":  "res://icon.svg",
+                                                       "fallback_label":  "雨天通行受阻"
+                                                   },
+                    "card_problem_market_queue":  {
+                                                      "kind":  "card",
+                                                      "path":  "",
+                                                      "placeholder_path":  "res://icon.svg",
+                                                      "fallback_label":  "早市排队拥堵"
+                                                  },
+                    "icon_problem_market_queue":  {
+                                                      "kind":  "icon",
+                                                      "path":  "",
+                                                      "placeholder_path":  "res://icon.svg",
+                                                      "fallback_label":  "早市排队拥堵"
+                                                  },
+                    "card_problem_heatwave_visit":  {
+                                                        "kind":  "card",
+                                                        "path":  "",
+                                                        "placeholder_path":  "res://icon.svg",
+                                                        "fallback_label":  "高温探访压力"
+                                                    },
+                    "icon_problem_heatwave_visit":  {
+                                                        "kind":  "icon",
+                                                        "path":  "",
+                                                        "placeholder_path":  "res://icon.svg",
+                                                        "fallback_label":  "高温探访压力"
+                                                    },
+                    "card_problem_power_outage":  {
+                                                      "kind":  "card",
+                                                      "path":  "res://assets/cards/card_problem_power_outage.png",
+                                                      "placeholder_path":  "res://icon.svg",
+                                                      "fallback_label":  "临时停电影响"
+                                                  },
+                    "icon_problem_power_outage":  {
+                                                      "kind":  "icon",
+                                                      "path":  "res://assets/icons/icon_problem_power_outage.png",
+                                                      "placeholder_path":  "res://icon.svg",
+                                                      "fallback_label":  "临时停电影响"
+                                                  },
+                    "card_problem_festival_setup":  {
+                                                        "kind":  "card",
+                                                        "path":  "",
+                                                        "placeholder_path":  "res://icon.svg",
+                                                        "fallback_label":  "节庆布置超负荷"
+                                                    },
+                    "icon_problem_festival_setup":  {
+                                                        "kind":  "icon",
+                                                        "path":  "",
+                                                        "placeholder_path":  "res://icon.svg",
+                                                        "fallback_label":  "节庆布置超负荷"
+                                                    },
+                    "card_problem_pharmacy_run":  {
+                                                      "kind":  "card",
+                                                      "path":  "",
+                                                      "placeholder_path":  "res://icon.svg",
+                                                      "fallback_label":  "代买药路线混乱"
+                                                  },
+                    "icon_problem_pharmacy_run":  {
+                                                      "kind":  "icon",
+                                                      "path":  "",
+                                                      "placeholder_path":  "res://icon.svg",
+                                                      "fallback_label":  "代买药路线混乱"
+                                                  },
+                    "card_problem_night_patrol":  {
+                                                      "kind":  "card",
+                                                      "path":  "",
+                                                      "placeholder_path":  "res://icon.svg",
+                                                      "fallback_label":  "夜巡信息不同步"
+                                                  },
+                    "icon_problem_night_patrol":  {
+                                                      "kind":  "icon",
+                                                      "path":  "",
+                                                      "placeholder_path":  "res://icon.svg",
+                                                      "fallback_label":  "夜巡信息不同步"
+                                                  },
+                    "card_problem_garden_repair":  {
+                                                       "kind":  "card",
+                                                       "path":  "",
+                                                       "placeholder_path":  "res://icon.svg",
+                                                       "fallback_label":  "绿地边角破损"
+                                                   },
+                    "icon_problem_garden_repair":  {
+                                                       "kind":  "icon",
+                                                       "path":  "",
+                                                       "placeholder_path":  "res://icon.svg",
+                                                       "fallback_label":  "绿地边角破损"
+                                                   },
+                    "card_problem_delivery_delay":  {
+                                                        "kind":  "card",
+                                                        "path":  "res://assets/cards/card_problem_delivery_delay.png",
+                                                        "placeholder_path":  "res://icon.svg",
+                                                        "fallback_label":  "配送接驳混乱"
+                                                    },
+                    "icon_problem_delivery_delay":  {
+                                                        "kind":  "icon",
+                                                        "path":  "res://assets/icons/icon_problem_delivery_delay.png",
+                                                        "placeholder_path":  "res://icon.svg",
+                                                        "fallback_label":  "配送接驳混乱"
+                                                    },
+                    "card_problem_elevator_help":  {
+                                                       "kind":  "card",
+                                                       "path":  "res://assets/cards/card_problem_elevator_help.png",
+                                                       "placeholder_path":  "res://icon.svg",
+                                                       "fallback_label":  "楼道陪行需求暴增"
+                                                   },
+                    "icon_problem_elevator_help":  {
+                                                       "kind":  "icon",
+                                                       "path":  "res://assets/icons/icon_problem_elevator_help.png",
+                                                       "placeholder_path":  "res://icon.svg",
+                                                       "fallback_label":  "楼道陪行需求暴增"
+                                                   },
+                    "card_problem_notice_conflict":  {
+                                                         "kind":  "card",
+                                                         "path":  "",
+                                                         "placeholder_path":  "res://icon.svg",
+                                                         "fallback_label":  "公告理解冲突"
+                                                     },
+                    "icon_problem_notice_conflict":  {
+                                                         "kind":  "icon",
+                                                         "path":  "",
+                                                         "placeholder_path":  "res://icon.svg",
+                                                         "fallback_label":  "公告理解冲突"
+                                                     },
+                    "card_problem_medical_check":  {
+                                                       "kind":  "card",
+                                                       "path":  "",
+                                                       "placeholder_path":  "res://icon.svg",
+                                                       "fallback_label":  "义诊登记超量"
+                                                   },
+                    "icon_problem_medical_check":  {
+                                                       "kind":  "icon",
+                                                       "path":  "",
+                                                       "placeholder_path":  "res://icon.svg",
+                                                       "fallback_label":  "义诊登记超量"
+                                                   },
+                    "portrait_wang_nainai":  {
+                                                 "kind":  "portrait",
+                                                 "path":  "res://assets/portraits/portrait_wang_nainai.png",
+                                                 "placeholder_path":  "res://icon.svg",
+                                                 "fallback_label":  "王奶奶"
+                                             },
+                    "portrait_chen_shu":  {
+                                              "kind":  "portrait",
+                                              "path":  "res://assets/portraits/portrait_chen_shu.png",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "陈叔"
+                                          },
+                    "portrait_xiao_lin":  {
+                                              "kind":  "portrait",
+                                              "path":  "res://assets/portraits/portrait_xiao_lin.png",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "小林"
+                                          },
+                    "portrait_li_shifu":  {
+                                              "kind":  "portrait",
+                                              "path":  "res://assets/portraits/portrait_li_shifu.png",
+                                              "placeholder_path":  "res://icon.svg",
+                                              "fallback_label":  "李师傅"
+                                          },
+                    "portrait_zhang_ayi":  {
+                                               "kind":  "portrait",
+                                               "path":  "res://assets/portraits/portrait_zhang_ayi.png",
+                                               "placeholder_path":  "res://icon.svg",
+                                               "fallback_label":  "张阿姨"
+                                           },
+                    "portrait_liu_yisheng":  {
+                                                 "kind":  "portrait",
+                                                 "path":  "res://assets/portraits/portrait_liu_yisheng.png",
+                                                 "placeholder_path":  "res://icon.svg",
+                                                 "fallback_label":  "刘医生"
+                                             },
+                    "portrait_sun_tongxue":  {
+                                                 "kind":  "portrait",
+                                                 "path":  "res://assets/portraits/portrait_sun_tongxue.png",
+                                                 "placeholder_path":  "res://icon.svg",
+                                                 "fallback_label":  "孙同学"
+                                             },
+                    "portrait_gao_meihua":  {
+                                                "kind":  "portrait",
+                                                "path":  "",
+                                                "placeholder_path":  "res://icon.svg",
+                                                "fallback_label":  "高美华"
+                                            },
+                    "portrait_a_qiang":  {
+                                             "kind":  "portrait",
+                                             "path":  "",
+                                             "placeholder_path":  "res://icon.svg",
+                                             "fallback_label":  "阿强"
+                                         },
+                    "event_day2_rain_path":  {
+                                                 "kind":  "event",
+                                                 "path":  "",
+                                                 "placeholder_path":  "res://icon.svg",
+                                                 "fallback_label":  "雨天通行告急"
+                                             },
+                    "event_day3_notice_conflict":  {
+                                                       "kind":  "event",
+                                                       "path":  "",
+                                                       "placeholder_path":  "res://icon.svg",
+                                                       "fallback_label":  "公告理解冲突"
+                                                   },
+                    "event_day3_first_notice_check":  {
+                                                          "kind":  "event",
+                                                          "path":  "",
+                                                          "placeholder_path":  "res://icon.svg",
+                                                          "fallback_label":  "第一次公告确认"
+                                                      },
+                    "event_day4_market_queue":  {
+                                                    "kind":  "event",
+                                                    "path":  "",
+                                                    "placeholder_path":  "res://icon.svg",
+                                                    "fallback_label":  "早市排队压力上升"
+                                                },
+                    "event_day6_heatwave_visit":  {
+                                                      "kind":  "event",
+                                                      "path":  "",
+                                                      "placeholder_path":  "res://icon.svg",
+                                                      "fallback_label":  "高温探访任务"
+                                                  },
+                    "event_day8_power_outage":  {
+                                                    "kind":  "event",
+                                                    "path":  "",
+                                                    "placeholder_path":  "res://icon.svg",
+                                                    "fallback_label":  "夜间临时停电"
+                                                },
+                    "event_day10_festival_setup":  {
+                                                       "kind":  "event",
+                                                       "path":  "",
+                                                       "placeholder_path":  "res://icon.svg",
+                                                       "fallback_label":  "展示日前夕超负荷"
+                                                   },
+                    "event_fallback_market_queue":  {
+                                                        "kind":  "event",
+                                                        "path":  "",
+                                                        "placeholder_path":  "res://icon.svg",
+                                                        "fallback_label":  "市场导流预案"
+                                                    },
+                    "event_fallback_heatwave_visit":  {
+                                                          "kind":  "event",
+                                                          "path":  "",
+                                                          "placeholder_path":  "res://icon.svg",
+                                                          "fallback_label":  "高温探访预案"
+                                                      },
+                    "event_fallback_festival_setup":  {
+                                                          "kind":  "event",
+                                                          "path":  "",
+                                                          "placeholder_path":  "res://icon.svg",
+                                                          "fallback_label":  "节庆布置预案"
+                                                      },
+                    "event_pharmacy_run":  {
+                                               "kind":  "event",
+                                               "path":  "",
+                                               "placeholder_path":  "res://icon.svg",
+                                               "fallback_label":  "代买药任务堆积"
+                                           },
+                    "event_night_patrol":  {
+                                               "kind":  "event",
+                                               "path":  "",
+                                               "placeholder_path":  "res://icon.svg",
+                                               "fallback_label":  "夜巡联络断层"
+                                           },
+                    "event_delivery_delay":  {
+                                                 "kind":  "event",
+                                                 "path":  "",
+                                                 "placeholder_path":  "res://icon.svg",
+                                                 "fallback_label":  "配送接驳混乱"
+                                             },
+                    "event_medical_check":  {
+                                                "kind":  "event",
+                                                "path":  "",
+                                                "placeholder_path":  "res://icon.svg",
+                                                "fallback_label":  "义诊登记超量"
+                                            },
+                    "card_care_station_permit":  {
+                                                     "placeholder_path":  "res://icon.svg"
+                                                 },
+                    "icon_care_station_permit":  {
+                                                     "placeholder_path":  "res://icon.svg"
+                                                 },
+                    "card_care_kit_pack":  {
+                                               "placeholder_path":  "res://icon.svg"
+                                           },
+                    "icon_care_kit_pack":  {
+                                               "placeholder_path":  "res://icon.svg"
+                                           },
+                    "card_neighbor_helper":  {
+                                                 "kind":  "card",
+                                                 "path":  "res://assets/cards/card_neighbor_helper.png",
+                                                 "placeholder_path":  "res://icon.svg",
+                                                 "fallback_label":  "热心邻居"
+                                             },
+                    "icon_neighbor_helper":  {
+                                                 "kind":  "icon",
+                                                 "path":  "res://assets/icons/icon_neighbor_helper.png",
+                                                 "placeholder_path":  "res://icon.svg",
+                                                 "fallback_label":  "热心邻居"
+                                             },
+                    "card_scrap_wood_pile":  {
+                                                 "kind":  "card",
+                                                 "path":  "res://assets/cards/card_scrap_wood_pile.png",
+                                                 "placeholder_path":  "res://icon.svg",
+                                                 "fallback_label":  "废木料堆"
+                                             },
+                    "icon_scrap_wood_pile":  {
+                                                 "kind":  "icon",
+                                                 "path":  "res://assets/icons/icon_scrap_wood_pile.png",
+                                                 "placeholder_path":  "res://icon.svg",
+                                                 "fallback_label":  "废木料堆"
+                                             },
+                    "card_volunteer_captain":  {
+                                                   "kind":  "card",
+                                                   "path":  "",
+                                                   "placeholder_path":  "res://icon.svg",
+                                                   "fallback_label":  "志愿者骨干"
+                                               },
+                    "icon_volunteer_captain":  {
+                                                   "kind":  "icon",
+                                                   "path":  "",
+                                                   "placeholder_path":  "res://icon.svg",
+                                                   "fallback_label":  "志愿者骨干"
+                                               },
+                    "card_donation_supply_box":  {
+                                                     "kind":  "card",
+                                                     "path":  "",
+                                                     "placeholder_path":  "res://icon.svg",
+                                                     "fallback_label":  "捐赠物资箱"
+                                                 },
+                    "icon_donation_supply_box":  {
+                                                     "kind":  "icon",
+                                                     "path":  "",
+                                                     "placeholder_path":  "res://icon.svg",
+                                                     "fallback_label":  "捐赠物资箱"
+                                                 },
+                    "card_community_clue_board":  {
+                                                      "kind":  "card",
+                                                      "path":  "",
+                                                      "placeholder_path":  "res://icon.svg",
+                                                      "fallback_label":  "社区线索板"
+                                                  },
+                    "icon_community_clue_board":  {
+                                                      "kind":  "icon",
+                                                      "path":  "",
+                                                      "placeholder_path":  "res://icon.svg",
+                                                      "fallback_label":  "社区线索板"
+                                                  },
+                    "card_convenience_supplies":  {
+                                                      "kind":  "card",
+                                                      "path":  "",
+                                                      "placeholder_path":  "res://icon.svg",
+                                                      "fallback_label":  "便民物资"
+                                                  },
+                    "icon_convenience_supplies":  {
+                                                      "kind":  "icon",
+                                                      "path":  "",
+                                                      "placeholder_path":  "res://icon.svg",
+                                                      "fallback_label":  "便民物资"
+                                                  },
+                    "card_community_funds":  {
+                                                 "kind":  "card",
+                                                 "path":  "res://assets/cards/card_community_funds.png",
+                                                 "placeholder_path":  "res://icon.svg",
+                                                 "fallback_label":  "社区资金"
+                                             },
+                    "icon_community_funds":  {
+                                                 "kind":  "icon",
+                                                 "path":  "res://assets/icons/icon_community_funds.png",
+                                                 "placeholder_path":  "res://icon.svg",
+                                                 "fallback_label":  "社区资金"
+                                             },
+                    "card_wang_nainai":  {
+                                             "kind":  "card",
+                                             "path":  "res://assets/cards/card_wang_nainai.png",
+                                             "placeholder_path":  "res://icon.svg",
+                                             "fallback_label":  "wang_nainai"
+                                         },
+                    "card_chen_shu":  {
+                                          "kind":  "card",
+                                          "path":  "res://assets/cards/card_chen_shu.png",
+                                          "placeholder_path":  "res://icon.svg",
+                                          "fallback_label":  "chen_shu"
+                                      },
+                    "card_xiao_lin":  {
+                                          "kind":  "card",
+                                          "path":  "res://assets/cards/card_xiao_lin.png",
+                                          "placeholder_path":  "res://icon.svg",
+                                          "fallback_label":  "xiao_lin"
+                                      },
+                    "card_li_shifu":  {
+                                          "kind":  "card",
+                                          "path":  "res://assets/cards/card_li_shifu.png",
+                                          "placeholder_path":  "res://icon.svg",
+                                          "fallback_label":  "li_shifu"
+                                      },
+                    "card_zhang_ayi":  {
+                                           "kind":  "card",
+                                           "path":  "res://assets/cards/card_zhang_ayi.png",
+                                           "placeholder_path":  "res://icon.svg",
+                                           "fallback_label":  "zhang_ayi"
+                                       },
+                    "card_liu_yisheng":  {
+                                             "kind":  "card",
+                                             "path":  "res://assets/cards/card_liu_yisheng.png",
+                                             "placeholder_path":  "res://icon.svg",
+                                             "fallback_label":  "liu_yisheng"
+                                         },
+                    "card_sun_tongxue":  {
+                                             "kind":  "card",
+                                             "path":  "res://assets/cards/card_sun_tongxue.png",
+                                             "placeholder_path":  "res://icon.svg",
+                                             "fallback_label":  "sun_tongxue"
+                                         },
+                    "card_advanced_volunteer_hub":  {
+                                                        "path":  "",
+                                                        "fallback_label":  "志愿者服务中心",
+                                                        "placeholder_path":  "res://icon.svg",
+                                                        "kind":  "card"
+                                                    },
+                    "card_community_notice_board":  {
+                                                        "path":  "",
+                                                        "fallback_label":  "社区公告栏",
+                                                        "placeholder_path":  "res://icon.svg",
+                                                        "kind":  "card"
+                                                    },
+                    "card_repair_kit":  {
+                                            "path":  "",
+                                            "fallback_label":  "维修工具包",
+                                            "placeholder_path":  "res://icon.svg",
+                                            "kind":  "card"
+                                        },
+                    "icon_community_notice_board":  {
+                                                        "path":  "",
+                                                        "fallback_label":  "社区公告栏",
+                                                        "placeholder_path":  "res://icon.svg",
+                                                        "kind":  "icon"
+                                                    },
+                    "card_supply_station":  {
+                                                "path":  "",
+                                                "fallback_label":  "便民物资站",
+                                                "placeholder_path":  "res://icon.svg",
+                                                "kind":  "card"
+                                            },
+                    "icon_advanced_volunteer_hub":  {
+                                                        "path":  "",
+                                                        "fallback_label":  "志愿者服务中心",
+                                                        "placeholder_path":  "res://icon.svg",
+                                                        "kind":  "icon"
+                                                    },
+                    "icon_repair_kit":  {
+                                            "path":  "",
+                                            "fallback_label":  "维修工具包",
+                                            "placeholder_path":  "res://icon.svg",
+                                            "kind":  "icon"
+                                        },
+                    "icon_supply_station":  {
+                                                "path":  "",
+                                                "fallback_label":  "便民物资站",
+                                                "placeholder_path":  "res://icon.svg",
+                                                "kind":  "icon"
+                                            },
+                    "icon_wang_nainai":  {
+                                             "kind":  "icon",
+                                             "path":  "",
+                                             "placeholder_path":  "res://icon.svg",
+                                             "fallback_label":  "王奶奶"
+                                         },
+                    "icon_chen_shu":  {
+                                          "kind":  "icon",
+                                          "path":  "",
+                                          "placeholder_path":  "res://icon.svg",
+                                          "fallback_label":  "陈叔"
+                                      },
+                    "icon_xiao_lin":  {
+                                          "kind":  "icon",
+                                          "path":  "",
+                                          "placeholder_path":  "res://icon.svg",
+                                          "fallback_label":  "小林"
+                                      },
+                    "icon_zhang_ayi":  {
+                                           "kind":  "icon",
+                                           "path":  "",
+                                           "placeholder_path":  "res://icon.svg",
+                                           "fallback_label":  "张阿姨"
+                                       },
+                    "icon_li_shifu":  {
+                                          "kind":  "icon",
+                                          "path":  "",
+                                          "placeholder_path":  "res://icon.svg",
+                                          "fallback_label":  "李师傅"
+                                      },
+                    "icon_sun_tongxue":  {
+                                             "kind":  "icon",
+                                             "path":  "",
+                                             "placeholder_path":  "res://icon.svg",
+                                             "fallback_label":  "孙同学"
+                                         },
+                    "icon_liu_yisheng":  {
+                                             "kind":  "icon",
+                                             "path":  "",
+                                             "placeholder_path":  "res://icon.svg",
+                                             "fallback_label":  "刘医生"
+                                         },
+                    "card_a_qiang":  {
+                                         "kind":  "card",
+                                         "path":  "",
+                                         "placeholder_path":  "res://icon.svg",
+                                         "fallback_label":  "阿强"
+                                     },
+                    "icon_a_qiang":  {
+                                         "kind":  "icon",
+                                         "path":  "",
+                                         "placeholder_path":  "res://icon.svg",
+                                         "fallback_label":  "阿强"
+                                     }
+                }
 }

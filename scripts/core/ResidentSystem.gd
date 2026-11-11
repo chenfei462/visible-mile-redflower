@@ -1,10 +1,11 @@
-﻿extends RefCounted
+extends RefCounted
 
 const DEFAULT_HEALTH := 80
 const LOW_HEALTH_THRESHOLD := 40
 const MAX_PERSONAL_MESSAGES := 5
 const MAX_MEMORY_LOG := 12
 const OPENING_NEED_RAMP_BASE := 2
+const AUTO_SERVICE_REWARD_CUTOFF_DAY := 2
 const LOCATION_BY_TAG := {
 	"service": "service",
 	"market": "market",
@@ -16,7 +17,9 @@ const LOCATION_BY_TAG := {
 	"meal": "service",
 	"family": "service",
 	"festival": "event",
-	"culture": "event"
+	"culture": "event",
+	"night": "service",
+	"wayfinding": "service"
 }
 const RESOURCE_LABELS := {
 	"flowers": "小红花",
@@ -66,6 +69,8 @@ static func housing_capacity_for_state(state: Dictionary, cards_by_id: Dictionar
 		if typeof(built_variant) != TYPE_DICTIONARY:
 			continue
 		var built: Dictionary = built_variant
+		if not _is_placed_built_facility(built):
+			continue
 		var card_id := str(built.get("card_id", built.get("occupied_card_id", "")))
 		var card_def: Dictionary = cards_by_id.get(card_id, {})
 		if _is_housing_facility(card_def):
@@ -216,6 +221,8 @@ static func spawn_daily_need_entities(state: Dictionary) -> Array[Dictionary]:
 	state["resident_need_entities"] = entities.duplicate(true)
 	state["resident_need_queue"] = entities.duplicate(true)
 	state["daily_need_queue"] = entities.duplicate(true)
+	state["resident_need_manual_services_today"] = 0
+	state["resident_need_auto_services_today"] = 0
 	return entities
 
 
@@ -225,17 +232,20 @@ static func settle_daily_need_entities(state: Dictionary, cards_by_id: Dictionar
 		resident_need_entities = spawn_daily_need_entities(state)
 	var built_facilities: Array = state.get("built_facilities", [])
 	var facility_usage: Dictionary = {}
-	var fulfilled_count := 0
+	var manual_fulfilled_count := 0
+	var auto_fulfilled_count := 0
 	var fallback_count := 0
 	var unmet_count := 0
 	var streak_penalty := 0
 	var moral_loss := 0
 	var flowers_spent := 0
+	var auto_service_reward_mode := _auto_service_reward_mode_for_day(int(state.get("day_count", 1)))
 	for entity_variant in resident_need_entities:
 		if typeof(entity_variant) != TYPE_DICTIONARY:
 			continue
 		var entity: Dictionary = entity_variant
 		if str(entity.get("status", "pending")) == "resolved":
+			manual_fulfilled_count += 1
 			var resolved_index := int(entity.get("resolved_facility_index", -1))
 			if resolved_index >= 0:
 				facility_usage[resolved_index] = int(facility_usage.get(resolved_index, 0)) + 1
@@ -244,9 +254,8 @@ static func settle_daily_need_entities(state: Dictionary, cards_by_id: Dictionar
 		var matched_facility_index := _find_service_facility_for_need(entity, built_facilities, cards_by_id, facility_usage)
 		if matched_facility_index >= 0:
 			facility_usage[matched_facility_index] = int(facility_usage.get(matched_facility_index, 0)) + 1
-			fulfilled_count += 1
-			state["flowers"] = int(state.get("flowers", 0)) + 1
-			state["funds"] = int(state.get("funds", 0)) + 1
+			auto_fulfilled_count += 1
+			_apply_auto_service_rewards(state, auto_service_reward_mode)
 			continue
 		var fallback_cost := _fallback_cost_for_need(fallback_count)
 		var flowers := int(state.get("flowers", 0))
@@ -268,11 +277,16 @@ static func settle_daily_need_entities(state: Dictionary, cards_by_id: Dictionar
 		state["moral"] = clampi(int(state.get("moral", 10)) - moral_loss, 0, moral_max)
 		state["moral_failure_streak"] = streak + 1
 	state["moral_loss"] = moral_loss
+	state["resident_need_manual_services_today"] = manual_fulfilled_count
+	state["resident_need_auto_services_today"] = auto_fulfilled_count
 	state["resident_need_entities"] = []
 	state["resident_need_queue"] = []
 	state["daily_need_queue"] = []
 	return {
-		"fulfilled_count": fulfilled_count,
+		"fulfilled_count": manual_fulfilled_count + auto_fulfilled_count,
+		"manual_fulfilled_count": manual_fulfilled_count,
+		"auto_fulfilled_count": auto_fulfilled_count,
+		"auto_service_reward_mode": auto_service_reward_mode,
 		"fallback_count": fallback_count,
 		"unmet_count": unmet_count,
 		"flowers_spent": flowers_spent,
@@ -308,19 +322,21 @@ func resolve_need_with_service_building(state: Dictionary, need_id: String, faci
 		entity["status"] = "resolved"
 		entity["resolved_by"] = facility_card_id
 		entity["resolved_facility_index"] = facility_index
+		entity["resolved_mode"] = "manual"
 		resident_need_entities[index] = entity
 		state["resident_need_entities"] = resident_need_entities
 		state["resident_need_queue"] = _pending_need_entities(resident_need_entities)
 		state["daily_need_queue"] = _pending_need_entities(resident_need_entities)
-		state["flowers"] = int(state.get("flowers", 0)) + 1
-		state["funds"] = int(state.get("funds", 0)) + 1
+		state["resident_need_manual_services_today"] = int(state.get("resident_need_manual_services_today", 0)) + 1
+		_apply_manual_service_rewards(state)
 		return {
 			"success": true,
 			"need_id": need_id,
 			"resolved_by": facility_card_id,
 			"status": "resolved",
-			"flowers_gained": 1,
-			"funds_gained": 1
+			"resolution_mode": "manual",
+			"flowers_gained": 2 if int(state.get("day_count", 1)) > AUTO_SERVICE_REWARD_CUTOFF_DAY else 1,
+			"funds_gained": 2 if int(state.get("day_count", 1)) > AUTO_SERVICE_REWARD_CUTOFF_DAY else 1
 		}
 	return {"success": false, "message": "need_not_found"}
 
@@ -470,14 +486,14 @@ static func _location_from_tags(tags: Array) -> String:
 
 
 static func _preferred_cell_for_resident(resident: Dictionary, board_cells: Array[Dictionary], unlocked_indices: PackedInt32Array, random_seed: int) -> int:
-	var preferred_zone := "浣忓畢"
+	var preferred_zone := "住宅"
 	match str(resident.get("location_id", "home")):
 		"service", "clinic", "event":
-			preferred_zone = "鏈嶅姟"
+			preferred_zone = "服务"
 		"market":
-			preferred_zone = "鍟嗕笟"
+			preferred_zone = "商业"
 		"green":
-			preferred_zone = "缁垮湴"
+			preferred_zone = "绿地"
 	for offset: int in range(unlocked_indices.size()):
 		var candidate := unlocked_indices[(random_seed + offset) % unlocked_indices.size()]
 		if str(board_cells[candidate].get("zone_type", "")) == preferred_zone:
@@ -491,8 +507,8 @@ static func _route_reason_for_resident(resident: Dictionary, state: Dictionary) 
 			continue
 		var problem: Dictionary = problem_variant
 		if problem.get("target_resident_ids", []).has(str(resident.get("resident_id", ""))):
-			return "浠婃棩闂鐩稿叧"
-	return "鏃ュ父娲诲姩"
+			return "今日问题相关"
+	return "日常活动"
 static func _refresh_resident_need_tags(resident: Dictionary, _state: Dictionary = {}, _wishes_by_id: Dictionary = {}) -> void:
 	var need_tags := PackedStringArray()
 	for tag_variant in resident.get("need_tags", []):
@@ -547,11 +563,30 @@ static func _fallback_cost_for_need(fallback_index: int) -> int:
 	return 1 if fallback_index == 0 else 2
 
 
+static func _auto_service_reward_mode_for_day(day_count: int) -> String:
+	return "resource_and_moral" if day_count <= AUTO_SERVICE_REWARD_CUTOFF_DAY else "moral_only"
+
+
+static func _apply_auto_service_rewards(state: Dictionary, reward_mode: String) -> void:
+	if reward_mode == "resource_and_moral":
+		state["flowers"] = int(state.get("flowers", 0)) + 1
+		state["funds"] = int(state.get("funds", 0)) + 1
+
+
+static func _apply_manual_service_rewards(state: Dictionary) -> void:
+	var day_count := int(state.get("day_count", 1))
+	var reward_amount := 2 if day_count > AUTO_SERVICE_REWARD_CUTOFF_DAY else 1
+	state["flowers"] = int(state.get("flowers", 0)) + reward_amount
+	state["funds"] = int(state.get("funds", 0)) + reward_amount
+
+
 static func _find_service_facility_for_need(entity: Dictionary, built_facilities: Array, cards_by_id: Dictionary, facility_usage: Dictionary) -> int:
 	var need_tags: Array = entity.get("need_tags", [])
 	for index: int in range(built_facilities.size()):
 		var built_variant = built_facilities[index]
 		if typeof(built_variant) != TYPE_DICTIONARY:
+			continue
+		if not _is_placed_built_facility(built_variant):
 			continue
 		var facility_card_id := str(built_variant.get("card_id", built_variant.get("occupied_card_id", "")))
 		if facility_card_id.is_empty():
@@ -570,6 +605,8 @@ static func _find_built_facility_index(facility_card_id: String, built_facilitie
 		if typeof(built_variant) != TYPE_DICTIONARY:
 			continue
 		var built: Dictionary = built_variant
+		if not _is_placed_built_facility(built):
+			continue
 		if str(built.get("card_id", built.get("occupied_card_id", ""))) == facility_card_id:
 			return index
 	return -1
@@ -602,10 +639,25 @@ static func _has_matching_service_facility(entity: Dictionary, built_facilities:
 	for built_variant in built_facilities:
 		if typeof(built_variant) != TYPE_DICTIONARY:
 			continue
+		if not _is_placed_built_facility(built_variant):
+			continue
 		var facility_card_id := str(built_variant.get("card_id", built_variant.get("occupied_card_id", "")))
 		if facility_card_id.is_empty():
 			continue
 		if _facility_matches_need(cards_by_id.get(facility_card_id, {}), need_tags):
+			return true
+	return false
+
+
+static func _is_placed_built_facility(built: Dictionary) -> bool:
+	var has_placement_fields := built.has("root_cell") or built.has("cell_index") or built.has("occupied_cells")
+	if not has_placement_fields:
+		return true
+	var root_index := int(built.get("root_cell", built.get("cell_index", -1)))
+	if root_index >= 0:
+		return true
+	for occupied_variant in built.get("occupied_cells", []):
+		if int(occupied_variant) >= 0:
 			return true
 	return false
 

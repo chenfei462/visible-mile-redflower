@@ -5,7 +5,7 @@ const BOARD_RULES := preload("res://scripts/core/BoardRules.gd")
 const DATA_REPOSITORY := preload("res://scripts/autoload/DataRepository.gd")
 
 
-static func generate_daily_bulletin(unlocked_cards: Array[Dictionary], offset: int, count: int) -> Array[String]:
+static func generate_daily_pack_cards(unlocked_cards: Array[Dictionary], offset: int, count: int) -> Array[String]:
 	var result: Array[String] = []
 	if unlocked_cards.is_empty():
 		return result
@@ -15,16 +15,57 @@ static func generate_daily_bulletin(unlocked_cards: Array[Dictionary], offset: i
 	return result
 
 
+static func generate_daily_bulletin(unlocked_cards: Array[Dictionary], offset: int, count: int) -> Array[String]:
+	return generate_daily_pack_cards(unlocked_cards, offset, count)
+
+
+static func clear_daily_pack_cards(daily_pack_cards: Array[String]) -> void:
+	for index: int in range(daily_pack_cards.size()):
+		daily_pack_cards[index] = ""
+
+
 static func clear_bulletin(bulletin_cards: Array[String]) -> void:
-	for index: int in range(bulletin_cards.size()):
-		bulletin_cards[index] = ""
+	clear_daily_pack_cards(bulletin_cards)
+
+
+static func pick_daily_pack_card(daily_pack_cards: Array[String], hand_cards: Array[String], state: Dictionary, index: int, max_choices: int) -> Dictionary:
+	return claim_daily_pack_card(daily_pack_cards, hand_cards, state, index, max_choices)
+
+
+static func claim_daily_pack_card(
+	daily_pack_cards: Array[String],
+	hand_cards: Array[String],
+	state: Dictionary,
+	index: int,
+	free_pick_limit: int,
+	hand_card_sources: Array = [],
+	hand_card_prices: Array = [],
+	daily_pack_prices: Array = [],
+	allow_paid_after_free_limit: bool = false,
+	cards_by_id: Dictionary = {},
+	recipes: Array[Dictionary] = []
+) -> Dictionary:
+	return _claim_pack_card(
+		daily_pack_cards,
+		hand_cards,
+		state,
+		index,
+		free_pick_limit,
+		hand_card_sources,
+		hand_card_prices,
+		daily_pack_prices,
+		allow_paid_after_free_limit,
+		cards_by_id,
+		recipes,
+		"daily_pack"
+	)
 
 
 static func pick_bulletin_card(bulletin_cards: Array[String], hand_cards: Array[String], state: Dictionary, index: int, max_choices: int) -> Dictionary:
-	return claim_bulletin_card(bulletin_cards, hand_cards, state, index, max_choices)
+	return claim_daily_pack_card(bulletin_cards, hand_cards, state, index, max_choices)
 
 
-static func bulletin_purchase_cost_for_card(card_id: String, state: Dictionary, cards_by_id: Dictionary = {}, recipes: Array[Dictionary] = []) -> Dictionary:
+static func daily_pack_purchase_cost_for_card(card_id: String, state: Dictionary, cards_by_id: Dictionary = {}, recipes: Array[Dictionary] = []) -> Dictionary:
 	var line := _permit_purchase_line_for_card(card_id, cards_by_id, recipes)
 	var counts: Dictionary = state.get("permit_purchase_counts", {})
 	var purchased_count := int(counts.get(line, 0))
@@ -35,6 +76,10 @@ static func bulletin_purchase_cost_for_card(card_id: String, state: Dictionary, 
 			return {"line": line, "resource": "flowers", "amount": 2 + purchased_count * 2}
 		_:
 			return {"line": line, "resource": "flowers", "amount": 0}
+
+
+static func bulletin_purchase_cost_for_card(card_id: String, state: Dictionary, cards_by_id: Dictionary = {}, recipes: Array[Dictionary] = []) -> Dictionary:
+	return daily_pack_purchase_cost_for_card(card_id, state, cards_by_id, recipes)
 
 
 static func claim_bulletin_card(
@@ -50,16 +95,46 @@ static func claim_bulletin_card(
 	cards_by_id: Dictionary = {},
 	recipes: Array[Dictionary] = []
 ) -> Dictionary:
-	if index < 0 or index >= bulletin_cards.size():
-		return {"success": false, "message": "无效的公告栏位置。"}
-	var card_id: String = bulletin_cards[index]
+	return _claim_pack_card(
+		bulletin_cards,
+		hand_cards,
+		state,
+		index,
+		free_pick_limit,
+		hand_card_sources,
+		hand_card_prices,
+		bulletin_prices,
+		allow_paid_after_free_limit,
+		cards_by_id,
+		recipes,
+		"daily_pack"
+	)
+
+
+static func _claim_pack_card(
+	pack_cards: Array[String],
+	hand_cards: Array[String],
+	state: Dictionary,
+	index: int,
+	free_pick_limit: int,
+	hand_card_sources: Array = [],
+	hand_card_prices: Array = [],
+	pack_prices: Array = [],
+	allow_paid_after_free_limit: bool = false,
+	cards_by_id: Dictionary = {},
+	recipes: Array[Dictionary] = [],
+	source_prefix: String = "daily_pack"
+) -> Dictionary:
+	if index < 0 or index >= pack_cards.size():
+		return {"success": false, "message": "无效的卡包栏位置。"}
+	var card_id: String = pack_cards[index]
 	if card_id.is_empty():
-		return {"success": false, "message": "这个公告栏位置已经被拿走了。"}
+		return {"success": false, "message": "这个卡包栏位置已经被拿走了。"}
 
 	var used_free_picks := int(state.get("selected_cards_today", 0))
 	var has_free_pick := used_free_picks < free_pick_limit
-	var price := int(_array_value_or_default(bulletin_prices, index, 0))
-	var purchase_cost := bulletin_purchase_cost_for_card(card_id, state, cards_by_id, recipes)
+	var price := int(_array_value_or_default(pack_prices, index, 0))
+	var purchase_cost := daily_pack_purchase_cost_for_card(card_id, state, cards_by_id, recipes)
 	var purchase_line := str(purchase_cost.get("line", "default"))
 	var purchase_resource := str(purchase_cost.get("resource", "flowers"))
 	if purchase_line != "default":
@@ -67,11 +142,11 @@ static func claim_bulletin_card(
 	var is_paid_purchase := false
 	if not has_free_pick:
 		if not allow_paid_after_free_limit:
-			return {"success": false, "message": "今天已经拿满了免费公告牌。"}
+			return {"success": false, "message": "今天已经拿满了免费卡包卡。"}
 		if price <= 0:
-			return {"success": false, "message": "这张公告牌今天不能购买。"}
+			return {"success": false, "message": "这张卡包卡今天不能购买。"}
 		if int(state.get(purchase_resource, 0)) < price:
-			return {"success": false, "message": "%s不足，无法购买这张公告牌。" % _resource_label(purchase_resource)}
+			return {"success": false, "message": "%s不足，无法购买这张卡包卡。" % _resource_label(purchase_resource)}
 		state[purchase_resource] = int(state.get(purchase_resource, 0)) - price
 		if purchase_line != "default":
 			var counts: Dictionary = state.get("permit_purchase_counts", {})
@@ -80,15 +155,15 @@ static func claim_bulletin_card(
 		is_paid_purchase = true
 
 	hand_cards.append(card_id)
-	bulletin_cards[index] = ""
+	pack_cards[index] = ""
 	if has_free_pick:
 		state["selected_cards_today"] = used_free_picks + 1
 
-	var source := "bulletin_paid" if is_paid_purchase else "bulletin_free"
+	var source := "%s_paid" % source_prefix if is_paid_purchase else "%s_free" % source_prefix
 	hand_card_sources.append(source)
 	hand_card_prices.append(price)
-	if index < bulletin_prices.size():
-		bulletin_prices[index] = 0
+	if index < pack_prices.size():
+		pack_prices[index] = 0
 	return {
 		"success": true,
 		"card_id": card_id,
@@ -98,8 +173,34 @@ static func claim_bulletin_card(
 		"source": source,
 		"cost_resource": purchase_resource,
 		"purchase_line": purchase_line,
-		"message": "花费 %d %s购入卡牌。" % [price, _resource_label(purchase_resource)] if is_paid_purchase else "获得公告栏卡牌。"
+		"message": "花费 %d %s购入卡牌。" % [price, _resource_label(purchase_resource)] if is_paid_purchase else "获得每日卡包卡牌。"
 	}
+
+
+static func return_hand_card_to_daily_pack(
+	daily_pack_cards: Array[String],
+	hand_cards: Array[String],
+	state: Dictionary,
+	hand_index: int,
+	recipes: Array[Dictionary] = [],
+	hand_card_sources: Array = [],
+	hand_card_prices: Array = [],
+	daily_pack_prices: Array = []
+) -> Dictionary:
+	var result := _return_hand_card_to_pack(
+		daily_pack_cards,
+		hand_cards,
+		state,
+		hand_index,
+		recipes,
+		hand_card_sources,
+		hand_card_prices,
+		daily_pack_prices
+	)
+	if result.has("pack_index"):
+		result["daily_pack_index"] = int(result.get("pack_index", -1))
+		result["bulletin_index"] = int(result.get("pack_index", -1))
+	return result
 
 
 static func return_hand_card_to_bulletin(
@@ -112,39 +213,65 @@ static func return_hand_card_to_bulletin(
 	hand_card_prices: Array = [],
 	bulletin_prices: Array = []
 ) -> Dictionary:
+	var result := _return_hand_card_to_pack(
+		bulletin_cards,
+		hand_cards,
+		state,
+		hand_index,
+		recipes,
+		hand_card_sources,
+		hand_card_prices,
+		bulletin_prices
+	)
+	if result.has("pack_index"):
+		result["bulletin_index"] = int(result.get("pack_index", -1))
+		result["daily_pack_index"] = int(result.get("pack_index", -1))
+	return result
+
+
+static func _return_hand_card_to_pack(
+	pack_cards: Array[String],
+	hand_cards: Array[String],
+	state: Dictionary,
+	hand_index: int,
+	recipes: Array[Dictionary] = [],
+	hand_card_sources: Array = [],
+	hand_card_prices: Array = [],
+	pack_prices: Array = []
+) -> Dictionary:
 	if hand_index < 0 or hand_index >= hand_cards.size():
 		return {"success": false, "message": "手牌索引无效。"}
 	var card_id: String = hand_cards[hand_index]
 	if _is_recipe_result_card(card_id, recipes):
-		return {"success": false, "message": "已经合成出的卡不能放回公告栏。"}
+		return {"success": false, "message": "已经合成出的卡不能放回卡包栏。"}
 	if not hand_card_sources.is_empty():
 		var source := str(_array_value_or_default(hand_card_sources, hand_index, "crafted"))
-		if source != "bulletin_free":
-			return {"success": false, "message": "付费购入或已合成的卡不能退回公告栏。"}
+		if source != "daily_pack_free" and source != "bulletin_free":
+			return {"success": false, "message": "付费购入或已合成的卡不能退回卡包栏。"}
 
 	var empty_index := -1
-	for index in range(bulletin_cards.size()):
-		if str(bulletin_cards[index]).is_empty():
+	for index in range(pack_cards.size()):
+		if str(pack_cards[index]).is_empty():
 			empty_index = index
 			break
 	if empty_index == -1:
-		return {"success": false, "message": "公告栏没有可放回的位置。"}
+		return {"success": false, "message": "卡包栏没有可放回的位置。"}
 
 	var restored_price := int(_array_value_or_default(hand_card_prices, hand_index, 0))
 	hand_cards.remove_at(hand_index)
-	bulletin_cards[empty_index] = card_id
+	pack_cards[empty_index] = card_id
 	if hand_index < hand_card_sources.size():
 		hand_card_sources.remove_at(hand_index)
 	if hand_index < hand_card_prices.size():
 		hand_card_prices.remove_at(hand_index)
-	_set_array_value(bulletin_prices, empty_index, restored_price, 0)
+	_set_array_value(pack_prices, empty_index, restored_price, 0)
 	state["selected_cards_today"] = maxi(int(state.get("selected_cards_today", 0)) - 1, 0)
 	return {
 		"success": true,
 		"card_id": card_id,
-		"bulletin_index": empty_index,
+		"pack_index": empty_index,
 		"price": restored_price,
-		"message": "卡牌已放回公告栏。"
+		"message": "卡牌已放回卡包栏。"
 	}
 
 

@@ -135,12 +135,18 @@ func resolve_dusk() -> PackedStringArray:
 	var lines: PackedStringArray = []
 	var state: Dictionary = GameState.get_state()
 	var need_result: Dictionary = RESIDENT_NEED_SYSTEM.settle_daily_need_entities(state, DataRepository.cards_by_id)
-	lines.append("需求结算: 满足 %d, 小红花兜底 %d, 未满足 %d, 民心 %d" % [
-		int(need_result.get("fulfilled_count", 0)),
+	lines.append("需求结算: 手动满足 %d, 自动满足 %d, 小红花兜底 %d, 未满足 %d, 民心 %d" % [
+		int(need_result.get("manual_fulfilled_count", 0)),
+		int(need_result.get("auto_fulfilled_count", 0)),
 		int(need_result.get("fallback_count", 0)),
 		int(need_result.get("unmet_count", 0)),
 		int(state.get("moral", 0))
 	])
+	lines.append("主动服务 %d 次：白天奖励已即时发放（小红花 / 资金）。" % int(need_result.get("manual_fulfilled_count", 0)))
+	if str(need_result.get("auto_service_reward_mode", "")) == "resource_and_moral":
+		lines.append("自动服务 %d 次：黄昏补发小红花 / 资金。" % int(need_result.get("auto_fulfilled_count", 0)))
+	else:
+		lines.append("自动服务 %d 次：本轮不补发小红花 / 资金。" % int(need_result.get("auto_fulfilled_count", 0)))
 	var board_cells: Array[Dictionary] = state.get("board_cells", [])
 	BOARD_RULES.apply_land_unlock_stage(board_cells, int(state.get("land_unlock_stage", BOARD_RULES.land_unlock_stage_from_cells(board_cells))))
 	GameState.last_settlement_lines = lines
@@ -154,6 +160,7 @@ func resolve_night() -> Dictionary:
 	var summary: Dictionary = {}
 	if should_end_by_moral(state):
 		summary["ended_by"] = "moral"
+		emit_signal("game_finished", summary)
 		return summary
 	state["day_count"] = int(state.get("day_count", 1)) + 1
 	var move_in_result: Dictionary = RESIDENT_SYSTEM.refill_residents_for_housing_capacity(state, DataRepository.residents, DataRepository.cards_by_id)
@@ -166,4 +173,3 @@ func _resource_label(resource_key: String) -> String:
 	if DataRepository.cards_by_id.has(resource_key):
 		return str(DataRepository.cards_by_id.get(resource_key, {}).get("name", resource_key))
 	return DataRepository.display_resource_name(resource_key)
-

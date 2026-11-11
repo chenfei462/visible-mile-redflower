@@ -33,6 +33,12 @@ var opening_playability_plan: Dictionary = {}
 var card_packs: Dictionary = {}
 var validation_errors: PackedStringArray = []
 const DEFAULT_ART_PLACEHOLDER_PATH := "res://icon.svg"
+const ART_KIND_DIRECTORIES := {
+	"card": "res://assets/cards",
+	"icon": "res://assets/icons",
+	"portrait": "res://assets/portraits",
+	"event": "res://assets/events"
+}
 
 
 func _ready() -> void:
@@ -66,6 +72,9 @@ func load_all(base_path: String = "res://data") -> bool:
 	autonomy_levels = []
 	events = []
 	day_sequence = _load_dictionary("%s/day_sequence.json" % base_path)
+	if not day_sequence.has("daily_pack_cards_per_day"):
+		day_sequence["daily_pack_cards_per_day"] = int(day_sequence.get("bulletin_cards_per_day", 5))
+	day_sequence.erase("bulletin_cards_per_day")
 	strings = _load_dictionary("%s/strings.json" % base_path)
 	tutorial = _load_dictionary("%s/tutorial.json" % base_path)
 	art_manifest = _load_dictionary("%s/art_manifest.json" % base_path)
@@ -234,6 +243,9 @@ func _sanitize_opening_playability_plan(raw_plan: Dictionary) -> Dictionary:
 		if typeof(day_plan_variant) != TYPE_DICTIONARY:
 			continue
 		var day_plan: Dictionary = (day_plan_variant as Dictionary).duplicate(true)
+		if not day_plan.has("daily_pack_card_ids"):
+			day_plan["daily_pack_card_ids"] = day_plan.get("bulletin_card_ids", [])
+		day_plan.erase("bulletin_card_ids")
 		day_plan["recommended_wish_ids"] = []
 		day_plan["pressure_event_ids"] = []
 		sanitized_days.append(day_plan)
@@ -294,16 +306,24 @@ func get_cards_available_for_state(state: Dictionary) -> Array[Dictionary]:
 	return unlocked
 
 
-func is_bulletin_card_type(card_type: String) -> bool:
+func is_daily_pack_card_type(card_type: String) -> bool:
 	return card_type == "material" or card_type == "building_permit"
 
 
-func filter_bulletin_cards(cards: Array[Dictionary]) -> Array[Dictionary]:
+func is_bulletin_card_type(card_type: String) -> bool:
+	return is_daily_pack_card_type(card_type)
+
+
+func filter_daily_pack_cards(cards: Array[Dictionary]) -> Array[Dictionary]:
 	var filtered: Array[Dictionary] = []
 	for card: Dictionary in cards:
-		if is_bulletin_card_type(str(card.get("type", ""))):
+		if is_daily_pack_card_type(str(card.get("type", ""))):
 			filtered.append(card)
 	return filtered
+
+
+func filter_bulletin_cards(cards: Array[Dictionary]) -> Array[Dictionary]:
+	return filter_daily_pack_cards(cards)
 
 
 func get_art_entry(resource_key: String) -> Dictionary:
@@ -328,6 +348,61 @@ func resolve_art_entry(resource_key: String, expected_kind: String = "", default
 		"resolved_path": resolved_path,
 		"fallback_label": fallback_label,
 		"has_custom_asset": not configured_path.is_empty()
+	}
+
+
+func get_art_pipeline_contract() -> Dictionary:
+	return {
+		"manifest_path": "res://data/art_manifest.json",
+		"default_extension": "png",
+		"directories": ART_KIND_DIRECTORIES.duplicate(true),
+		"supported_kinds": ART_KIND_DIRECTORIES.keys(),
+		"key_fields": {
+			"cards": ["art_key", "icon_key"],
+			"residents": ["portrait_key"],
+			"events": ["icon_key"]
+		}
+	}
+
+
+func suggest_art_asset_path(resource_key: String, extension: String = "png") -> String:
+	var normalized_extension := extension.strip_edges().trim_prefix(".").to_lower()
+	if normalized_extension.is_empty():
+		normalized_extension = "png"
+	var inferred_kind := infer_art_kind_for_key(resource_key)
+	var base_directory := str(ART_KIND_DIRECTORIES.get(inferred_kind, "res://assets/misc"))
+	return "%s/%s.%s" % [base_directory, resource_key, normalized_extension]
+
+
+func infer_art_kind_for_key(resource_key: String) -> String:
+	var normalized_key := resource_key.strip_edges().to_lower()
+	if normalized_key.begins_with("icon_"):
+		return "icon"
+	if normalized_key.begins_with("portrait_"):
+		return "portrait"
+	if normalized_key.begins_with("event_") or normalized_key.begins_with("problem_"):
+		return "event"
+	return "card"
+
+
+func get_art_audit_report() -> Dictionary:
+	var entries: Dictionary = art_manifest.get("entries", {})
+	var missing_custom_asset_keys: Array[String] = []
+	var broken_configured_paths: Array[String] = []
+	for key_variant in entries.keys():
+		var key := str(key_variant)
+		var entry: Dictionary = entries.get(key, {})
+		var configured_path := str(entry.get("path", "")).strip_edges()
+		if configured_path.is_empty():
+			missing_custom_asset_keys.append(key)
+			continue
+		if not ResourceLoader.exists(configured_path):
+			broken_configured_paths.append(key)
+	return {
+		"entry_count": entries.size(),
+		"missing_custom_asset_keys": missing_custom_asset_keys,
+		"missing_custom_asset_count": missing_custom_asset_keys.size(),
+		"broken_configured_paths": broken_configured_paths
 	}
 
 
@@ -476,6 +551,9 @@ func _validate_recipes() -> void:
 			validation_errors.append("recipe %s first_discovery_reward should be a dictionary when present" % recipe_id)
 		_validate_resource_bundle("recipe %s first_discovery_reward" % recipe_id, recipe.get("first_discovery_reward", {}))
 		var result_card_id: String = str(recipe.get("result_card_id", ""))
+		var result_card: Dictionary = cards_by_id.get(result_card_id, {})
+		if str(result_card.get("type", "")) == "facility" and float(recipe.get("time_cost_sec", 0.0)) <= 0.0:
+			validation_errors.append("recipe %s should define a positive time_cost_sec for tabletop building work" % recipe_id)
 		var result_card_ids: Array = []
 		if recipe.has("result_card_ids"):
 			if typeof(recipe.get("result_card_ids", [])) != TYPE_ARRAY:
@@ -564,26 +642,26 @@ func _validate_opening_playability_plan() -> void:
 			continue
 		var day_plan: Dictionary = day_plan_variant
 		var day := int(day_plan.get("day", 0))
-		var bulletin_card_ids: Array = day_plan.get("bulletin_card_ids", [])
+		var daily_pack_card_ids: Array = day_plan.get("daily_pack_card_ids", day_plan.get("bulletin_card_ids", []))
 		if day < 1:
 			validation_errors.append("opening_playability_plan has invalid day %d" % day)
-		if bulletin_card_ids.size() < 5:
-			validation_errors.append("opening_playability_plan day %d should provide at least 5 bulletin cards" % day)
-		for card_id_variant in bulletin_card_ids:
+		if daily_pack_card_ids.size() < 5:
+			validation_errors.append("opening_playability_plan day %d should provide at least 5 daily-pack cards" % day)
+		for card_id_variant in daily_pack_card_ids:
 			var card_id := str(card_id_variant)
 			if not cards_by_id.has(card_id):
 				validation_errors.append("opening_playability_plan day %d references missing card %s" % [day, card_id])
 				continue
 			var card_type := str(cards_by_id.get(card_id, {}).get("type", ""))
-			if not is_bulletin_card_type(card_type):
-				validation_errors.append("opening_playability_plan day %d bulletin card %s must be material or building_permit" % [day, card_id])
+			if not is_daily_pack_card_type(card_type):
+				validation_errors.append("opening_playability_plan day %d daily-pack card %s must be material or building_permit" % [day, card_id])
 		for card_id_variant in day_plan.get("fallback_card_ids", []):
 			var card_id := str(card_id_variant)
 			if not cards_by_id.has(card_id):
 				validation_errors.append("opening_playability_plan day %d references missing fallback card %s" % [day, card_id])
 				continue
 			var card_type := str(cards_by_id.get(card_id, {}).get("type", ""))
-			if not is_bulletin_card_type(card_type):
+			if not is_daily_pack_card_type(card_type):
 				validation_errors.append("opening_playability_plan day %d fallback card %s must be material or building_permit" % [day, card_id])
 		for recipe_id_variant in day_plan.get("recommended_recipe_ids", []):
 			var recipe_id := str(recipe_id_variant)

@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="看得见的一公里 演示版"
+config/name="看得见的一公里 Demo"
 config/version="0.3.0"
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.6")
@@ -52,5 +52,4 @@ toggle_debug_panel={
 
 [plugins]
 
-licenses/data_file="res://licenses.json"
 licenses/indentation=1

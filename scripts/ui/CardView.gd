@@ -1,15 +1,22 @@
 extends PanelContainer
 
-signal drag_requested(card_id: String, zone: String, item_index: int, pointer_offset: Vector2)
+signal drag_requested(card_id: String, zone: String, item_index: int, pointer_offset: Vector2, source_view: Control)
 signal primary_action_requested(card_id: String, zone: String, item_index: int)
-signal problem_drop_requested(card_id: String, zone: String, item_index: int, pointer_offset: Vector2)
+signal problem_drop_requested(card_id: String, zone: String, item_index: int, pointer_offset: Vector2, source_view: Control)
 
 const TEXT_COLOR := Color(0.13, 0.15, 0.18)
 const MUTED_TEXT_COLOR := Color(0.34, 0.37, 0.42)
 const LIGHT_TEXT_COLOR := Color(0.98, 0.96, 0.90)
 const LIGHT_MUTED_TEXT_COLOR := Color(0.88, 0.90, 0.90)
-const COMPACT_CARD_SIZE := Vector2(58, 94)
-const COMPACT_ART_HEIGHT := 22
+const COMPACT_CARD_SIZE := Vector2(96, 150)
+const COMPACT_ART_HEIGHT := 48
+const DEMAND_CARD_SIZE := Vector2(104, 150)
+const DEMAND_ART_HEIGHT := 96
+const FULL_CARD_SIZE := Vector2(112, 172)
+const FULL_DEMAND_CARD_SIZE := Vector2(112, 172)
+const FULL_ART_WINDOW_HEIGHT := 90
+const FULL_DEMAND_ART_WINDOW_HEIGHT := 90
+const DIMMED_ALPHA := 0.94
 const LARGE_TEXT_SCALE := 1.3
 const FOOTPRINT_GRID_SIZE := 3
 const FOOTPRINT_CELL_SIZE := 10
@@ -20,6 +27,8 @@ class CraftProgressOverlay extends Control:
 	var progress: float = 0.0
 	var progress_sec: float = 0.0
 	var time_cost_sec: float = 0.0
+	var mode: String = "craft"
+	var label_text: String = ""
 
 
 	func _init() -> void:
@@ -27,12 +36,14 @@ class CraftProgressOverlay extends Control:
 		set_anchors_preset(Control.PRESET_FULL_RECT)
 
 
-	func set_progress(p: float, sec: float, total: float) -> void:
-		if is_equal_approx(progress, p) and is_equal_approx(progress_sec, sec) and is_equal_approx(time_cost_sec, total):
+	func set_progress(p: float, sec: float, total: float, progress_mode: String = "craft", detail_label: String = "") -> void:
+		if is_equal_approx(progress, p) and is_equal_approx(progress_sec, sec) and is_equal_approx(time_cost_sec, total) and mode == progress_mode and label_text == detail_label:
 			return
 		progress = clampf(p, 0.0, 1.0)
 		progress_sec = sec
 		time_cost_sec = total
+		mode = progress_mode
+		label_text = detail_label
 		queue_redraw()
 
 
@@ -41,10 +52,16 @@ class CraftProgressOverlay extends Control:
 			return
 		var radius := minf(size.x, size.y) * 0.34
 		var center := Vector2(size.x * 0.5, size.y * 0.55)
-		draw_circle(center, radius + 6.0, Color(0.0, 0.0, 0.0, 0.55))
-		draw_circle(center, radius + 3.0, Color(0.18, 0.14, 0.08, 0.85))
+		var is_resident_need := mode == "resident_need"
+		var backdrop_color := Color(0.05, 0.20, 0.18, 0.82) if is_resident_need else Color(0.0, 0.0, 0.0, 0.85)
+		var ring_base_color := Color(0.12, 0.36, 0.30, 1.0) if is_resident_need else Color(0.18, 0.14, 0.08, 1.0)
+		var ring_progress_color := Color(0.44, 0.90, 0.72, 1.0) if is_resident_need else Color(1.0, 0.86, 0.34, 1.0)
+		var text_color := Color(0.90, 1.0, 0.95, 1.0) if is_resident_need else Color(1.0, 0.97, 0.78, 1.0)
+		draw_circle(center, radius + 6.0, Color(0.0, 0.0, 0.0, 0.85))
+		draw_circle(center, radius + 3.0, backdrop_color)
+		draw_circle(center, radius + 1.0, ring_base_color)
 		draw_arc(center, radius, -PI * 0.5, -PI * 0.5 + TAU, 36, Color(1.0, 1.0, 1.0, 0.30), 2.0)
-		draw_arc(center, radius, -PI * 0.5, -PI * 0.5 + TAU * progress, 36, Color(1.0, 0.86, 0.34, 1.0), 5.0)
+		draw_arc(center, radius, -PI * 0.5, -PI * 0.5 + TAU * progress, 36, ring_progress_color, 5.0)
 		var remaining := maxf(0.0, time_cost_sec - progress_sec)
 		var text := "%.1fs" % remaining
 		var font := ThemeDB.fallback_font
@@ -54,7 +71,12 @@ class CraftProgressOverlay extends Control:
 		var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
 		var text_pos := center + Vector2(-text_size.x * 0.5, text_size.y * 0.32)
 		draw_string(font, text_pos + Vector2(0, 1), text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, Color(0, 0, 0, 0.95))
-		draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, Color(1.0, 0.97, 0.78, 1.0))
+		draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, text_color)
+		if not label_text.is_empty():
+			var detail_size := font.get_string_size(label_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 10)
+			var detail_pos := center + Vector2(-detail_size.x * 0.5, radius + 14.0)
+			draw_string(font, detail_pos + Vector2(0, 1), label_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 10, Color(0, 0, 0, 0.82))
+			draw_string(font, detail_pos, label_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 10, text_color)
 
 
 class FootprintPreviewCell:
@@ -114,7 +136,14 @@ var _extra_text: String = ""
 var _showing_back: bool = false
 
 var _icon_texture_rect: TextureRect
+var _background_texture_rect: TextureRect
+var _full_art_frame: PanelContainer
+var _full_art_info_overlay: PanelContainer
+var _full_art_title_label: Label
+var _full_art_summary_label: Label
+var _card_progress_bar: ProgressBar
 var _icon_fallback_label: Label
+var _art_content: Control
 var _title_label: Label
 var _meta_label: Label
 var _body_label: Label
@@ -137,6 +166,8 @@ var _primary_action_text := ""
 var _current_type_background_color := Color(0.98, 0.96, 0.92)
 var _current_text_color := TEXT_COLOR
 var _current_muted_text_color := MUTED_TEXT_COLOR
+var _has_full_card_art := false
+var _full_card_art_aspect := 0.0
 
 const PICKUP_SCALE := Vector2(1.05, 1.05)
 const PICKUP_TILT_DEGREES := -4.0
@@ -164,6 +195,8 @@ var _footprint_preview_state := {
 var _craft_progress: float = 0.0
 var _craft_progress_sec: float = 0.0
 var _craft_time_cost_sec: float = 0.0
+var _craft_progress_mode := "craft"
+var _craft_progress_label := ""
 var _craft_progress_overlay: CraftProgressOverlay
 
 
@@ -180,7 +213,6 @@ func _ready() -> void:
 
 func configure(card_def: Dictionary, zone_name: String, index: int, extra_text: String = "", highlighted: bool = false) -> void:
 	_ensure_ui()
-	_apply_compact_size()
 	if _picked_up:
 		_picked_up = false
 		set_process_unhandled_input(false)
@@ -199,7 +231,10 @@ func configure(card_def: Dictionary, zone_name: String, index: int, extra_text: 
 	_dimmed = false
 	_primary_action_visible = false
 	_primary_action_text = ""
+	_has_full_card_art = false
+	_full_card_art_aspect = 0.0
 	_stack_count = int(card_def.get("stack_count", 1))
+	_apply_compact_size()
 	_apply_art(card_def)
 	_showing_back = false
 	_render_face()
@@ -249,9 +284,9 @@ func _gui_input(event: InputEvent) -> void:
 			return
 		_begin_pickup_feedback()
 		if zone == "problem":
-			emit_signal("problem_drop_requested", card_id, zone, item_index, event.position)
+			emit_signal("problem_drop_requested", card_id, zone, item_index, event.position, self)
 		else:
-			emit_signal("drag_requested", card_id, zone, item_index, event.position)
+			emit_signal("drag_requested", card_id, zone, item_index, event.position, self)
 		accept_event()
 
 
@@ -297,6 +332,7 @@ func _ensure_ui() -> void:
 	_title_bar.add_child(title_margin)
 
 	var art_frame := PanelContainer.new()
+	art_frame.name = "InsetArtFrame"
 	_art_frame = art_frame
 	art_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	art_frame.custom_minimum_size = Vector2(0, COMPACT_ART_HEIGHT)
@@ -312,24 +348,33 @@ func _ensure_ui() -> void:
 	art_margin.add_theme_constant_override("margin_bottom", 6)
 	art_frame.add_child(art_margin)
 
-	var art_center := CenterContainer.new()
-	art_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	art_margin.add_child(art_center)
+	var art_content := Control.new()
+	_art_content = art_content
+	art_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	art_content.set_anchors_preset(Control.PRESET_FULL_RECT)
+	art_margin.add_child(art_content)
 
 	_icon_texture_rect = TextureRect.new()
+	_icon_texture_rect.name = "InsetArt"
 	_icon_texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_icon_texture_rect.custom_minimum_size = Vector2(18, 18)
+	_icon_texture_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_icon_texture_rect.offset_left = 0
+	_icon_texture_rect.offset_top = 0
+	_icon_texture_rect.offset_right = 0
+	_icon_texture_rect.offset_bottom = 0
+	_icon_texture_rect.custom_minimum_size = Vector2(44, 34)
 	_icon_texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_icon_texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	art_center.add_child(_icon_texture_rect)
+	art_content.add_child(_icon_texture_rect)
 
 	_icon_fallback_label = Label.new()
 	_icon_fallback_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_icon_fallback_label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_icon_fallback_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_icon_fallback_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_icon_fallback_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_icon_fallback_label.visible = false
-	art_center.add_child(_icon_fallback_label)
+	art_content.add_child(_icon_fallback_label)
 
 	_footprint_grid = GridContainer.new()
 	_footprint_grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -342,7 +387,7 @@ func _ensure_ui() -> void:
 		var footprint_cell := FootprintPreviewCell.new()
 		_footprint_cells.append(footprint_cell)
 		_footprint_grid.add_child(footprint_cell)
-	art_center.add_child(_footprint_grid)
+	art_content.add_child(_footprint_grid)
 
 	_title_label = Label.new()
 	_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -351,6 +396,32 @@ func _ensure_ui() -> void:
 	_title_label.add_theme_color_override("font_color", LIGHT_TEXT_COLOR)
 	_title_label.add_theme_font_size_override("font_size", 10)
 	title_margin.add_child(_title_label)
+
+	_full_art_frame = PanelContainer.new()
+	_full_art_frame.name = "FullArtFrame"
+	_full_art_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_full_art_frame.custom_minimum_size = Vector2(0, FULL_ART_WINDOW_HEIGHT)
+	_full_art_frame.visible = false
+	_full_art_frame.add_theme_stylebox_override("panel", _make_full_art_frame_style())
+	layout.add_child(_full_art_frame)
+
+	var full_art_margin := MarginContainer.new()
+	full_art_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	full_art_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	full_art_margin.add_theme_constant_override("margin_left", 3)
+	full_art_margin.add_theme_constant_override("margin_top", 3)
+	full_art_margin.add_theme_constant_override("margin_right", 3)
+	full_art_margin.add_theme_constant_override("margin_bottom", 3)
+	_full_art_frame.add_child(full_art_margin)
+
+	_background_texture_rect = TextureRect.new()
+	_background_texture_rect.name = "BackgroundArt"
+	_background_texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_background_texture_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_background_texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_background_texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_background_texture_rect.visible = false
+	full_art_margin.add_child(_background_texture_rect)
 
 	_meta_label = Label.new()
 	_meta_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -364,6 +435,56 @@ func _ensure_ui() -> void:
 	_body_label.size_flags_vertical = Control.SIZE_FILL
 	_body_label.clip_text = true
 	layout.add_child(_body_label)
+
+	_full_art_info_overlay = PanelContainer.new()
+	_full_art_info_overlay.name = "FullArtInfoOverlay"
+	_full_art_info_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_full_art_info_overlay.custom_minimum_size = Vector2(0, 34)
+	_full_art_info_overlay.visible = false
+	_full_art_info_overlay.add_theme_stylebox_override("panel", _make_full_art_info_style())
+	layout.add_child(_full_art_info_overlay)
+
+	var full_art_info_margin := MarginContainer.new()
+	full_art_info_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	full_art_info_margin.add_theme_constant_override("margin_left", 5)
+	full_art_info_margin.add_theme_constant_override("margin_top", 2)
+	full_art_info_margin.add_theme_constant_override("margin_right", 5)
+	full_art_info_margin.add_theme_constant_override("margin_bottom", 2)
+	_full_art_info_overlay.add_child(full_art_info_margin)
+
+	var full_art_info_layout := VBoxContainer.new()
+	full_art_info_layout.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	full_art_info_layout.add_theme_constant_override("separation", 0)
+	full_art_info_margin.add_child(full_art_info_layout)
+
+	_full_art_title_label = Label.new()
+	_full_art_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_full_art_title_label.clip_text = true
+	_full_art_title_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_full_art_title_label.add_theme_font_size_override("font_size", 9)
+	_full_art_title_label.add_theme_color_override("font_color", Color(0.10, 0.08, 0.05))
+	full_art_info_layout.add_child(_full_art_title_label)
+
+	_full_art_summary_label = Label.new()
+	_full_art_summary_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_full_art_summary_label.clip_text = true
+	_full_art_summary_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_full_art_summary_label.add_theme_font_size_override("font_size", 8)
+	_full_art_summary_label.add_theme_color_override("font_color", Color(0.18, 0.13, 0.08))
+	full_art_info_layout.add_child(_full_art_summary_label)
+
+	_card_progress_bar = ProgressBar.new()
+	_card_progress_bar.name = "CardProgressBar"
+	_card_progress_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_card_progress_bar.min_value = 0.0
+	_card_progress_bar.max_value = 1.0
+	_card_progress_bar.value = 0.72
+	_card_progress_bar.show_percentage = false
+	_card_progress_bar.custom_minimum_size = Vector2(0, 8)
+	_card_progress_bar.visible = false
+	_card_progress_bar.add_theme_stylebox_override("background", _make_card_progress_background_style())
+	_card_progress_bar.add_theme_stylebox_override("fill", _make_card_progress_fill_style())
+	layout.add_child(_card_progress_bar)
 
 	var button_row := HBoxContainer.new()
 	button_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -409,16 +530,27 @@ func _ensure_ui() -> void:
 
 func set_peek_only(peek: bool) -> void:
 	# In Stacklands-style stacks, lower cards reveal only their title bar.
+	var use_background_art := _has_full_card_art and not _showing_back and not peek
+	if _background_texture_rect != null:
+		_background_texture_rect.visible = use_background_art
+	if _full_art_frame != null:
+		_full_art_frame.visible = use_background_art
 	if _art_frame != null:
-		_art_frame.visible = not peek
+		_art_frame.visible = (not peek) and not use_background_art
 	if _meta_label != null:
-		_meta_label.visible = not peek
+		_meta_label.visible = (not peek) and not use_background_art
 	if _body_label != null:
-		_body_label.visible = not peek
+		_body_label.visible = (not peek) and not use_background_art
 	if _flip_button != null:
-		_flip_button.visible = not peek
+		_flip_button.visible = (not peek) and not use_background_art
+	if _title_bar != null:
+		_title_bar.visible = not peek
+	if _full_art_info_overlay != null:
+		_full_art_info_overlay.visible = use_background_art
+	if _card_progress_bar != null:
+		_card_progress_bar.visible = use_background_art
 	if _action_button != null:
-		_action_button.visible = (not peek) and _primary_action_visible
+		_action_button.visible = (not peek) and (not use_background_art) and _primary_action_visible
 	if peek:
 		custom_minimum_size = Vector2(custom_minimum_size.x, 22)
 		size = Vector2(size.x, 22)
@@ -428,15 +560,32 @@ func set_peek_only(peek: bool) -> void:
 
 func _apply_compact_size() -> void:
 	var text_scale := LARGE_TEXT_SCALE if _large_text_enabled else 1.0
-	custom_minimum_size = Vector2(ceil(COMPACT_CARD_SIZE.x * (1.16 if _large_text_enabled else 1.0)), ceil(COMPACT_CARD_SIZE.y * text_scale))
+	var base_size := _base_card_size_for_current_card()
+	custom_minimum_size = Vector2(ceil(base_size.x * (1.16 if _large_text_enabled else 1.0)), ceil(base_size.y * text_scale))
 	size = custom_minimum_size
 	pivot_offset = size * 0.5
 	if _art_frame != null:
-		_art_frame.custom_minimum_size = Vector2(0, ceil(COMPACT_ART_HEIGHT * (1.2 if _large_text_enabled else 1.0)))
+		_art_frame.custom_minimum_size = Vector2(0, ceil(_art_height_for_current_card() * (1.2 if _large_text_enabled else 1.0)))
+	if _full_art_frame != null:
+		_full_art_frame.custom_minimum_size = Vector2(0, ceil(_full_art_height_for_current_card() * (1.12 if _large_text_enabled else 1.0)))
 	if _footprint_grid != null:
 		var cell_size: float = ceil(FOOTPRINT_CELL_SIZE * (1.15 if _large_text_enabled else 1.0))
 		_footprint_grid.custom_minimum_size = Vector2(cell_size * FOOTPRINT_GRID_SIZE + 6, cell_size * FOOTPRINT_GRID_SIZE + 6)
 	queue_redraw()
+
+
+func _base_card_size_for_current_card() -> Vector2:
+	if _has_full_card_art:
+		return FULL_DEMAND_CARD_SIZE if _card_type_from_def(_card_def) == "demand" else FULL_CARD_SIZE
+	return DEMAND_CARD_SIZE if _card_type_from_def(_card_def) == "demand" else COMPACT_CARD_SIZE
+
+
+func _full_art_height_for_current_card() -> float:
+	return FULL_DEMAND_ART_WINDOW_HEIGHT if _card_type_from_def(_card_def) == "demand" else FULL_ART_WINDOW_HEIGHT
+
+
+func _art_height_for_current_card() -> float:
+	return DEMAND_ART_HEIGHT if _card_type_from_def(_card_def) == "demand" else COMPACT_ART_HEIGHT
 
 
 func is_showing_back() -> bool:
@@ -513,6 +662,10 @@ func _render_face() -> void:
 	if _card_def.is_empty():
 		return
 	_title_label.text = str(_card_def.get("name", card_id))
+	if _full_art_title_label != null:
+		_full_art_title_label.text = str(_card_def.get("name", card_id))
+	if _full_art_summary_label != null:
+		_full_art_summary_label.text = _full_art_summary_text()
 	if _showing_back:
 		_meta_label.visible = true
 		_meta_label.text = "背面 | 详情"
@@ -527,6 +680,7 @@ func _render_face() -> void:
 		_body_label.text = _front_face_visible_text()
 		_flip_button.text = "详"
 	_update_primary_action_button()
+	_apply_background_art_mode()
 	_update_tooltip()
 
 
@@ -691,10 +845,10 @@ func _apply_style(card_type: String) -> void:
 	_current_type_background_color = background
 	style.bg_color = background
 	style.border_color = border
-	style.set_border_width_all(4 if _highlighted else (3 if _linked_craft else 2))
-	style.set_corner_radius_all(10)
-	style.shadow_color = Color(0, 0, 0, 0.10)
-	style.shadow_size = (PICKUP_SHADOW_SIZE if _picked_up else (6 if _highlighted else (5 if _linked_craft else DEFAULT_SHADOW_SIZE)))
+	style.set_border_width_all(6 if _highlighted else (5 if _linked_craft else 4))
+	style.set_corner_radius_all(9)
+	style.shadow_color = Color(0, 0, 0, 0.22)
+	style.shadow_size = (PICKUP_SHADOW_SIZE if _picked_up else (8 if _highlighted else (7 if _linked_craft else 5)))
 	style.shadow_offset = PICKUP_SHADOW_OFFSET if _picked_up else DEFAULT_SHADOW_OFFSET
 	_current_panel_style = style
 	add_theme_stylebox_override("panel", style)
@@ -800,12 +954,52 @@ func _apply_art(card_def: Dictionary) -> void:
 	var display_name: String = str(card_def.get("name", card_id))
 	var icon_key: String = str(card_def.get("icon_key", ""))
 	var art_key: String = str(card_def.get("art_key", ""))
-	var resource_key: String = icon_key if not icon_key.is_empty() else art_key
-	var art_entry: Dictionary = DataRepository.resolve_art_entry(resource_key, "icon", display_name)
-	var texture := _load_texture_or_null(str(art_entry.get("resolved_path", "")))
-	_icon_texture_rect.texture = texture
-	_icon_fallback_label.text = str(art_entry.get("fallback_label", display_name))
-	_icon_fallback_label.visible = texture == null
+	var card_texture: Texture2D = null
+	var icon_texture: Texture2D = null
+	var fallback_entry: Dictionary = {}
+	if not art_key.is_empty():
+		fallback_entry = DataRepository.resolve_art_entry(art_key, "card", display_name)
+		card_texture = _load_texture_or_null(str(fallback_entry.get("resolved_path", "")))
+	if not icon_key.is_empty():
+		var icon_entry: Dictionary = DataRepository.resolve_art_entry(icon_key, "icon", display_name)
+		icon_texture = _load_texture_or_null(str(icon_entry.get("resolved_path", "")))
+		if fallback_entry.is_empty():
+			fallback_entry = icon_entry
+	_has_full_card_art = card_texture != null
+	if _has_full_card_art:
+		_full_card_art_aspect = float(card_texture.get_width()) / maxf(1.0, float(card_texture.get_height()))
+		_apply_compact_size()
+	_icon_texture_rect.texture = icon_texture if icon_texture != null else card_texture
+	if _background_texture_rect != null:
+		_background_texture_rect.texture = card_texture
+	_icon_fallback_label.text = str(fallback_entry.get("fallback_label", display_name))
+	_icon_fallback_label.visible = card_texture == null and icon_texture == null
+	_apply_background_art_mode()
+
+
+func _apply_background_art_mode() -> void:
+	var use_background_art := _has_full_card_art \
+		and _background_texture_rect != null \
+		and _background_texture_rect.texture != null \
+		and not _showing_back
+	if _background_texture_rect != null:
+		_background_texture_rect.visible = use_background_art
+	if _full_art_frame != null:
+		_full_art_frame.visible = use_background_art
+	if _art_frame != null:
+		_art_frame.visible = not use_background_art
+	if _meta_label != null:
+		_meta_label.visible = not use_background_art
+	if _body_label != null:
+		_body_label.visible = not use_background_art
+	if _flip_button != null:
+		_flip_button.visible = not use_background_art
+	if _title_bar != null:
+		_title_bar.visible = true
+	if _full_art_info_overlay != null:
+		_full_art_info_overlay.visible = use_background_art
+	if _card_progress_bar != null:
+		_card_progress_bar.visible = use_background_art
 
 
 func _load_texture_or_null(resource_path: String) -> Texture2D:
@@ -819,12 +1013,58 @@ func _load_texture_or_null(resource_path: String) -> Texture2D:
 	return null
 
 
+func _full_art_summary_text() -> String:
+	var parts := PackedStringArray()
+	parts.append(_display_card_type(str(_card_def.get("type", ""))))
+	var visible_text := _front_face_visible_text()
+	if not visible_text.is_empty():
+		var first_line := visible_text.split("\n", false)[0].strip_edges()
+		if not first_line.is_empty():
+			parts.append(first_line)
+	return " | ".join(parts)
+
+
 func _make_art_frame_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(1, 1, 1, 0.55)
 	style.border_color = Color(0.83, 0.83, 0.86, 0.9)
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(10)
+	return style
+
+
+func _make_full_art_frame_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.05, 0.06, 0.07, 1.0)
+	style.border_color = Color(0.01, 0.015, 0.02, 1.0)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(8)
+	return style
+
+
+func _make_full_art_info_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(1.0, 0.86, 0.55, 1.0)
+	style.border_color = Color(0.50, 0.26, 0.10, 0.98)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(5)
+	return style
+
+
+func _make_card_progress_background_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.07, 0.07, 0.06, 1.0)
+	style.border_color = Color(0.0, 0.0, 0.0, 1.0)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(5)
+	return style
+
+
+func _make_card_progress_fill_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.47, 0.95, 0.80, 1.0)
+	style.border_color = Color(0.47, 0.95, 0.80, 1.0)
+	style.set_corner_radius_all(4)
 	return style
 
 
@@ -835,17 +1075,17 @@ func _card_type_from_def(card_def: Dictionary) -> String:
 func _background_color_for_card_type(card_type: String) -> Color:
 	match card_type:
 		"building_permit":
-			return Color.html("#3A6B88")
+			return Color.html("#3D98D2")
 		"material":
-			return Color.html("#E6D5B8")
+			return Color.html("#F2BA55")
 		"demand":
-			return Color.html("#F3E2B8")
+			return Color.html("#F0A23C")
 		"problem":
 			return Color.html("#C05C54")
 		"facility":
-			return Color(0.91, 0.96, 0.92)
+			return Color.html("#68C982")
 		"support":
-			return Color(0.95, 0.94, 0.99)
+			return Color.html("#7A74D8")
 		_:
 			return Color(0.98, 0.96, 0.92)
 
@@ -853,17 +1093,17 @@ func _background_color_for_card_type(card_type: String) -> Color:
 func _border_color_for_background(background: Color, card_type: String) -> Color:
 	match card_type:
 		"building_permit":
-			return background.darkened(0.28)
+			return Color.html("#17639A")
 		"material":
-			return Color(0.68, 0.50, 0.28)
+			return Color.html("#A65E16")
 		"demand":
-			return Color(0.70, 0.52, 0.18)
+			return Color.html("#B76612")
 		"problem":
 			return background.darkened(0.20)
 		"facility":
-			return Color(0.32, 0.56, 0.39)
+			return Color.html("#2D8E4F")
 		"support":
-			return Color(0.47, 0.36, 0.74)
+			return Color.html("#4D46A5")
 		_:
 			return Color(0.70, 0.54, 0.37)
 
@@ -932,7 +1172,7 @@ func _font_size_for(role: String) -> int:
 
 
 func _update_visual_modulate() -> void:
-	modulate = Color(1, 1, 1, 0.35 if (_dimmed or _craft_dimmed) else 1.0)
+	modulate = Color(1, 1, 1, DIMMED_ALPHA if (_dimmed or _craft_dimmed) else 1.0)
 
 
 func _update_footprint_preview() -> void:
@@ -1121,22 +1361,26 @@ func is_picked_up() -> bool:
 	return _picked_up
 
 
-func set_craft_progress(progress: float, progress_sec: float, time_cost_sec: float) -> void:
+func set_craft_progress(progress: float, progress_sec: float, time_cost_sec: float, mode: String = "craft", label_text: String = "") -> void:
 	var clamped := clampf(progress, 0.0, 1.0)
-	if is_equal_approx(_craft_progress, clamped) and is_equal_approx(_craft_progress_sec, progress_sec) and is_equal_approx(_craft_time_cost_sec, time_cost_sec):
+	if is_equal_approx(_craft_progress, clamped) and is_equal_approx(_craft_progress_sec, progress_sec) and is_equal_approx(_craft_time_cost_sec, time_cost_sec) and _craft_progress_mode == mode and _craft_progress_label == label_text:
 		return
 	_craft_progress = clamped
 	_craft_progress_sec = progress_sec
 	_craft_time_cost_sec = time_cost_sec
+	_craft_progress_mode = mode
+	_craft_progress_label = label_text
 	if _craft_progress_overlay != null and is_instance_valid(_craft_progress_overlay):
-		_craft_progress_overlay.set_progress(clamped, progress_sec, time_cost_sec)
+		_craft_progress_overlay.set_progress(clamped, progress_sec, time_cost_sec, mode, label_text)
 
 
 func get_craft_progress_state() -> Dictionary:
 	return {
 		"progress": _craft_progress,
 		"progress_sec": _craft_progress_sec,
-		"time_cost_sec": _craft_time_cost_sec
+		"time_cost_sec": _craft_time_cost_sec,
+		"mode": _craft_progress_mode,
+		"label": _craft_progress_label
 	}
 
 

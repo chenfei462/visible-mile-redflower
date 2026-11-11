@@ -1,14 +1,14 @@
 # 《看得见的一公里》项目交接文档
 
-更新时间：2026-05-16
+更新时间：2026-05-28
 
 本文档面向下一阶段接手本项目的游戏开发者，目标不是宣传，而是帮助接手者快速理解：这个项目现在已经做到什么程度、核心系统如何串联、代码从哪里进入、哪些部分已可运行、哪些部分仍是 Mock 或过渡实现，以及下一阶段应优先从哪里继续推进。
 
 ## 1. 项目概览
 
-《看得见的一公里》当前是一个基于 Godot 4.6.2 的 PC 单机社区建设卡牌 Demo。项目名在 [project.godot](/C:/Users/hacjr/Desktop/小红花社区/project.godot) 中配置为“看得见的一公里 Demo”，当前版本号是 `0.3.0`，主入口场景是 `res://scenes/Main.tscn`。
+《看得见的一公里》当前是一个基于 Godot 4.6.2 的 PC 单机桌面堆叠社区经营 Demo。项目名在 [project.godot](/C:/Users/hacjr/Desktop/小红花社区/project.godot) 中配置为“看得见的一公里 Demo”，当前版本号是 `0.3.0`，主入口场景是 `res://scenes/Main.tscn`。
 
-从玩法定位上看，它不是传统意义上的“前端 + 后端”分离项目，而是一个完整的本地 Godot 客户端 Demo。玩家围绕“10 个社区日”的固定流程进行选卡、合成、建设、处理问题事件，并在 Day 10 夜间进入年度评级与结局反馈。代码层已经具备主循环、卡牌内容、事件系统、存档、AI 回退、安全面板、无障碍设置、SteamBridge 模拟层以及比赛导出脚本，不再是概念原型。
+从玩法定位上看，它不是传统意义上的“前端 + 后端”分离项目，而是一个以桌面堆叠为主循环、以社区地图落地为二段兑现的本地 Godot 客户端 Demo。玩家通过顶部卡包栏获得卡牌，在实时日间里拖拽堆叠卡牌、把设施放到社区地图、把居民需求拖到对应服务建筑上；夜间只负责推进到下一天，Day 10 之后直接进入 Day 11。代码层已经具备主循环、卡牌内容、桌面 timed craft、地图放置、居民需求、存档、AI 回退、安全面板、无障碍设置、SteamBridge 模拟层以及发布脚本，不再是概念原型。
 
 从仓库形态上看，这个项目已经适合继续做“可玩性稳定化 + 内容扩充 + 正式化集成”，而不是从零搭骨架。接手者应默认这是一个“已有运行链路、已有自动化测试、但仍处于活跃迭代”的 Godot Demo。
 
@@ -21,39 +21,38 @@
 | 本地运行 | 已可运行 | 已验证可通过 [start_game.bat](/C:/Users/hacjr/Desktop/小红花社区/start_game.bat) 在本机启动 |
 | 主循环 | 已成型 | 日出、白天、黄昏、夜间四段流程完整存在 |
 | 主场景 | 已成型 | [Main.tscn](/C:/Users/hacjr/Desktop/小红花社区/scenes/Main.tscn) + [MainView.gd](/C:/Users/hacjr/Desktop/小红花社区/scripts/ui/MainView.gd) 串起全部主流程 |
-| 卡牌内容 | 已有可观规模 | 当前 `cards.json` 中约有 80 张卡 |
-| 配方内容 | 已有可观规模 | 当前 `recipes.json` 中有 43 条 `recipe_id` 记录 |
-| 居民内容 | 已接入运行态 | 当前 `residents.json` 中有 7 个 `resident_id` |
-| 事件内容 | 已接入运行态 | 当前 `events.json` 中有 42 个 `event_id`，包含主线事件、回退事件、链式事件和长时事件定义 |
+| 卡牌内容 | 已有可观规模 | 当前 `cards.json` 中有 80 张 live 卡牌 |
+| 配方内容 | 已有可观规模 | 当前 `recipes.json` 中有 30 条原始记录，其中 27 条 live `recipe_id` 记录 |
+| 居民内容 | 已接入运行态 | 当前 `residents.json` 中有 9 个 `resident_id` |
+| 卡包内容 | 已成型 | 当前 `card_packs.json` 中有 6 个 live pack family，并保留 3 个 legacy alias 条目 |
 | 存档系统 | 已可用 | 支持自动存档、手动存档、读档、旧字段恢复 |
-| AI 事件 | 已接入但可回退 | 支持兼容 DeepSeek 的远程接口，同时内置本地回退链路 |
+| AI / 问题链路 | 已接入但可回退 | 支持兼容 DeepSeek 的远程接口，同时内置本地回退链路；当前 live 数据不再单列 `events.json` |
 | Steam 集成 | 仍为 Mock | 当前通过 [SteamBridge.gd](/C:/Users/hacjr/Desktop/小红花社区/scripts/autoload/SteamBridge.gd) 提供本地模拟 |
-| 测试 | 已具备核心覆盖 | 有核心测试、完整流程 smoke、动画 smoke、平衡 smoke、发布脚本 smoke |
+| 测试 | 已具备核心覆盖 | 有核心测试、完整流程 smoke、动画 smoke、交互 smoke、发布脚本 smoke |
 
-需要特别注意的是，README 中对“80 张卡、40 条配方、12 个固定/AI/混合事件”的描述更像项目阶段性对外概述，而当前数据文件里已经包含了更多配方记录和更多事件定义。事件数量差异主要来自回退事件、链式事件和持续性事件配置，因此后续接手时不要机械地以 README 的数字当成唯一真值，应同时参考 [README.md](/C:/Users/hacjr/Desktop/小红花社区/README.md)、[gameDesign.md](/C:/Users/hacjr/Desktop/小红花社区/gameDesign.md) 和 `data/` 目录现状。
+需要特别注意的是，当前仓库已经完成过一次从旧口径到桌面堆叠版的瘦身迁移。后续接手时，不要再把旧的“固定选卡 + Day 10 终局”描述当成运行真相；应以 [README.md](/C:/Users/hacjr/Desktop/小红花社区/README.md)、[project.godot](/C:/Users/hacjr/Desktop/小红花社区/project.godot)、[run_tests.bat](/C:/Users/hacjr/Desktop/小红花社区/run_tests.bat) 和 `data/` 目录现状为准。
 
 ## 3. 核心玩法循环与目标体验
 
-这个项目的核心体验不是“随机抽卡堆桌面”，而是“明牌选择 + 配方合成 + 棋盘布局 + 社区治理反馈”。
+这个项目当前的核心体验是“卡包开包 + 桌面堆叠 + 地图落地 + 居民需求响应”。
 
 玩家每日主要进行以下动作：
 
-1. 从公告栏中看到当日明牌卡组。
-2. 按天限制从中选择卡牌放入手牌。
-3. 把卡牌拖入合成区，触发配方生成新卡。
-4. 把设施类卡牌放入棋盘格，长期产出资源并形成邻接或区域联动。
-5. 在日出后面对问题事件，用人力或支援卡处理问题。
-6. 在黄昏承担未处理问题带来的惩罚，并观察居民状态与自治进展。
-7. 在最后一天夜间看到年度报告、评级、结局和后续模式解锁状态。
+1. 从顶部卡包栏购买或打开卡包，让卡牌直接落到桌面。
+2. 把桌面上的卡牌互相堆叠，触发 timed craft 合成或生产。
+3. 把设施类卡牌拖到社区地图上，兑现长期产出与服务能力。
+4. 把居民需求卡拖到匹配的服务建筑上，完成一次服务响应。
+5. 在黄昏承担未处理需求带来的惩罚，并结算当天资源与状态变化。
+6. 在夜间查看简短日报，然后进入下一天；Day 10 后继续进入 Day 11。
 
 当前设计与常见堆叠卡牌项目相比，至少有 4 个差异点：
 
-- 选卡来自公告栏明牌，而不是抽随机卡包。
-- 设施进入带区块属性的棋盘，而不是只在桌面上堆叠。
-- 居民是有个人状态、愿望链、留言和记忆的对象，而不是纯资源工人。
-- 后期驱动力不只是资源增长，还包括 `trust`、`autonomy`、评级与通关后模式。
+- 当前唯一卡源是顶部卡包栏，而不是旧的固定明牌选卡流程。
+- 桌面就是主要工作台，堆叠和 timed craft 发生在同一可见空间里。
+- 设施必须真正落到社区地图上，才会兑现长期产出和服务能力。
+- 当前 demo 走连续天数循环，Day 10 不是强制终局。
 
-从代码和文档共同指向的体验目标来看，项目想强调的是：社区建设不只是一串资源公式，而是一套“设施布局 + 居民关照 + 问题响应 + 长期自治”的轻治理模拟。
+从代码和文档共同指向的体验目标来看，项目想强调的是：社区建设不只是一串资源公式，而是一套“桌面经营 + 地图兑现 + 服务响应”的轻量社区经营循环。
 
 ## 4. 系统拆解
 
@@ -65,7 +64,7 @@
 - `funds`：用于日常建设与运转的资金资源。
 - `manpower`：日间操作与问题处理的人力预算。
 - `trust`：长期进度资源，用于内容解锁。
-- `autonomy` / `autonomy_points`：社区自治成长层。
+- 兼容字段如 `autonomy` / `autonomy_points` / `rating` 仍可能出现在运行态或旧存档迁移中，但不再代表当前 live 设计承诺。
 
 [ResourceManager.gd](/C:/Users/hacjr/Desktop/小红花社区/scripts/autoload/ResourceManager.gd) 负责通用资源加减、放置消耗、事件惩罚记录和日志。资源处理相对轻量，核心优势在于“统一入口”，后续如果要补经济平衡、战报记录或 UI 反馈，这里是较好的扩展点。
 
@@ -93,23 +92,15 @@
 居民系统相关逻辑主要在 [ResidentSystem.gd](/C:/Users/hacjr/Desktop/小红花社区/scripts/core/ResidentSystem.gd) 和运行态 `resident_states` 中。当前居民不是静态文本对象，而是会参与多个系统：
 
 - 每日人力产出。
-- 满意度与健康变化。
-- 愿望链完成进度。
-- 事件目标居民绑定。
+- 与需求卡、服务建筑和搬入逻辑的绑定。
 - 个人留言与记忆记录。
-- 自治贡献。
+- 开局引导与问题反馈中的角色呈现。
 
-结合 `data/residents.json`、`data/wishes.json` 和夜间结局逻辑，居民系统已经具备“可扩写内容”的基础框架。后续接手时，如果要增强角色表现，优先不要推翻状态结构，而应在现有 `resident_states`、`wish_progress`、`memory_log`、`personal_messages` 之上扩展展示和反馈。
+旧字段如 `wish_progress`、满意度/健康相关值和其他历史统计仍会在迁移或部分逻辑中保留，但不应再把它们当成当前对玩家承诺的主循环目标。后续如果要增强角色表现，优先不要推翻现有 `resident_states`、`memory_log`、`personal_messages` 结构，而应在这些结构之上扩展展示和反馈。
 
 ### 4.4 事件系统
 
-事件系统由 [EventManager.gd](/C:/Users/hacjr/Desktop/小红花社区/scripts/autoload/EventManager.gd) 管理，当前支持三类事件：
-
-- `fixed`
-- `ai`
-- `hybrid`
-
-事件在日出后生成，进入 `announcement_queue` 和 `active_problems`。每个问题状态至少包含：
+事件与问题链路由 [EventManager.gd](/C:/Users/hacjr/Desktop/小红花社区/scripts/autoload/EventManager.gd) 管理。当前 live 路径以日出注入问题、居民需求和 AI 回退为主，不再依赖独立的 `data/events.json`。运行态中的问题状态至少包含：
 
 - 事件标识与标题
 - 问题卡 `problem_card_id`
@@ -163,7 +154,7 @@
 
 - Day -1 教学场景入口
 - 内联提示
-- 首次选卡、首次合成、首次放置、首次处理问题等进度标记
+- 首次开包、首次合成、首次放置、首次处理问题等进度标记
 
 这为下一阶段继续补新手体验提供了清晰边界，不建议另起一套独立教程状态系统。
 
@@ -182,40 +173,15 @@
 
 [AudioManager.gd](/C:/Users/hacjr/Desktop/小红花社区/scripts/autoload/AudioManager.gd) 负责背景音乐与音效入口，UI 中已有设置入口。无障碍不是后补备注，而是已经进入全局设置层，后续改 UI 时需要保留这一前提。
 
-### 4.8 自治、评级、年度报告与通关后模式
+### 4.8 旧终局字段兼容层
 
-自治系统在 [AutonomySystem.gd](/C:/Users/hacjr/Desktop/小红花社区/scripts/core/AutonomySystem.gd) 中。当前自治阈值是：
+当前仓库仍保留一部分旧进度字段和兼容清洗逻辑，例如 `autonomy`、`autonomy_points`、`rating`、`wish_progress` 和相关摘要结构。这些字段今天的职责主要是：
 
-- Lv0: 0
-- Lv1: 10
-- Lv2: 25
-- Lv3: 45
-- Lv4: 70
+- 兼容旧存档读档与字段归一化。
+- 让历史 UI 状态或测试夹具仍能安全通过迁移流程。
+- 为后续彻底清理遗留口径保留过渡带。
 
-自治点数来自两个主要方向：
-
-- 新建设施数量增长
-- 高满意度与高健康居民的持续贡献
-
-高等级自治还能自动推进或自动解决部分低需求问题，这让自治不只是结算数字，而会反向影响问题处理压力。
-
-评级系统在 [RatingRules.gd](/C:/Users/hacjr/Desktop/小红花社区/scripts/core/RatingRules.gd) 中，综合考虑：
-
-- 居民平均满意度
-- `trust`
-- 愿望完成度
-- 平均健康度
-- 自治等级
-
-Day 10 夜间会生成：
-
-- `rating`
-- `annual_report`
-- `celebration_summary`
-- `resident_epilogues`
-- 通关后模式解锁状态
-
-其中，只有达到 `S` 且自治等级到达最高时，才会解锁 `free_mode` 和 `new_game_plus`。这条边界在交接和后续调平时要特别注意，因为它直接影响玩家是否能看到通关后内容。
+需要特别注意的是，当前 live 数据侧已经不再加载独立的 `wishes.json`、`events.json`、`autonomy_levels.json`，而 [DayCycle.gd](/C:/Users/hacjr/Desktop/小红花社区/scripts/autoload/DayCycle.gd) 的夜间结算也不再在 Day 10 生成 `annual_report`、`celebration_summary` 或终局摘要。后续如果碰这些字段，应把它们视为兼容层，而不是当前玩法承诺。
 
 ### 4.9 SteamBridge 模拟层
 
@@ -236,7 +202,7 @@ Day 10 夜间会生成：
 | [project.godot](/C:/Users/hacjr/Desktop/小红花社区/project.godot) | 项目配置、主场景入口、autoload 注册、窗口配置 |
 | [scenes/](/C:/Users/hacjr/Desktop/小红花社区/scenes) | 主场景、Day -1 教程场景、卡牌视图场景 |
 | [scripts/autoload/](/C:/Users/hacjr/Desktop/小红花社区/scripts/autoload) | 全局状态与服务层 |
-| [scripts/core/](/C:/Users/hacjr/Desktop/小红花社区/scripts/core) | 规则、结算、评级、自治、年报、通关后流程 |
+| [scripts/core/](/C:/Users/hacjr/Desktop/小红花社区/scripts/core) | 桌面规则、地图结算、居民逻辑与兼容迁移相关规则 |
 | [scripts/ui/](/C:/Users/hacjr/Desktop/小红花社区/scripts/ui) | 主界面、卡牌 UI、教学 UI、安全面板 |
 | [data/](/C:/Users/hacjr/Desktop/小红花社区/data) | 游戏内容 JSON、教程配置、平衡目标、资源清单 |
 | [tests/](/C:/Users/hacjr/Desktop/小红花社区/tests) | 核心测试、完整流程 smoke、动画 smoke、发布脚本 smoke |
@@ -285,11 +251,11 @@ Day 10 夜间会生成：
 2. [MainView.gd](/C:/Users/hacjr/Desktop/小红花社区/scripts/ui/MainView.gd) 的 `_ready()` 执行，重置状态、重载教程数据、构建 UI、接入 AI 与设置事件、播放 BGM。
 3. 如果 Day -1 教程尚未完成，优先进入 [DayMinusOne.tscn](/C:/Users/hacjr/Desktop/小红花社区/scenes/DayMinusOne.tscn)；否则直接进入新一天流程。
 4. 新的一天开始时，`DayCycle.resolve_sunrise()` 负责结算居民产出、设施产出、问题处理人力预算和棋盘联动缓存。
-5. 随后 `await EventManager.resolve_sunrise_events_async()` 注入当天问题与公告，其中 AI 或 hybrid 事件会通过 `AIDirector` 尝试远程生成候选内容，失败则本地回退。
-6. 玩家在白天阶段进行公告栏选卡、手牌整理、合成、棋盘放置、问题处理和设置/存档操作。
-7. 玩家点击推进后，`DayCycle.resolve_dusk()` 处理未解决问题惩罚、居民变化、自治成长，并由 `MainView` 触发黄昏自动存档。
-8. 夜间阶段由 `DayCycle.resolve_night()` 决定是进入下一天，还是在 Day 10 计算评级、年度报告、庆典摘要、居民结局和通关后模式。
-9. 若满足条件，`PostGameSystem` 允许进入自由模式或新游戏+；这些后续模式同样会继续走自动存档。
+5. 随后 `await EventManager.resolve_sunrise_events_async()` 注入当天问题与需求，其中 AI 或 hybrid 路径会通过 `AIDirector` 尝试远程生成候选内容，失败则本地回退。
+6. 玩家在白天阶段进行开包、桌面堆叠、地图放置、需求处理和设置/存档操作。
+7. 白天阶段结束后，`DayCycle.resolve_dusk()` 处理未解决问题惩罚、居民变化与黄昏自动存档。
+8. 夜间阶段由 `DayCycle.resolve_night()` 推进到下一天并处理搬入补充；Day 10 之后继续进入 Day 11，不再走终局摘要分支。
+9. 这条链路当前的重点不是一次性通关，而是让桌面循环在连续天数中保持清晰、稳定和可回归。
 
 这条链路说明当前项目已经从“功能片段集合”升级成了“完整状态机”。后续接手时，最容易出问题的不是单个资源公式，而是改动某一系统后破坏了日出、黄昏、夜间之间的联动关系。
 
@@ -302,23 +268,22 @@ Day 10 夜间会生成：
 | [data/cards.json](/C:/Users/hacjr/Desktop/小红花社区/data/cards.json) | 卡牌定义 |
 | [data/recipes.json](/C:/Users/hacjr/Desktop/小红花社区/data/recipes.json) | 配方规则 |
 | [data/residents.json](/C:/Users/hacjr/Desktop/小红花社区/data/residents.json) | 居民基础数据 |
-| [data/wishes.json](/C:/Users/hacjr/Desktop/小红花社区/data/wishes.json) | 愿望链配置 |
-| [data/events.json](/C:/Users/hacjr/Desktop/小红花社区/data/events.json) | 事件定义 |
-| [data/autonomy_levels.json](/C:/Users/hacjr/Desktop/小红花社区/data/autonomy_levels.json) | 自治成长层级配置 |
-| [data/day_sequence.json](/C:/Users/hacjr/Desktop/小红花社区/data/day_sequence.json) | 天数、公告栏数量、每日选卡数量、关键日等流程配置 |
+| [data/card_packs.json](/C:/Users/hacjr/Desktop/小红花社区/data/card_packs.json) | 顶部卡包栏定义 |
+| [data/day_sequence.json](/C:/Users/hacjr/Desktop/小红花社区/data/day_sequence.json) | 天数、每日卡包节奏与关键日流程配置 |
 | [data/tutorial.json](/C:/Users/hacjr/Desktop/小红花社区/data/tutorial.json) | 教程与提示文本 |
-| [data/demo_balance_targets.json](/C:/Users/hacjr/Desktop/小红花社区/data/demo_balance_targets.json) | Demo 平衡目标 |
 | [data/opening_playability_plan.json](/C:/Users/hacjr/Desktop/小红花社区/data/opening_playability_plan.json) | 开局可玩性计划 |
 | [data/art_manifest.json](/C:/Users/hacjr/Desktop/小红花社区/data/art_manifest.json) | 资源清单与占位映射 |
 | [data/strings.json](/C:/Users/hacjr/Desktop/小红花社区/data/strings.json) | 文本表 |
 
 当前可直接确认的规模包括：
 
-- `cards.json` 约 80 张卡。
-- `recipes.json` 有 43 条 `recipe_id`。
-- `residents.json` 有 7 个 `resident_id`。
-- `events.json` 有 42 个 `event_id`。
-- `day_sequence.json` 当前配置 `max_days = 10`、`bulletin_cards_per_day = 5`、`player_card_choices_per_day = 3`、`tutorial_scene_enabled = true`。
+- `cards.json` 有 80 张 live 卡牌。
+- `recipes.json` 有 30 条原始记录，其中 27 条 live `recipe_id`。
+- `residents.json` 有 9 个 `resident_id`。
+- `card_packs.json` 有 6 个 live pack family，并保留 3 个 legacy alias 条目。
+
+如果在代码里仍看到 `wishes`、`events`、`autonomy_levels` 等符号，先把它们理解成兼容残留或空载入结构，不要默认它们背后仍有一份 live JSON 数据源。
+- `day_sequence.json` 当前配置 `max_days = 10`、`daily_pack_cards_per_day = 5`、`player_card_choices_per_day = 3`、`tutorial_scene_enabled = true`。
 
 需要再次强调：README 中的规模描述与 `data/` 目录当前记录可能短期不完全一致，这在活跃开发阶段是正常的。真正接手内容迭代时，建议先建立“README、设计文档、JSON 内容”的统一校对流程，否则策划口径和实际实现会越来越偏。
 
@@ -343,14 +308,14 @@ Day 10 夜间会生成：
 | [tests/run_tests.gd](/C:/Users/hacjr/Desktop/小红花社区/tests/run_tests.gd) | 核心测试入口，先检查 autoload 是否齐全，再执行 [tests/test_core.gd](/C:/Users/hacjr/Desktop/小红花社区/tests/test_core.gd) |
 | [tests/full_game_smoke.gd](/C:/Users/hacjr/Desktop/小红花社区/tests/full_game_smoke.gd) | 在本地回退 AI 配置下跑完整 10 天流程 |
 | [tests/animation_smoke.gd](/C:/Users/hacjr/Desktop/小红花社区/tests/animation_smoke.gd) | 动画相关 smoke |
-| [tests/demo_balance_smoke.gd](/C:/Users/hacjr/Desktop/小红花社区/tests/demo_balance_smoke.gd) | Demo 平衡相关 smoke |
-| [tests/post_game_smoke.gd](/C:/Users/hacjr/Desktop/小红花社区/tests/post_game_smoke.gd) | 通关后相关 smoke |
+| [tests/first_10_minutes_smoke.gd](/C:/Users/hacjr/Desktop/小红花社区/tests/first_10_minutes_smoke.gd) | 开局前 10 分钟路径 smoke |
+| [tests/drag_to_board_smoke.gd](/C:/Users/hacjr/Desktop/小红花社区/tests/drag_to_board_smoke.gd) | 桌面拖拽到地图的核心交互 smoke |
 | [tests/live_ai_smoke.gd](/C:/Users/hacjr/Desktop/小红花社区/tests/live_ai_smoke.gd) | 真实 AI 兼容链路验证 |
 | [tests/release_scripts_smoke.ps1](/C:/Users/hacjr/Desktop/小红花社区/tests/release_scripts_smoke.ps1) | 发布脚本和比赛包链路验证 |
 
 本次交接前已经重新验证：
 
-- [run_tests.bat](/C:/Users/hacjr/Desktop/小红花社区/run_tests.bat) 能通过并输出 `ALL TESTS PASSED`。
+- [run_tests.bat](/C:/Users/hacjr/Desktop/小红花社区/run_tests.bat) 能以退出码 0 跑通核心测试与 smoke 链。
 - [start_game.bat](/C:/Users/hacjr/Desktop/小红花社区/start_game.bat) 能在本机拉起新的 Godot 进程。
 
 ### 构建与比赛发布
@@ -395,9 +360,9 @@ README 中已经定义了发布产物路径：
 
 ### 第二优先级：稳定核心循环与平衡
 
-- 重点验证“公告栏选卡 -> 合成 -> 建设 -> 事件处理 -> 黄昏惩罚 -> 夜间评级”这条链在 10 天内是否始终保持可玩。
+- 重点验证“卡包开包 -> 桌面堆叠 -> 地图放置 -> 需求处理 -> 黄昏惩罚 -> 次日推进”这条链在连续天数里是否始终保持可玩。
 - 优先审视 [tests/full_game_smoke.gd](/C:/Users/hacjr/Desktop/小红花社区/tests/full_game_smoke.gd) 所覆盖的路径是否足够代表真实玩家路径。
-- 对自治增长、问题压力、设施收益、愿望奖励做一次集中平衡梳理。
+- 对卡包成本、问题压力、设施收益、开局引导节奏做一次集中平衡梳理。
 
 ### 第三优先级：降低主界面集成风险
 

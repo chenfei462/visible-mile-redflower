@@ -6,6 +6,7 @@ const PROGRESS_PATH := "user://tutorial_progress.json"
 
 var inline_hints: Dictionary = {}
 var day_minus_one_config: Dictionary = {}
+var _replay_requested := false
 
 
 func _ready() -> void:
@@ -47,9 +48,32 @@ func should_show_day_minus_one() -> bool:
 	return bool(DataRepository.day_sequence.get("tutorial_scene_enabled", true)) and not bool(progress.get("welcome_seen", false))
 
 
+func get_guidance_mode() -> String:
+	if should_show_day_minus_one():
+		return "welcome"
+	if _replay_requested:
+		return "replay"
+	if is_first_guidance_complete():
+		return "complete"
+	return "live_step"
+
+
+func request_tutorial_replay() -> void:
+	_replay_requested = true
+	_emit_progress()
+
+
+func clear_tutorial_replay() -> void:
+	if not _replay_requested:
+		return
+	_replay_requested = false
+	_emit_progress()
+
+
 func complete_day_minus_one() -> void:
 	GameState.mark_tutorial_flag("welcome_seen")
 	GameState.mark_tutorial_flag("completed_day_minus_one")
+	_replay_requested = false
 	_save_progress()
 	_emit_progress()
 

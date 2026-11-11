@@ -1,0 +1,47 @@
+extends SceneTree
+
+const SUITE_PATH := "res://tests/test_core.gd"
+const TARGET_METHODS := [
+	"_test_main_view_day_minus_one_signal_finish_defers_emitter_free",
+	"_test_main_view_animation_tween_finish_defers_runtime_free",
+	"_test_main_view_signal_callbacks_defer_transient_runtime_free",
+	"_test_main_view_engine_teardown_avoids_synchronous_child_free"
+]
+
+
+func _initialize() -> void:
+	call_deferred("_run")
+
+
+func _run() -> void:
+	var suite_script: Script = load(SUITE_PATH)
+	if suite_script == null:
+		push_error("Missing core test suite script: %s" % SUITE_PATH)
+		quit(1)
+		return
+	var suite: RefCounted = suite_script.new()
+	var context := {
+		"data_repository": root.get_node("DataRepository"),
+		"resource_manager": root.get_node("ResourceManager"),
+		"game_state": root.get_node("GameState"),
+		"day_cycle": root.get_node("DayCycle"),
+		"tutorial_manager": root.get_node("TutorialManager"),
+		"ai_director": root.get_node("AIDirector"),
+		"event_manager": root.get_node("EventManager"),
+		"settings_manager": root.get_node("SettingsManager"),
+		"audio_manager": root.get_node("AudioManager"),
+		"save_manager": root.get_node("SaveManager"),
+		"steam_bridge": root.get_node("SteamBridge")
+	}
+	suite.set("_failures", PackedStringArray())
+	suite.set("_context", context)
+	for method_name: String in TARGET_METHODS:
+		await suite.call(method_name)
+	var failures: PackedStringArray = suite.get("_failures")
+	if failures.is_empty():
+		print("TARGETED DAY MINUS ONE TESTS PASSED")
+		quit(0)
+		return
+	for failure: String in failures:
+		push_error(failure)
+	quit(1)

@@ -1,11 +1,13 @@
 extends SceneTree
 
 const BOARD_RULES := preload("res://scripts/core/BoardRules.gd")
+const SMOKE_CLEANUP_HELPERS := preload("res://tests/helpers/smoke_cleanup_helpers.gd")
 
 var failures: PackedStringArray = []
 var main_view: Control
 var game_state: Node
 var data_repository: Node
+var smoke_cleanup_helpers = SMOKE_CLEANUP_HELPERS.new()
 
 
 func _initialize() -> void:
@@ -31,11 +33,8 @@ func _run() -> void:
 	await _test_isometric_overlay_does_not_block_map_clicks()
 
 	if main_view != null and is_instance_valid(main_view):
-		if main_view.has_method("cleanup_for_smoke_test"):
-			main_view.call("cleanup_for_smoke_test")
-		main_view.free()
+		await smoke_cleanup_helpers.dispose_main_view(self, main_view)
 		main_view = null
-	await process_frame
 	call_deferred("_finish")
 
 
@@ -169,7 +168,7 @@ func _test_invalid_board_drops_show_clear_hints() -> void:
 	_open_service_cells(cells, [service_index, BOARD_RULES.cell_index(7, 4), BOARD_RULES.cell_index(8, 4)])
 	main_view.set("hand_cards", _string_array([]))
 	main_view.set("craft_slots", [])
-	main_view.set("bulletin_cards", _string_array([]))
+	main_view.set("daily_pack_cards", _string_array([]))
 	main_view.call("_update_board_ui", cells)
 	await process_frame
 	var iso_grid: Control = main_view.get("iso_grid_painter")
@@ -185,12 +184,12 @@ func _test_invalid_board_drops_show_clear_hints() -> void:
 	_assert_equal(Array(main_view.get("hand_cards")), ["ramp_blueprint"], "building permit cards should stay in hand when dropped on the board")
 	_assert_equal(int(main_view.call("get_active_floating_notifier_count")), 1, "building permit board drops should show a clear floating hint")
 
-	main_view.set("bulletin_cards", _string_array(["lumber_pack"]))
-	_set_drag("lumber_pack", "bulletin", 0)
+	main_view.set("daily_pack_cards", _string_array(["lumber_pack"]))
+	_set_drag("lumber_pack", "daily_pack", 0)
 	var bulletin_dropped: bool = main_view.call("_drop_from_bulletin", {"type": "board", "index": service_index})
 	main_view.call("_cancel_drag")
 	_assert_true(bulletin_dropped, "bulletin board drops should be handled with a hand-first hint")
-	_assert_equal(Array(main_view.get("bulletin_cards")), ["lumber_pack"], "bulletin cards should stay on bulletin when dropped directly on the board")
+	_assert_equal(Array(main_view.get("daily_pack_cards")), ["lumber_pack"], "bulletin cards should stay on bulletin when dropped directly on the board")
 	_assert_equal(int(main_view.call("get_active_floating_notifier_count")), 2, "bulletin board drops should explain the hand-first rule")
 
 	main_view.set("hand_cards", _string_array(["community_ramp"]))
